@@ -3,35 +3,48 @@
     <head>
         <title>Inner Hearth Yoga</title>
         <style type="text/css">
-            body {background-color: #eee; max-width:1024px; margin: auto; padding: 1em}
-            body > div {background-color: #fff; padding: .5em; margin-bottom: 1em; border: 1px solid black; border-radius: 3px; box-shadow: 3px 3px 4px #aaa}
-            div#header div {display:inline-block; margin-right: 1em;}
+            * {font-family: Sanchez, Times New Roman, serif}
+            body {background-color: #005166; max-width:1024px; margin: auto; padding: 1em}
+            body > div {background-color: #FFFBC7; padding: .5em 2em; margin-bottom: 1em; border-radius: 10px; box-shadow: 3px 3px 4px black}
+            div#header {text-align: justify;}
+            div#header div {text-align: center; display:inline-block; vertical-align: middle}
             table#calendar {margin: auto}
             table#calendar td {width: 8em; text-align: center; border: 1px solid black;}
-            table#calendar td:hover {background-color: #eee}
+            table#calendar td:hover {background-color: #fff}
+            h1,h2,h3 {font-family: Amaranth, Verdana, sans-serif}
+            p#motto {font-weight: bold; font-size: 110%; text-align: center; margin-top:0px}
+            h1#title {margin-bottom: 0px; font-size: 250%}
+            span.stretch {width: 100%; display: inline-block; font-size: 0; line-height: 0;}
+            ul.nav-menu {list-style-type: none; padding: 0px; margin: 0px;}
+            ul.nav-menu li {display: inline-block; margin-right: 2em; font-weight: bold}
         </style>
+        <link href='http://fonts.googleapis.com/css?family=Amaranth:700|Sanchez' rel='stylesheet' type='text/css'>
     </head>
     <body>
             <div id="header">
+                <!-- TODO(lauren): Logo. -->
+                <!--
+                <div class="logo">
+                    <img src="logo-large.png" width="150" height="150" alt="Inner Hearth
+                    Yoga"/>
+                </div>
+                -->
                 <div>
-                    <!-- TODO(lauren): Logo. -->
-                    <!--<img src="logo-large.png" width="150" height="150" alt="Inner Hearth
-                    Yoga"/>-->
+                    <h1 id="title">Inner Hearth Yoga</h1>
+                    <p id="motto">Light your Practice on Fire</p>
                 </div>
                 <div>
-                    <h1>Inner Hearth Yoga</h1>
-                    <span>Light your Practice on Fire</span>
-                </div>
-                <div>
-                    Contact us! We like you!
+                    <p style="margin: 0px">Contact us! We like you!</p>
                     <ul style="list-style-type:none; padding: 0px; margin: 0px">
                         <li><a href="mailto:info@innerhearthyoga.com">info@innerhearthyoga.com</a></li>
                         <li>412-204-7227</li>
                     </ul>
                 </div>
+                <!-- TODO(rwsims): Social icons -->
+                <!--
                 <div>
-                    <!-- TODO(rwsims): Social icons -->
                 </div>
+                -->
                 <div style="text-align: right; margin-right: 0px">
                     <p>
                     <a
@@ -40,19 +53,24 @@
                     Pittsburgh, PA 15206<br />
                     </p>
                 </div>
+                <span class="stretch"></span>
             </div>
             <div id="content">
                 <div id="mission">
                     <h1>About Us</h1>
                     <p><strong>Inner Hearth Yoga</strong> is the place to stoke up your yoga
-                    practice alongside the Point Breeze community! Whether you're a novice or a
+                    practice along with the Point Breeze community! Whether you're a novice or a
                     longtime practitioner, our skilled and attentive teachers at the Hearth will
                     meet you where you are. Don't worry about having the right outfit, the best
                     attitude, or the perfect pose. Inner Hearth's yoga is for every body!</p>
 
                     <p>Our teachers help students recognize their bodies' potential through precise
-                    but compassionate instruction, and supply the anatomical context students need
-                    to make empowered choices about their yoga practice.</p>
+                    and compassionate instruction, supplying the anatomical
+                    context students need.</p>
+                    <ul class="nav-menu">
+                        <li><a href="#classes">Our Classes</a></li>
+                        <li><a href="#teachers">Our Teachers</a></li>
+                    </ul>
                 </div>
                 <div>
                     <h3>Plan Your Visit</h3>
@@ -242,7 +260,7 @@
                         <p>A continually
                         flowing series of Sun Salutations and postures connected with the breath, spiced
                         with relevant alignment cues. Students should be in good health, and able to
-                        move continuously for 20 to 30 minutes without a rest.<p/>
+                        move continuously for 20 to 30 minutes.<p/>
                     </div>
                     <div class="class-description" id="yoga-for-beginners">
                         <h3 class="class-name">Yoga For Beginners</h3>
@@ -254,8 +272,8 @@
                         <h3 class="class-name">Yoga I</h3>
                         <p>Emphasis on refining essential yoga postures, building endurance through
                         Sun Salutations and standing poses, and introducing some revolved poses and
-                        backbends. We will begin to explore arm strengthening poses in preparation
-                        for inversions.</p>
+                        backbends. We will begin to explore arm strengthening
+                        poses as preparation for inversions.</p>
                     </div>
                     <div class="class-description" id="yoga-ii">
                         <h3 class="class-name">Yoga II</h3>
@@ -268,11 +286,11 @@
                     </div>
                     <div class="class-description" id="yin-yogassage">
                         <h3 class="class-name">Yin Yogassage&trade;</h3>
-                        <p>During a Yin Yogassage class, students of all levels will be lead through
+                        <p>During a Yin Yogassage class, students of all levels will be led through
                         the quiet, reflective practice of Yin Yoga while receiving massage as they
                         rest in the poses. Students with chronic conditions are welcome, and will be
                         assisted in modifying their practice to accommodate their conditions. Class
-                        size is limited so that each student receives generous attention.
+                        size is limited, insuring that each student receives generous attention.
                         <strong>Preregistration is REQUIRED for Yin Yogassage.</strong></p>
                     </div>
                     <div class="class-description" id="post-natal">
@@ -286,16 +304,18 @@
                     </div>
                     <div class="class-description" id="happy-hour">
                         <h3>Happy Hour Yoga</h3>
-                        <p>A short, fast-flowing, fun class to help you transition from your
-                        workweek into the weekend with a light heart and an open body. Students
-                        should be comfortable moving through several Sun Salutations without pain or
-                        discomfort.</p>
+                        <p>A short, fast-flowing, fun class to help you
+                        transition from your workweek into the weekend with a
+                        light heart and an open body. Students should be in good
+                        health, and able to move continuously for 20 to 30
+                        minutes.</p>
                     </div>
                     <div class="class-description" id="early-bird">
                         <h3>Early Bird Flow</h3>
-                        <p>Wake up and move! This class is designed to get you up, moving and
-                        centered before the work of the day begins. Students should be comfortable
-                        moving through several Sun Salutations without pain or discomfort.</p>
+                        <p>Wake up and move! This class is designed to get you
+                        up, moving and centered before the work of the day
+                        begins. Students should be in good health, and able to
+                        move continuously for 20 to 30 minutes.</p>
                     </div>
                     <div class="class-description" id="pay-what-you-can">
                         <h3>Pay What You Can</h3>
@@ -325,7 +345,7 @@
                     with her husband Nate and their rescued dogs, Chelsea and Buzz.</p>
                 </div>
                 <div>
-                    <h2 class="teacher-name" id="lauren-bio">Lauren Sims</h2>
+                    <h2 class="teacher-name" id="lauren-bio">Lauren Sims (co-owner)</h2>
                     <p>In 2004, <span class="teacher-name">Lauren Sims</span> accidentally walked into
                     a yoga class instead of a martial arts class and never walked out. Lauren is
                     passionate about helping students realize their innate capacity for growth and

@@ -5,8 +5,6 @@
     * {font-family: Sanchez, "Times New Roman", serif}
     body {background-color: #005166; max-width:1024px; margin: auto; padding: 1em}
     body > div {background-color: #FFFBC7; padding: .5em 2em; margin-bottom: 1em; border-radius: 10px; box-shadow: 3px 3px 4px black}
-    div#header {text-align: justify;}
-    div#header div {text-align: center; display:inline-block; vertical-align: middle}
     table#calendar {margin: auto}
     table#calendar td {width: 8em; text-align: center; border: 1px solid black;}
     table#calendar td:hover {background-color: #fff}
@@ -16,41 +14,40 @@
     span.stretch {width: 100%; display: inline-block; font-size: 0; line-height: 0;}
     ul.nav-menu {list-style-type: none; padding: 0px; margin: 0px;}
     ul.nav-menu li {display: inline-block; margin-right: 2em; font-weight: bold}
+    th {text-align: left}
+    .address {margin: 0; text-align: right}
+    .teacher-headshot {float: left; margin-right: 1em}
 </style>
 <link href='http://fonts.googleapis.com/css?family=Amaranth:700|Sanchez' rel='stylesheet' type='text/css'>
 <div id="header">
-    <!-- TODO(lauren): Logo. -->
-    <!--
-    <div class="logo">
-        <img src="logo-large.png" width="150" height="150" alt="Inner Hearth
-        Yoga"/>
-    </div>
-    -->
-    <div>
-        <h1 id="title">Inner Hearth Yoga</h1>
-        <p id="motto">Light your Practice on Fire</p>
-    </div>
-    <div>
-        <p style="margin: 0px">Contact us! We like you!</p>
-        <ul style="list-style-type:none; padding: 0px; margin: 0px">
-            <li><a href="mailto:info@innerhearthyoga.com">info@innerhearthyoga.com</a></li>
-            <li>412-204-7227</li>
-        </ul>
-    </div>
-    <!-- TODO(rwsims): Social icons -->
-    <!--
-    <div>
-    </div>
-    -->
-    <div style="text-align: right; margin-right: 0px">
-        <p>
-        <a
-            href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">6736
-            Reynolds Street</a> (second floor)<br/>
-        Pittsburgh, PA 15206<br />
-        </p>
-    </div>
-    <span class="stretch"></span>
+    <table style="width: 100%; text-align: center;">
+        <tr>
+            <td>
+                <img src="images/large_logo.png" alt="Inner Hearth Yoga"/>
+            </td>
+
+            <td style="vertical-align: top">
+                <h1 id="title" class="header-section">Inner Hearth Yoga</h1>
+                <p id="motto">Light your Practice on Fire</p>
+            </td>
+
+            <td style="text-align: right;">
+                <!--<p style="text-align: center">Contact us! We like you!-->
+                <ul style="list-style-type:none; padding: 0px; margin: 0px">
+                    <li><a href="mailto:info@innerhearthyoga.com">info@innerhearthyoga.com</a>
+                    <li>412-204-7227
+                </ul>
+                <p class="address">
+                <a href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">6736 Reynolds Street</a> (second floor)
+            <p class="address">Pittsburgh, PA 15206
+        </td>
+        <!-- TODO(rwsims): Social icons -->
+        <!--
+        <div>
+        </div>
+        -->
+    </tr>
+</table>
     <p style="text-align: center; margin: 0px; font-weight:
     bold">Inner Hearth opens January 7, 2013.</p>
     <p style="text-align: center; margin: 0px">$5 classes (with the exception of Yin
@@ -69,14 +66,13 @@
         <ul class="nav-menu">
             <li><a href="#classes">Our Classes</a>
             <li><a href="#teachers">Our Teachers</a>
-            <li>Pricing info (coming soon!)
+            <li><a href="#pricing">Pricing Info</a>
         </ul>
     </div>
     <div>
         <h3>Plan Your Visit</h3>
         <p>Our classroom opens 15 minutes before class begins. We're on the second floor at <a
-            href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">6736
-            Reynolds Street</a> in Point Breeze, above Make Your Mark Artspace and Coffeehouse.
+            href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">6736 Reynolds Street</a> in Point Breeze, above Make Your Mark Artspace and Coffeehouse.
         Street parking is available for free.
 
         <p>If you visit our studio after Make Your Mark Coffeehouse is closed, please use the
@@ -90,7 +86,8 @@
 </div>
 <div id="classes">
     <h1>Our Classes</h1>
-    <p>Classes begin January 7, 2013</p>
+    <p>Classes begin January 7, 2013
+    <p><strong>SCHEDULE UPDATE:</strong> Our Tuesday class lineup has changed! Please stay tuned for updates to our Tuesday evening schedule.
     <table id="calendar">
         <tr>
             <th>Mon</th>
@@ -184,11 +181,7 @@
                 <a href="#yoga-ii">Yoga II</a><br/>
                 <a href="#lauren-bio">Lauren</a>
             </td>
-            <td><!-- Tues -->
-                6 &ndash; 7:15pm<br/>
-                <a href="#pay-what-you-can">Pay What You Can</a><br/>
-                <a href="#julie-bio">Julie</a>
-            </td>
+            <td>&nbsp;</td><!-- Tues -->
             <td><!-- Wed -->
                 6:15 &ndash; 7:45pm<br/>
                 <a href="#yoga-i">Yoga I</a><br/>
@@ -205,11 +198,7 @@
         </tr>
         <tr>
             <td>&nbsp;</td><!-- Mon -->
-            <td><!-- Tues -->
-                7:30 &ndash; 9pm<br/>
-                <a href="#yin-yoga">Yin Yoga</a><br/>
-                <a href="#julie-bio">Julie</a>
-            </td>
+            <td>&nbsp;</td><!-- Tues -->
             <td>&nbsp;</td><!-- Wed -->
             <td><!-- Thurs -->
                 7 &ndash; 9pm<br/>
@@ -246,6 +235,11 @@
             </td>
         </tr>
     </table>
+    <h2>How To Register</h2>
+    <p>Online registration is coming soon. You may register for class in person at the Inner Hearth Yoga studio. Payments should be made at the studio with cash, check or credit card!
+    <p>Although you are welcome to drop in to class at any time, Inner Hearth Yoga is session-based.
+    You may register at any point during a session, and we will pro-rate your session fee
+    accordingly.
     <div id="descriptions">
         <h2>Class Descriptions</h2>
         <div class="class-description" id="aligned-flow">
@@ -317,18 +311,93 @@
             before the work of the day begins. Students should be in good health, and able
             to move continuously for 20 to 30 minutes.
         </div>
-        <div class="class-description" id="pay-what-you-can">
-            <h3>Pay What You Can</h3>
-            <p>This class is open to anyone who has a restricted income but still wants to
-            practice yoga under the guidance of a skilled teacher. Pay what you can afford,
-            and enjoy a great practice!
-        </div>
     </div>
+    <h2 id="pricing">Pricing</h2>
+    <h3>How Our Classes Work</h3>
+    <p>Inner Hearth Yoga offers classes in sessions, like semesters! Just like a class offered at a
+    university, each weekly class builds on what was taught during previous classes. This
+    progressive teaching style helps students grow strength, skill and flexibility throughout the
+    session.
+
+    <p>When you register for a session at Inner Hearth:
+
+    <ul>
+        <li>You get a better deal, because your per-class cost decreases.
+        <li>You get the best of both worlds - attend all the classes you can, but make up all the
+        classes you miss! You may make up classes either before or after you miss them, in any class
+        that's appropriate for your level (with the exception of Yin Yogassage), by the end of the
+        session in which you missed the class.
+        <li>Regular attendance to classes not only builds your practice but builds a strong,
+        supportive yoga community. Making a commitment to your practice means making a commitment to
+        you.
+        <li>Your teachers gets to know you better, making it easier for them to offer  modifications
+        that are suited just for you
+    </ul>
+
+    <p>We offer a $5 preview week before each new session starts, giving you the chance to try out
+    different teachers, class times, and class types. You can register online or in person at the
+    studio at any point during the session - we will pro-rate your session fee based off of how many
+    weeks have elapsed when you decide to register.
+
+    <p>We also offer Six-Week Short Courses. These are like taking a special workshop that meets
+    once a week for six weeks! We offer them on topics we think you’ll like, such as Yoga Basics for
+    Beginners and Post-Natal Yoga for moms and pre-crawling babies. You can get a taste of the short
+    course content by coming to $5 Preview Week - try before you buy!
+    <table>
+        <tr>
+            <th colspan="2">Drop In Pricing</th>
+        </tr>
+        <tr>
+            <td>90 &amp; 75 minute class:</td>
+            <td>$15</td>
+        </tr>
+        <tr>
+            <td>60 minute class:</td>
+            <td>$12</td>
+        </tr>
+        <tr>
+            <td>Yin Yogassage:</td>
+            <td>$40 per class. Yin Yogassage is drop-in only.</td>
+        </tr>
+        <tr>
+            <th colspan="2">Session Pricing (Winter/Spring Session is 12 weeks long)</th>
+        <tr>
+            <td>90 minute class:</td>
+            <td>$144 ($12 per class)</td>
+        </tr>
+        <tr>
+            <td>75 minute class:</td>
+            <td>$132 ($11 per class)</td>
+        </tr>
+        <tr>
+            <td>60 minute class:</td>
+            <td>$120 ($10 per class)</td>
+        </tr>
+
+        <tr>
+            <th colspan="2">Six-Week Short Course Pricing</th>
+        </tr>
+        <tr>
+            <td colspan="2">All Six-Week Short Courses are only $66!</td>
+        </tr>
+
+        <tr>
+            <th colspan="2">Dates for Winter/Spring Session</th>
+        <tr>
+            <td>$5 Preview Week:</td>
+            <td>January 7 - 13 (All classes are $5 except Yin Yogassage)</td>
+        </tr>
+        <tr>
+            <td>Winter/Spring Session:</td>
+            <td>January 14 - April 7 (12 weeks)</td>
+        </tr>
+    </table>
 </div>
 <div id="teachers">
     <h1>Our Teachers</h1>
     <div>
         <h2 class="teacher-name" id="jill-bio">Jill Cummings (co-owner)</h2>
+        <img class="teacher-headshot" src="images/jill-headshot.jpg" alt="Jill Cummings" />
         <p><span class="teacher-name">Jill Cummings</span> found yoga back in 1999 at the
         12th Street Gym in Philadelphia while seeking a practice to nurture her body after
         years of banging it up as an athlete. A few years later she became certified to
@@ -349,6 +418,7 @@
     </div>
     <div>
         <h2 class="teacher-name" id="lauren-bio">Lauren Sims (co-owner)</h2>
+        <img class="teacher-headshot" src="images/lauren-headshot.jpg" alt="Lauren Sims" />
         <p>In 2004, <span class="teacher-name">Lauren Sims</span> accidentally walked into a
         yoga class instead of a martial arts class and never walked out. Lauren is
         passionate about helping students realize their capacity for growth and change, and
@@ -368,24 +438,8 @@
         at first sight. She lives in Shadyside with her husband and two entitled cats.
     </div>
     <div class="teacher-bio">
-        <h2 class="teacher-name" id="julie-bio">Julie Menge</h2>
-        <p><span class="teacher-name">Julie Menge</span> started teaching yoga in 2010 when
-        she completed her 200 hour teacher training in the style of vinyasa yoga. After much
-        soul searching, Julie left her career in human resources to teach yoga full-time and
-        hasn't looked back since. She hopes that you will walk away from her classes with
-        strength, calmness, and a sense of empowerment regarding your practice, your life,
-        and the decisions you make on and off the mat. Julie has also studied and teaches
-        yin yoga.  She loves encouraging her vinyasa students to check out the "other half
-        of their yoga practice" and try a yin class!
-
-        <p>Julie's classes are mainly influenced by Seane Corn (after completing a teacher
-        training intensive with her in 2012), as well as the many incredibly talented local
-        teachers in Pittsburgh.  As of January 2013, she is also enrolled in a YogaWorks
-        teacher training program to continue her yoga education. Julie lives in Wilkinsburg
-        with her husband Nate and their rescued dogs, Chelsea and Buzz.
-    </div>
-    <div class="teacher-bio">
         <h2 class="teacher-name" id="brad-bio">Brad Mumpower</h2>
+        <img class="teacher-headshot" src="images/brad-headshot.jpg" alt="Brad Mumpower" />
         <p><span class="teacher-name">Brad Mumpower</span> is a Certified Massage
         Therapist and Reiki Master working in private practice in Pittsburgh,
         specializing in deep tissue and trigger point therapy. In addition to teaching
@@ -395,6 +449,7 @@
         Yogassage™, a practice that seamlessly blends restorative yoga poses and
         bodywork.
     </div>
+    <div style="clear: both"></div>
 </div>
 <script>
     var _gaq = _gaq || [];

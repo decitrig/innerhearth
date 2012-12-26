@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<a href="{{.LogoutURL}}">logout</a>
+<form action="registration/admin/add-class" method="post">
+	<ul>
+		<li><label for="shortname">Short name:</label>
+			<input type="text" required="required" name="shortname" id="shortname" />
+		<li><label for="longname">Long name:</label>
+			<input type="text" required="required" name="longname" id="longname" />
+		<li><label for="maxstudents">Max students:</label>
+			<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" />
+	</ul>
+</form>

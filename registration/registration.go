@@ -1,12 +1,16 @@
 package registration
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 
 	"appengine"
 	"appengine/user"
+
+	"model"
 )
 
 var (
@@ -14,63 +18,115 @@ var (
 	adminPage        = template.Must(template.ParseFiles("registration/admin.html"))
 )
 
+type appError struct {
+	Error   error
+	Message string
+	Code    int
+}
+
+type handler func(w http.ResponseWriter, r *http.Request) *appError
+
+func postOnly(handler handler) handler {
+	return func(w http.ResponseWriter, r *http.Request) *appError {
+		if r.Method != "POST" {
+			return &appError{fmt.Errorf("GET access to %s", r.URL), "Not Found", 404}
+		}
+		return handler(w, r)
+	}
+}
+
+func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := fn(w, r); err != nil {
+		c := appengine.NewContext(r)
+		c.Errorf("Error: %s", err.Error)
+		http.Error(w, err.Message, err.Code)
+	}
+}
+
 func init() {
-	http.HandleFunc("/registration", register)
-	http.HandleFunc("/registration/new", newRegistration)
-	http.HandleFunc("/registration/admin", admin)
+	http.Handle("/registration", handler(register))
+	http.Handle("/registration/new", handler(newRegistration))
+	http.Handle("/registration/admin", handler(admin))
+	http.Handle("/registration/admin/add-class", handler(postOnly(adminAddClass)))
 }
 
-type Class struct {
-	ShortName       string
-	LongName        string `datstore: ",noindex"`
-	MaxStudents     int32  `datastore: ",noindex"`
-	CurrentStudents int32
-}
-
-type Student struct {
-	First string `datastore: ",noindex"`
-	Last  string `datastore: ",noindex"`
-	Email string
-}
-
-func redirectToLogin(w http.ResponseWriter, r *http.Request) {
+func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	url, err := user.LoginURL(c, r.URL.String())
 	if err != nil {
-		c.Errorf("Error creating login url: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return &appError{err, "An error occured", http.StatusInternalServerError}
 	}
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusSeeOther)
+	return nil
 }
 
-func admin(w http.ResponseWriter, r *http.Request) {
+func admin(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	if !user.IsAdmin(c) {
 		redirectToLogin(w, r)
-		return
+		return nil
 	}
 	data := make(map[string]string, 0)
 	url, err := user.LogoutURL(c, r.URL.String())
 	if err != nil {
-		c.Errorf("Error creating logout URL: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	email := user.Current(c).Email
+	token, err := model.GetXSRFToken(c, email)
+	if err != nil {
+		c.Infof("Could not find XSRFToken for admin %s", email)
+		token, err = model.MakeXSRFToken(c, email)
+		if err != nil {
+			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		}
 	}
 	data["LogoutURL"] = url
+	data["XSRFToken"] = token
 	if err := adminPage.Execute(w, data); err != nil {
-		c.Errorf("Error writing admin page template: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return &appError{err, "An error occured", http.StatusInternalServerError}
 	}
+	return nil
 }
 
-func register(w http.ResponseWriter, r *http.Request) {
+func newClassFromPost(r *http.Request) (*model.Class, error) {
+	if r == nil {
+		return nil, errors.New("request must not be nil")
+	}
+	maxStudents, err := strconv.ParseInt(r.FormValue("maxstudents"), 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse %s as int32: %s",
+			r.FormValue("maxstudents"),
+			err)
+	}
+	return model.NewClass(r.FormValue("longname"), int32(maxStudents)), nil
+}
+
+func adminAddClass(w http.ResponseWriter, r *http.Request) *appError {
+	c := appengine.NewContext(r)
+	class, err := newClassFromPost(r)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	if err := class.Insert(c); err != nil {
+		if err != model.ErrClassExists {
+			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		}
+		return &appError{err, fmt.Sprintf("Class %s already exists", class.Name), http.StatusInternalServerError}
+	}
+	c.Infof("Successfully added class %s", class.Name)
+	w.Header().Set("Location", "/registration/admin")
+	w.WriteHeader(http.StatusSeeOther)
+	return nil
+}
+
+func register(w http.ResponseWriter, r *http.Request) *appError {
 	if err := registrationForm.Execute(w, nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
+	return nil
 }
 
-func newRegistration(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "new registration")
+func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
+	return &appError{nil, "Not implemented", http.StatusNotFound}
 }

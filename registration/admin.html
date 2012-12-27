@@ -1,12 +1,14 @@
 <!DOCTYPE html>
+<title>Registration Admin</title>
 <a href="{{.LogoutURL}}">logout</a>
-<form action="registration/admin/add-class" method="post">
+<h1>Add Class</h1>
+<form action="/registration/admin/add-class" method="post">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
 	<ul>
-		<li><label for="shortname">Short name:</label>
-			<input type="text" required="required" name="shortname" id="shortname" />
-		<li><label for="longname">Long name:</label>
+		<li><label for="longname">Name:</label>
 			<input type="text" required="required" name="longname" id="longname" />
 		<li><label for="maxstudents">Max students:</label>
 			<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" />
 	</ul>
+	<button>Add Class</button>
 </form>

@@ -35,6 +35,29 @@ func postOnly(handler handler) handler {
 	}
 }
 
+func adminOnly(handler handler) handler {
+	return func(w http.ResponseWriter, r *http.Request) *appError {
+		c := appengine.NewContext(r)
+		if !user.IsAdmin(c) {
+			redirectToLogin(w, r)
+			return nil
+		}
+		return handler(w, r)
+	}
+}
+
+func xsrfProtected(handler handler) handler {
+	return postOnly(func(w http.ResponseWriter, r *http.Request) *appError {
+		c := appengine.NewContext(r)
+		token := r.FormValue("xsrf_token")
+		email := user.Current(c).Email
+		if !model.ValidXSRFToken(c, user.Current(c).Email, token) {
+			return &appError{fmt.Errorf("Could not validate token for %s", email), "Authorization failure", 403}
+		}
+		return handler(w, r)
+	})
+}
+
 func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := fn(w, r); err != nil {
 		c := appengine.NewContext(r)
@@ -46,8 +69,8 @@ func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func init() {
 	http.Handle("/registration", handler(register))
 	http.Handle("/registration/new", handler(newRegistration))
-	http.Handle("/registration/admin", handler(admin))
-	http.Handle("/registration/admin/add-class", handler(postOnly(adminAddClass)))
+	http.Handle("/registration/admin", handler(adminOnly(admin)))
+	http.Handle("/registration/admin/add-class", handler(adminOnly(xsrfProtected(adminAddClass))))
 }
 
 func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
@@ -63,10 +86,6 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
 
 func admin(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
-	if !user.IsAdmin(c) {
-		redirectToLogin(w, r)
-		return nil
-	}
 	data := make(map[string]string, 0)
 	url, err := user.LogoutURL(c, r.URL.String())
 	if err != nil {
@@ -82,7 +101,7 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 		}
 	}
 	data["LogoutURL"] = url
-	data["XSRFToken"] = token
+	data["XSRFToken"] = token.Token
 	if err := adminPage.Execute(w, data); err != nil {
 		return &appError{err, "An error occured", http.StatusInternalServerError}
 	}

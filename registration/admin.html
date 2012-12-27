@@ -1,7 +1,31 @@
 <!DOCTYPE html>
 <title>Registration Admin</title>
 <a href="{{.LogoutURL}}">logout</a>
-<h1>Add Class</h1>
+<h1>Classes</h1>
+<table>
+	<tr>
+		<th>Name</th>
+		<th>Registrations</th>
+		<th>Capacity</th>
+		<th>&nbsp;</th>
+	</tr>
+	{{range .Classes}}
+	<tr>
+		<td>{{.Name}}</td>
+		<td>{{.Registrations}}</td>
+		<td>{{.Capacity}}</td>
+		<td>
+			{{if .Registrations}}
+			&nbsp;
+			{{else}}
+			<a href="/registration/admin/delete-class?class={{.Name}}">delete</a>
+			{{end}}
+		</td>
+	</tr>
+	{{end}}
+</table>
+
+<h2>Add Class</h2>
 <form action="/registration/admin/add-class" method="post">
 	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
 	<ul>

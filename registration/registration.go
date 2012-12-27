@@ -86,7 +86,7 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
 
 func admin(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
-	data := make(map[string]string, 0)
+	data := make(map[string]interface{}, 0)
 	url, err := user.LogoutURL(c, r.URL.String())
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -100,8 +100,13 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 			return &appError{err, "An error occurred", http.StatusInternalServerError}
 		}
 	}
+	classes, err := model.ListClasses(c)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
 	data["LogoutURL"] = url
 	data["XSRFToken"] = token.Token
+	data["Classes"] = classes
 	if err := adminPage.Execute(w, data); err != nil {
 		return &appError{err, "An error occured", http.StatusInternalServerError}
 	}

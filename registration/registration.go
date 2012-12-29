@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	registrationForm  = template.Must(template.ParseFiles("registration/form.html"))
-	sessionCookieName = "innerhearth-session-id"
+	registrationForm    = template.Must(template.ParseFiles("registration/form.html"))
+	newRegistrationPage = template.Must(template.ParseFiles("registration/registration-new.html"))
+	sessionCookieName   = "innerhearth-session-id"
 )
 
 type appError struct {
@@ -100,7 +101,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	data := map[string]interface{}{
-		"Classes": classes,
+		"Classes":   classes,
 		"XSRFToken": token.Token,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
@@ -110,7 +111,26 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
-	return &appError{nil, "Not implemented", http.StatusNotFound}
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	c := appengine.NewContext(r)
+	if !model.ValidXSRFToken(c, cookie.Value, r.FormValue("xsrf_token")) {
+		return &appError{fmt.Errorf("Invalid XSRF token for %s", cookie.Value), "Authorization error", http.StatusUnauthorized}
+	}
+	reg := model.NewRegistration(c, r.FormValue("class"), r.FormValue("email"))
+	if err := reg.Insert(c); err != nil {
+		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
+	}
+	data := map[string]interface{} {
+		"Email": r.FormValue("email"),
+		"Class": r.FormValue("class"),
+	}
+	if err = newRegistrationPage.Execute(w, data); err != nil {
+		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
+	}
+	return nil
 }
 
 func cookieCheck(w http.ResponseWriter, r *http.Request) *appError {

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Add A Class</title>
+<h1>Add Class</h1>
+<form action="/registration/admin/add-class" method="post">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	<ul>
+		<li><label for="name">Name:</label>
+			<input type="text" required="required" name="name" id="name" />
+		<li><label for="maxstudents">Max students:</label>
+			<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" />
+	</ul>
+	<button>Add Class</button>
+</form>

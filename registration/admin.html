@@ -24,15 +24,7 @@
 	</tr>
 	{{end}}
 </table>
+<a href="/registration/admin/add-class">add class</a>
 
-<h2>Add Class</h2>
-<form action="/registration/admin/add-class" method="post">
-	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
-	<ul>
-		<li><label for="longname">Name:</label>
-			<input type="text" required="required" name="longname" id="longname" />
-		<li><label for="maxstudents">Max students:</label>
-			<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" />
-	</ul>
-	<button>Add Class</button>
-</form>
+
+

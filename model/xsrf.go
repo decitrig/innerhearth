@@ -74,13 +74,17 @@ func GetXSRFToken(c appengine.Context, email string) (*AdminXSRFToken, error) {
 	var err error
 	if token == nil {
 		token, err = lookupStoredToken(c, email)
-		if err != nil {
+		if err != nil && err != datastore.ErrNoSuchEntity {
 			return nil, err
 		}
 	}
 	now := time.Now()
-	if !now.Before(token.Expiration) {
-		return nil, fmt.Errorf("Token for %s has expired", email)
+	if token != nil && now.Before(token.Expiration) {
+		return token, nil
+	}
+	token, err = MakeXSRFToken(c, email)
+	if err != nil {
+		return nil, err
 	}
 	return token, nil
 }

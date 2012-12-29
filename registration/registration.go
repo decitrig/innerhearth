@@ -44,6 +44,13 @@ func xsrfProtected(handler handler) handler {
 	})
 }
 
+func validXSRFToken(r *http.Request) bool {
+	c := appengine.NewContext(r)
+	token := r.FormValue("xsrf_token")
+	email := user.Current(c).Email
+	return model.ValidXSRFToken(c, email, token)
+}
+
 func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := fn(w, r); err != nil {
 		c := appengine.NewContext(r)

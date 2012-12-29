@@ -117,7 +117,9 @@ func deleteClass(w http.ResponseWriter, r *http.Request) *appError {
 	className := r.FormValue("class")
 	c := appengine.NewContext(r)
 	if r.Method == "POST" {
-		return xsrfProtected(doDelete)(w, r)
+		if !validXSRFToken(r) {
+			return &appError{errors.New("Invalid XSRF Token"), "Authorization failure", http.StatusUnauthorized}
+		}
 	}
 	token, err := model.GetXSRFToken(c, user.Current(c).Email)
 	if err != nil {

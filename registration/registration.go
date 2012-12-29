@@ -32,18 +32,6 @@ func postOnly(handler handler) handler {
 	}
 }
 
-func xsrfProtected(handler handler) handler {
-	return postOnly(func(w http.ResponseWriter, r *http.Request) *appError {
-		c := appengine.NewContext(r)
-		token := r.FormValue("xsrf_token")
-		email := user.Current(c).Email
-		if !model.ValidXSRFToken(c, user.Current(c).Email, token) {
-			return &appError{fmt.Errorf("Could not validate token for %s", email), "Authorization failure", 403}
-		}
-		return handler(w, r)
-	})
-}
-
 func validXSRFToken(r *http.Request) bool {
 	c := appengine.NewContext(r)
 	token := r.FormValue("xsrf_token")

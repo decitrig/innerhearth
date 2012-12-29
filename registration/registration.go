@@ -60,7 +60,7 @@ func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	http.Handle("/registration", handler(register))
+	http.Handle("/registration", handler(registration))
 	http.Handle("/registration/new", handler(newRegistration))
 }
 
@@ -75,8 +75,16 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func register(w http.ResponseWriter, r *http.Request) *appError {
-	if err := registrationForm.Execute(w, nil); err != nil {
+func registration(w http.ResponseWriter, r *http.Request) *appError {
+	c := appengine.NewContext(r)
+	classes, err := model.ListClasses(c)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	data := map[string]interface{}{
+		"Classes": classes,
+	}
+	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	return nil

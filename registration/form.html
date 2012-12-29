@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <img src="images/large_logo.png" />
-<form action="/register/new" method="post">
+{{if .Classes}}
+<form action="/registration/new" method="post">
   <ul>
     <li><label for="email">Email:</label>
       <input type="email" id="email" name="email" required="required"/>
     <li><label for="class">Choose class:</label>
       <select id="class" name="class">
-				<option value="foo">Foo Class</option>
+				{{range .Classes}}
+				<option>{{.Name}}</option>
+				{{end}}
       </select>
   </ul>
   <button type="submit">Register</button>
 </form>
+{{else}}
+<p>Sorry, there are no classes currently available for registration. Please check back soon!</p>
+{{end}}

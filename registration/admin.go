@@ -35,7 +35,7 @@ func adminOnly(handler handler) handler {
 		return handler(w, r)
 	}
 }
-
+ 
 func admin(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	url, err := user.LogoutURL(c, r.URL.String())

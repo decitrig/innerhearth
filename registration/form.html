@@ -2,6 +2,7 @@
 <img src="images/large_logo.png" />
 {{if .Classes}}
 <form action="/registration/new" method="post">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
   <ul>
     <li><label for="email">Email:</label>
       <input type="email" id="email" name="email" required="required"/>

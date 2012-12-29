@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	registrationForm = template.Must(template.ParseFiles("registration/form.html"))
+	registrationForm  = template.Must(template.ParseFiles("registration/form.html"))
+	sessionCookieName = "innerhearth-session-id"
 )
 
 type appError struct {
@@ -49,7 +50,8 @@ func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func init() {
 	http.Handle("/registration", handler(registration))
-	http.Handle("/registration/new", handler(newRegistration))
+	http.Handle("/registration/cookiecheck", handler(cookieCheck))
+	http.Handle("/registration/new", handler(postOnly(newRegistration)))
 }
 
 func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
@@ -63,14 +65,43 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func newSessionCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    model.MakeSessionID(),
+		HttpOnly: true,
+	}
+}
+
+func readOrCreateSessionCookie(r *http.Request) *http.Cookie {
+	if cookie, err := r.Cookie(sessionCookieName); err != nil {
+		return cookie
+	}
+	cookie := newSessionCookie()
+	r.AddCookie(cookie)
+	return cookie
+}
+
 func registration(w http.ResponseWriter, r *http.Request) *appError {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		w.Header().Set("Location", "/registration/cookiecheck")
+		http.SetCookie(w, newSessionCookie())
+		w.WriteHeader(http.StatusSeeOther)
+		return nil
+	}
 	c := appengine.NewContext(r)
 	classes, err := model.ListClasses(c)
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
+	token, err := model.GetXSRFToken(c, cookie.Value)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
 	data := map[string]interface{}{
 		"Classes": classes,
+		"XSRFToken": token.Token,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -80,4 +111,17 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	return &appError{nil, "Not implemented", http.StatusNotFound}
+}
+
+func cookieCheck(w http.ResponseWriter, r *http.Request) *appError {
+	if _, err := r.Cookie(sessionCookieName); err != nil {
+		if err != http.ErrNoCookie {
+			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		}
+		fmt.Fprintf(w, "We were unable to write a session cookie; registration requires that cookies be enabled.")
+		return nil
+	}
+	w.Header().Set("Location", "/registration")
+	w.WriteHeader(http.StatusSeeOther)
+	return nil
 }

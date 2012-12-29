@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -47,33 +48,33 @@ var tokenCodec = &memcache.Codec{
 	Unmarshal: unmarshalToken,
 }
 
-func xsrfTokenKey(email string) string {
-	return "adminxsrftoken|" + email
+func xsrfTokenKey(id string) string {
+	return "adminxsrftoken|" + id
 }
 
-func lookupCachedToken(c appengine.Context, email string) *AdminXSRFToken {
+func lookupCachedToken(c appengine.Context, id string) *AdminXSRFToken {
 	token := &AdminXSRFToken{}
-	if _, err := tokenCodec.Get(c, xsrfTokenKey(email), token); err != nil {
+	if _, err := tokenCodec.Get(c, xsrfTokenKey(id), token); err != nil {
 		return nil
 	}
 	return token
 }
 
-func lookupStoredToken(c appengine.Context, email string) (*AdminXSRFToken, error) {
-	key := datastore.NewKey(c, "AdminXSRFToken", email, 0, nil)
+func lookupStoredToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
+	key := datastore.NewKey(c, "AdminXSRFToken", id, 0, nil)
 	token := &AdminXSRFToken{}
 	if err := datastore.Get(c, key, token); err != nil {
 		return nil, err
 	}
-	cacheToken(c, email, token)
+	cacheToken(c, id, token)
 	return token, nil
 }
 
-func GetXSRFToken(c appengine.Context, email string) (*AdminXSRFToken, error) {
-	token := lookupCachedToken(c, email)
+func GetXSRFToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
+	token := lookupCachedToken(c, id)
 	var err error
 	if token == nil {
-		token, err = lookupStoredToken(c, email)
+		token, err = lookupStoredToken(c, id)
 		if err != nil && err != datastore.ErrNoSuchEntity {
 			return nil, err
 		}
@@ -82,23 +83,23 @@ func GetXSRFToken(c appengine.Context, email string) (*AdminXSRFToken, error) {
 	if token != nil && now.Before(token.Expiration) {
 		return token, nil
 	}
-	token, err = MakeXSRFToken(c, email)
+	token, err = MakeXSRFToken(c, id)
 	if err != nil {
 		return nil, err
 	}
 	return token, nil
 }
 
-func token(email string) string {
+func token(id string) string {
 	hash := sha512.New()
 	hash.Write([]byte(time.Now().String()))
-	hash.Write([]byte(email))
+	hash.Write([]byte(id))
 	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
 }
 
-func cacheToken(c appengine.Context, email string, token *AdminXSRFToken) {
+func cacheToken(c appengine.Context, id string, token *AdminXSRFToken) {
 	item := &memcache.Item{
-		Key:    xsrfTokenKey(email),
+		Key:    xsrfTokenKey(id),
 		Object: token,
 	}
 	if err := tokenCodec.Set(c, item); err != nil {
@@ -106,28 +107,28 @@ func cacheToken(c appengine.Context, email string, token *AdminXSRFToken) {
 	}
 }
 
-func storeToken(c appengine.Context, email string, token *AdminXSRFToken) error {
-	key := datastore.NewKey(c, "AdminXSRFToken", email, 0, nil)
+func storeToken(c appengine.Context, id string, token *AdminXSRFToken) error {
+	key := datastore.NewKey(c, "AdminXSRFToken", id, 0, nil)
 	if _, err := datastore.Put(c, key, token); err != nil {
 		return err
 	}
 	return nil
 }
 
-func MakeXSRFToken(c appengine.Context, email string) (*AdminXSRFToken, error) {
+func MakeXSRFToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
 	token := &AdminXSRFToken{
-		Token:      token(email),
+		Token:      token(id),
 		Expiration: time.Now().AddDate(0, 0, 1),
 	}
-	if err := storeToken(c, email, token); err != nil {
+	if err := storeToken(c, id, token); err != nil {
 		return nil, err
 	}
-	cacheToken(c, email, token)
+	cacheToken(c, id, token)
 	return token, nil
 }
 
-func ValidXSRFToken(c appengine.Context, email, providedToken string) bool {
-	token, err := GetXSRFToken(c, email)
+func ValidXSRFToken(c appengine.Context, id, providedToken string) bool {
+	token, err := GetXSRFToken(c, id)
 	if err != nil {
 		return false
 	}
@@ -138,4 +139,11 @@ func ValidXSRFToken(c appengine.Context, email, providedToken string) bool {
 		return false
 	}
 	return true
+}
+
+func MakeSessionID() string {
+	hash := sha512.New()
+	hash.Write([]byte(time.Now().String()))
+	hash.Write([]byte{byte(rand.Intn(256))})
+	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
 }

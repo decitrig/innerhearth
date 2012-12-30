@@ -1,0 +1,5 @@
+We have recieved a registration for "{{.Class}}" from {{.Email}}. Please confirm your registration by visiting {{.ConfirmLink}} in your browser.
+
+However, if you have received this registration in error, or you no longer wish to register for this class, please visit {{.RejectLink}} in your browser.
+
+Thank you from all of us at Inner Hearth Yoga! Please contact us at info@innerhearthyoga.com if you have any questions.

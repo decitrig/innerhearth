@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"appengine"
+	"appengine/taskqueue"
 	"appengine/user"
 
 	"model"
@@ -133,6 +134,16 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 			return classFull(w, r, fullError.Class)
 		}
 		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
+	}
+	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
+		"email": {r.FormValue("email")},
+		"class": {r.FormValue("class")},
+	})
+	t.Name = fmt.Sprintf("email-confirmation|%s|%s", r.FormValue("email"), r.FormValue("class"))
+	if _, err := taskqueue.Add(c, t, ""); err != nil {
+		return &appError{fmt.Errorf("Error enqueuing email task for registration %v: %s", reg, err),
+			"An error occurred, please go back and try again",
+			http.StatusInternalServerError}
 	}
 	data := map[string]interface{}{
 		"Email": r.FormValue("email"),

@@ -26,7 +26,7 @@ func (e *ClassFullError) Error() string {
 type Class struct {
 	Name          string
 	Capacity      int32
-	Registrations int32
+	Registrations int32 `datastore: "-"`
 }
 
 func NewClass(name string, capacity int32) *Class {
@@ -51,6 +51,18 @@ func (c *Class) Insert(context appengine.Context) error {
 		return err
 	}, nil)
 	return err
+}
+
+func CountRegistrations(c appengine.Context, class string) (int32, error) {
+	classKey := datastore.NewKey(c, "Class", class, 0, nil)
+	query := datastore.NewQuery("Registration").
+		Ancestor(classKey).
+		KeysOnly()
+	keys, err := query.GetAll(c, nil)
+	if err != nil {
+		return 0, fmt.Errorf("Error counting registrations for %s: %s", class, err)
+	}
+	return int32(len(keys)), nil
 }
 
 func ListClasses(c appengine.Context) ([]Class, error) {
@@ -123,12 +135,12 @@ func (r *Registration) Insert(c appengine.Context) error {
 		if err := datastore.Get(c, classKey, class); err != nil {
 			return fmt.Errorf("Could not read class %s: %s", r.ClassName, err)
 		}
-		if class.Registrations >= class.Capacity {
-			return classFullError(class.Name)
+		regs, err := CountRegistrations(c, class.Name)
+		if err != nil {
+			return err
 		}
-		class.Registrations++
-		if _, err := datastore.Put(c, classKey, class); err != nil {
-			return fmt.Errorf("Could not write class %s: %s", class.Name, err)
+		if regs >= class.Capacity {
+			return classFullError(class.Name)
 		}
 
 		// Write the registration info.

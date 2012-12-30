@@ -35,7 +35,7 @@ func adminOnly(handler handler) handler {
 		return handler(w, r)
 	}
 }
- 
+
 func admin(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	url, err := user.LogoutURL(c, r.URL.String())
@@ -45,6 +45,16 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 	classes, err := model.ListClasses(c)
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	for idx, class := range classes {
+		count, err := model.CountRegistrations(c, class.Name)
+		c.Infof("%d registrations for %s", count, class.Name)
+		if err != nil {
+			c.Errorf("error: %s", err)
+			continue
+		}
+		classes[idx].Registrations = count
+		c.Infof("class: %v", classes[idx])
 	}
 	data := map[string]interface{}{
 		"LogoutURL": url,

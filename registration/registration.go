@@ -14,6 +14,7 @@ import (
 var (
 	registrationForm    = template.Must(template.ParseFiles("registration/form.html"))
 	newRegistrationPage = template.Must(template.ParseFiles("registration/registration-new.html"))
+	classFullPage       = template.Must(template.ParseFiles("registration/full-class.html"))
 	sessionCookieName   = "innerhearth-session-id"
 )
 
@@ -110,6 +111,13 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func classFull(w http.ResponseWriter, r *http.Request, class string) *appError {
+	if err := classFullPage.Execute(w, class); err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	return nil
+}
+
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
@@ -121,9 +129,12 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	reg := model.NewRegistration(c, r.FormValue("class"), r.FormValue("email"))
 	if err := reg.Insert(c); err != nil {
+		if fullError, ok := err.(*model.ClassFullError); ok {
+			return classFull(w, r, fullError.Class)
+		}
 		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
 	}
-	data := map[string]interface{} {
+	data := map[string]interface{}{
 		"Email": r.FormValue("email"),
 		"Class": r.FormValue("class"),
 	}

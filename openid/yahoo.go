@@ -1,10 +1,10 @@
 package openid
 
 import (
-	"fmt"
+	_ "fmt"
 	"net/http"
 
-	"appengine"
+	_ "appengine"
 )
 
 var (
@@ -16,11 +16,5 @@ func init() {
 }
 
 func startYahooLogin(w http.ResponseWriter, r *http.Request) error {
-	c := appengine.NewContext(r)
-	xrds, err := getXRDSDocument(c, yahooDiscoveryURL)
-	if err != nil {
-		return fmt.Errorf("Error getting Yahoo XRDS document: %s", err)
-	}
-	c.Infof("xrds: %+v", xrds)
 	return nil
 }

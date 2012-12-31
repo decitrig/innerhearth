@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
-	"model"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,13 +14,12 @@ import (
 	"time"
 
 	"appengine"
-	"appengine/datastore"
-	"appengine/urlfetch"
 )
 
 var (
-	loginPage       = template.Must(template.ParseFiles("openid/login.html"))
-	openIDNamespace = "http://specs.openid.net/auth/2.0"
+	loginPage                 = template.Must(template.ParseFiles("openid/login.html"))
+	openIDNamespace           = "http://specs.openid.net/auth/2.0"
+	openIDEndpointServiceType = "http://specs.openid.net/auth/2.0/server"
 )
 
 type openIDHandler func(w http.ResponseWriter, r *http.Request) error
@@ -38,60 +36,79 @@ func handle(path string, handler openIDHandler) {
 	http.Handle(path, handler)
 }
 
-func init() {
-	handle("/_ah/login_required", openIDLogin)
-	handle("/login/account", openIDAccountCheck)
-}
-
-func openIDLogin(w http.ResponseWriter, r *http.Request) error {
-	if err := loginPage.Execute(w, nil); err != nil {
-		return fmt.Errorf("Error rendering login page: %s", err)
-	}
-	return nil
-}
-
-func openIDAccountCheck(w http.ResponseWriter, r *http.Request) error {
-	id := r.FormValue("id")
-	if len(id) == 0 {
-		return fmt.Errorf("Empty id value in URL: %s", r.URL)
-	}
-	c := appengine.NewContext(r)
-	account, err := model.GetOrCreateAccount(c, id)
-	if err != nil {
-		return err
-	}
-	if account.Fresh {
-		http.Redirect(w, r, "/login/account/new", http.StatusSeeOther)
-	} else {
-		http.Redirect(w, r, "/registration", http.StatusSeeOther)
-	}
-	return nil
-}
-
-type xrdsIdentifier struct {
+type XRDSIdentifier struct {
 	XMLName xml.Name "Service"
 	Type    []string
 	URI     string
 	LocalID string
 }
 
-type xrd struct {
+type XRD struct {
 	XMLName xml.Name "XRD"
-	Service xrdsIdentifier
+	Service []XRDSIdentifier
 }
 
-type xrds struct {
+type XRDS struct {
 	XMLName xml.Name "XRDS"
-	XRD     xrd
+	XRD     XRD
 }
 
-func getXRDSDocument(c appengine.Context, url string) (*xrds, error) {
+func (x *XRDS) GetOpenIDEndpoint() (*url.URL, error) {
+	for _, service := range x.XRD.Service {
+		for _, serviceType := range service.Type {
+			if serviceType == openIDEndpointServiceType {
+				return url.Parse(service.URI)
+			}
+		}
+	}
+	return nil, fmt.Errorf("No OpenID endpoint found in XRDS %s", x)
+}
+
+func (x *XRDS) String() string {
+	marshaled, err := xml.MarshalIndent(x, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("%+v", x)
+	}
+	return string(marshaled)
+}
+
+type Endpoint struct {
+	endpoint *url.URL
+}
+
+func (e *Endpoint) String() string {
+	return fmt.Sprintf("Endpoint %s", e.endpoint)
+}
+
+func NewEndpoint(urlString string) (*Endpoint, error) {
+	endpointURL, err := url.Parse(urlString)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't parse %s as URL: %s", urlString, err)
+	}
+	return &Endpoint{endpointURL}, nil
+}
+
+func DiscoverOpenIDEndpoint(client *http.Client, discovery *url.URL) (*Endpoint, error) {
+	if client == nil {
+		client = &http.Client{}
+	}
+	xrds, err := getXRDSDocument(client, discovery.String())
+	if err != nil {
+		return nil, fmt.Errorf("Error getting XRDS document from %s: %s", discovery, err)
+	}
+	endpoint, err := xrds.GetOpenIDEndpoint()
+	if err != nil {
+		return nil, fmt.Errorf("Error looking up endpoint URI: %s", err)
+	}
+	return &Endpoint{endpoint: endpoint}, nil
+}
+
+func getXRDSDocument(client *http.Client, url string) (*XRDS, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating XDRS request: %s", err)
 	}
 	req.Header.Set("Accept", "application/xrds+xml")
-	client := urlfetch.Client(c)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching XDRS document: %s", err)
@@ -102,25 +119,66 @@ func getXRDSDocument(c appengine.Context, url string) (*xrds, error) {
 	}
 	xrdsLocation := resp.Header.Get("X-XRDS-Location")
 	if len(xrdsLocation) > 0 {
-		c.Infof("Following location header: %s", xrdsLocation)
-		return getXRDSDocument(c, xrdsLocation)
+		return getXRDSDocument(client, xrdsLocation)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response body")
 	}
-	xrds := &xrds{}
+	xrds := &XRDS{}
 	if err := xml.Unmarshal(body, xrds); err != nil {
-		return nil, fmt.Errorf("Error unmarshaling XRDS identifier: %s", err)
+		return nil, fmt.Errorf("Error unmarshaling XRDS document: %s", err)
 	}
 	return xrds, nil
 }
 
-type DirectResponse map[string]string
+func (e *Endpoint) SendDirectRequest(client *http.Client, message Message) (Message, error) {
+	resp, err := client.PostForm(e.endpoint.String(), url.Values(message))
+	if err != nil {
+		return nil, fmt.Errorf("Error making direct request: %s", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Direct request returned status code %d", resp.StatusCode)
+	}
+	return parseDirectResponse(resp.Body)
+}
 
-func parseDirectResponse(body io.Reader) (DirectResponse, error) {
+func (e *Endpoint) SendIndirectRequest(w http.ResponseWriter, r *http.Request, request Message) {
+	requestURL := &url.URL{}
+	*requestURL = *(e.endpoint)
+	requestURL.RawQuery = url.Values(request).Encode()
+	http.Redirect(w, r, requestURL.String(), http.StatusSeeOther)
+}
+
+type Message map[string][]string
+
+func newMessage() Message {
+	return make(map[string][]string)
+}
+
+func NewRequest(mode string) Message {
+	return Message{
+		"openid.ns":   {openIDNamespace},
+		"openid.mode": {mode},
+	}
+}
+
+func (m Message) Set(key, value string) {
+	m[key] = []string{value}
+}
+
+func (m Message) Get(key string) string {
+	value := m[key]
+	if value == nil || len(value) == 0 {
+		return ""
+	}
+	return value[0]
+}
+
+func parseDirectResponse(body io.Reader) (Message, error) {
 	reader := bufio.NewReader(body)
-	values := make(map[string]string, 0)
+	message := newMessage()
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -135,103 +193,94 @@ func parseDirectResponse(body io.Reader) (DirectResponse, error) {
 		}
 		key := strings.TrimSpace(line[0:idx])
 		value := strings.TrimSpace(line[idx+1:])
-		values[key] = value
+		message.Set(key, value)
 	}
-	if values["ns"] != openIDNamespace {
-		return nil, fmt.Errorf("Missing/incorrect ns value %s in response %s", values["ns"], values)
+	if ns := message.Get("ns"); ns != openIDNamespace {
+		return nil, fmt.Errorf("Missing/incorrect ns value %s in response %s", ns, message)
 	}
-	return values, nil
+	return message, nil
 }
 
-func verifyWithOP(c appengine.Context, opURL string, values url.Values) (bool, error) {
-	values["openid.mode"] = []string{"check_authentication"}
-	client := urlfetch.Client(c)
-	resp, err := client.PostForm(opURL, values)
-	if err != nil {
-		return false, fmt.Errorf("Error making verification request: %s", err)
+func ParseIndirectResponse(r *http.Request) (Message, error) {
+	values := r.URL.Query()
+	message := newMessage()
+	for k, v := range values {
+		message[k] = v
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return false, fmt.Errorf("Verification request returned status %d", resp.StatusCode)
+	if ns := message.Get("openid.ns"); ns != openIDNamespace {
+		return nil, fmt.Errorf("Missing/incorrect ns value %s in response %s", ns, values)
 	}
-	parsed, err := parseDirectResponse(resp.Body)
-	if err != nil {
-		return false, fmt.Errorf("Error parsing direct response: %s", err)
-	}
-	if parsed["is_valid"] != "true" {
-		return false, fmt.Errorf("OP declared response invalid")
-	}
-	return true, nil
+	return message, nil
 }
 
-type OpenIDAssociation struct {
-	Endpoint   string    `datastore: "-"`
-	Handle     string    `datastore: ",noindex"`
-	Type       string    `datastore: ",noindex"`
-	Expiration time.Time `datastore: ",noindex"`
+type Association struct {
+	Endpoint   string
+	Handle     string
+	Type       string
+	Expiration time.Time
 }
 
-func (a *OpenIDAssociation) HasExpired() bool {
-	return !time.Now().Before(a.Expiration)
+type AssociationRequestOptions struct {
+	AssociationType string
+	SessionType     string
 }
 
-func requestAssociation(c appengine.Context, endpoint string) (*OpenIDAssociation, error) {
-	form := map[string][]string{
-		"openid.ns":           {"http://specs.openid.net/auth/2.0"},
-		"openid.mode":         {"associate"},
-		"openid.assoc_type":   {"HMAC-SHA256"},
-		"openid.session_type": {"no-encryption"},
+func (o *AssociationRequestOptions) GetAssociationType() string {
+	if o == nil || o.AssociationType == "" {
+		return "HMAC-SHA256"
 	}
-	client := urlfetch.Client(c)
-	resp, err := client.PostForm(endpoint, form)
+	return o.AssociationType
+}
+
+func (o *AssociationRequestOptions) GetSessionType() string {
+	if o == nil || o.SessionType == "" {
+		return "no-encryption"
+	}
+	return o.SessionType
+}
+
+func (e *Endpoint) RequestAssociation(client *http.Client, opts *AssociationRequestOptions) (*Association, error) {
+	req := NewRequest("associate")
+	req.Set("openid.assoc_type", opts.GetAssociationType())
+	req.Set("openid.session_type", opts.GetSessionType())
+
+	reply, err := e.SendDirectRequest(client, req)
 	if err != nil {
-		return nil, fmt.Errorf("Error making request: %s", err)
+		return nil, fmt.Errorf("Error making association request %s: %s", req, err)
 	}
-	defer resp.Body.Close()
-	parsed, err := parseDirectResponse(resp.Body)
+	return parseAssociation(e.endpoint, reply)
+}
+
+func parseAssociation(endpoint *url.URL, message Message) (*Association, error) {
+	if err := message.Get("error"); err != "" {
+		return nil, fmt.Errorf("OP refused association request: %s", err)
+	}
+	lifetimeSeconds, err := strconv.ParseInt(message.Get("expires_in"), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing direct request: %s", err)
+		return nil, fmt.Errorf("Could not parse 'expires_in' from message: %s", err)
 	}
-	if len(parsed["error"]) != 0 {
-		return nil, fmt.Errorf("OP returned error: %s", parsed["error"])
-	}
-	lifetimeSeconds, err := strconv.ParseInt(parsed["expires_in"], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not parse %s into seconds", parsed["expires_in"])
-	}
-	association := &OpenIDAssociation{
-		Endpoint:   endpoint,
-		Handle:     parsed["assoc_handle"],
-		Type:       parsed["assoc_type"],
+	association := &Association{
+		Endpoint:   endpoint.String(),
+		Handle:     message.Get("assoc_handle"),
+		Type:       message.Get("assoc_type"),
 		Expiration: time.Now().Add(time.Duration(lifetimeSeconds) * time.Second),
 	}
 	return association, nil
 }
 
-func associateWithOP(c appengine.Context, endpoint string) (*OpenIDAssociation, error) {
-	key := datastore.NewKey(c, "OpenIDAssociation", endpoint, 0, nil)
-	assoc := &OpenIDAssociation{Endpoint: endpoint}
-	err := datastore.Get(c, key, assoc)
-	if err != nil || !time.Now().Before(assoc.Expiration) {
-		assoc, err := requestAssociation(c, endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("Error associating with %s: %s", endpoint, err)
-		}
-		if _, err := datastore.Put(c, key, assoc); err != nil {
-			c.Errorf("Error storing association with %s: %s", endpoint, err)
-		}
-	}
-	return assoc, nil
+func (a *Association) HasExpired() bool {
+	return !time.Now().Before(a.Expiration)
 }
 
-func lookupAssociation(c appengine.Context, endpoint string) *OpenIDAssociation {
-	key := datastore.NewKey(c, "OpenIDAssociation", endpoint, 0, nil)
-	assoc := &OpenIDAssociation{Endpoint: endpoint}
-	if err := datastore.Get(c, key, assoc); err != nil {
-		if err != datastore.ErrNoSuchEntity {
-			c.Errorf("Error looking up association for %s: %s", endpoint, err)
-		}
-		return nil
+func (e *Endpoint) ValidateWithOP(client *http.Client, response Message) bool {
+	request := newMessage()
+	for k, v := range response {
+		request[k] = v
 	}
-	return assoc
+	request.Set("openid.mode", "check_authentication")
+	verification, err := e.SendDirectRequest(client, request)
+	if err != nil {
+		return false
+	}
+	return verification.Get("is_valid") == "true"
 }

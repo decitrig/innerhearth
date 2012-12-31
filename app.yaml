@@ -6,6 +6,9 @@ api_version: go1
 handlers:
 - url: /images
   static_dir: images
+- url: /registration.*
+  script: _go_app
+  login: required
 - url: /task/.*
   script: _go_app
   login: admin

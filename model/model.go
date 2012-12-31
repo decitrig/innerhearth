@@ -116,8 +116,8 @@ func GetRegistration(c appengine.Context, className, studentEmail string) (*Regi
 		ClassName:    className,
 		StudentEmail: studentEmail,
 	}
-	key := reg.CreateKey(c)
-	if err := datastore.Get(c, key); err != nil {
+	key := reg.createKey(c)
+	if err := datastore.Get(c, key, reg); err != nil {
 		return nil, fmt.Errorf("Couldn't find registration for %s in %s: %s", studentEmail, className, err)
 	}
 	return reg, nil

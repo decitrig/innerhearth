@@ -86,6 +86,11 @@ func readOrCreateSessionCookie(r *http.Request) *http.Cookie {
 }
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	if u == nil {
+		return &appError{fmt.Errorf("No logged in user"), "An error occurred", http.StatusInternalServerError}
+	}
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		w.Header().Set("Location", "/registration/cookiecheck")
@@ -93,7 +98,6 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		w.WriteHeader(http.StatusSeeOther)
 		return nil
 	}
-	c := appengine.NewContext(r)
 	classes, err := model.ListClasses(c)
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -139,7 +143,6 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 		"email": {r.FormValue("email")},
 		"class": {r.FormValue("class")},
 	})
-	t.Name = fmt.Sprintf("email-confirmation|%s|%s", r.FormValue("email"), r.FormValue("class"))
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		return &appError{fmt.Errorf("Error enqueuing email task for registration %v: %s", reg, err),
 			"An error occurred, please go back and try again",

@@ -8,6 +8,8 @@ import (
 
 	"appengine"
 	"appengine/mail"
+
+	"model"
 )
 
 var (
@@ -48,12 +50,11 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("Error executing email template: %s", err)
 	}
 	msg := &mail.Message{
-		Sender:  "no-reply@innerhearthyoga.com",
+		Sender:  "no-reply@innerhearthyoga.appspotmail.com",
 		To:      []string{r.FormValue("email")},
 		Subject: fmt.Sprintf("Please confirm registration for %s at Inner Hearth Yoga", r.FormValue("class")),
 		Body:    buf.String(),
 	}
-	c := appengine.NewContext(r)
 	if err := mail.Send(c, msg); err != nil {
 		return fmt.Errorf("Error sending confirmation email to %s: %s", r.FormValue("email"), err)
 	}

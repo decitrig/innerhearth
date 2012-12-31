@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+Choose your login provider:
+<ul>
+{{range .Providers}}
+<li><a href="/login/discover?openid_identifier={{.Identifier}}">{{.Name}}</a>
+{{end}}
+</ul>
+<form method="POST" action="/login/discover">
+	<input type="text" name="openid_identifier" />
+	<button>Login</button>
+</form>

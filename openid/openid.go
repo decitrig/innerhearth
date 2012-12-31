@@ -2,9 +2,13 @@ package openid
 
 import (
 	"bufio"
+	"crypto/hmac"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
-	"html/template"
+	"hash"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,29 +16,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"appengine"
 )
 
 var (
-	loginPage                 = template.Must(template.ParseFiles("openid/login.html"))
 	openIDNamespace           = "http://specs.openid.net/auth/2.0"
 	openIDEndpointServiceType = "http://specs.openid.net/auth/2.0/server"
+	identifierSelect          = "http://specs.openid.net/auth/2.0/identifier_select"
 )
-
-type openIDHandler func(w http.ResponseWriter, r *http.Request) error
-
-func (fn openIDHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := fn(w, r); err != nil {
-		c := appengine.NewContext(r)
-		c.Errorf("openID error: %s", err)
-		http.Error(w, "An error occurred", http.StatusInternalServerError)
-	}
-}
-
-func handle(path string, handler openIDHandler) {
-	http.Handle(path, handler)
-}
 
 type XRDSIdentifier struct {
 	XMLName xml.Name "Service"
@@ -77,18 +65,18 @@ type Endpoint struct {
 }
 
 func (e *Endpoint) String() string {
-	return fmt.Sprintf("Endpoint %s", e.endpoint)
+	return e.endpoint.String()
 }
 
-func NewEndpoint(urlString string) (*Endpoint, error) {
-	endpointURL, err := url.Parse(urlString)
+func ParseEndpointFromResponse(message Message) (*Endpoint, error) {
+	endpointURL, err := url.Parse(message.Get("openid.op_endpoint"))
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't parse %s as URL: %s", urlString, err)
+		return nil, fmt.Errorf("Couldn't parse endpoint from message")
 	}
 	return &Endpoint{endpointURL}, nil
 }
 
-func DiscoverOpenIDEndpoint(client *http.Client, discovery *url.URL) (*Endpoint, error) {
+func DiscoverEndpoint(client *http.Client, discovery *url.URL) (*Endpoint, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -149,6 +137,47 @@ func (e *Endpoint) SendIndirectRequest(w http.ResponseWriter, r *http.Request, r
 	*requestURL = *(e.endpoint)
 	requestURL.RawQuery = url.Values(request).Encode()
 	http.Redirect(w, r, requestURL.String(), http.StatusSeeOther)
+}
+
+type AuthorizationRequest struct {
+	Realm       string
+	ReturnTo    string
+	Identity    string
+	Association *Association
+}
+
+func NewAuthorizationRequest(identity, returnTo string) *AuthorizationRequest {
+	return &AuthorizationRequest{
+		Identity: identity,
+		ReturnTo: returnTo,
+	}
+}
+
+func (r *AuthorizationRequest) GetIdentity() string {
+	if r.Identity == "" {
+		return identifierSelect
+	}
+	return r.Identity
+}
+
+func (r *AuthorizationRequest) toMessage() Message {
+	message := NewRequest("checkid_setup")
+	message.Set("openid.claimed_id", r.GetIdentity())
+	message.Set("openid.identity", r.GetIdentity())
+	message.Set("openid.return_to", r.ReturnTo)
+	if realm := r.Realm; realm != "" {
+		message.Set("openid.realm", realm)
+	}
+	if assoc := r.Association; assoc != nil {
+		message.Set("openid.assoc_handle", assoc.Handle)
+	}
+	return message
+}
+
+func (e *Endpoint) SendAuthorizationRequest(
+	w http.ResponseWriter, r *http.Request, request *AuthorizationRequest) {
+	message := request.toMessage()
+	e.SendIndirectRequest(w, r, message)
 }
 
 type Message map[string][]string
@@ -216,8 +245,45 @@ func ParseIndirectResponse(r *http.Request) (Message, error) {
 type Association struct {
 	Endpoint   string
 	Handle     string
+	MACKey     string
 	Type       string
 	Expiration time.Time
+}
+
+func (a *Association) GetHMACAlgorithm() (hash.Hash, error) {
+	key, err := base64.StdEncoding.DecodeString(a.MACKey)
+	if err != nil {
+		return nil, fmt.Errorf("Error decoding MAC key: %s", err)
+	}
+	switch a.Type {
+	case "HMAC-SHA1":
+		return hmac.New(sha1.New, key), nil
+	case "HMAC-SHA256":
+		return hmac.New(sha256.New, key), nil
+	}
+	return nil, fmt.Errorf("Unknown algorithm: %s", a.Type)
+}
+
+func (a *Association) ComputeSignature(message Message) (string, error) {
+	hmac, err := a.GetHMACAlgorithm()
+	if err != nil {
+		return "", fmt.Errorf("Error with HMAC algorithm: %s", err)
+	}
+	signed := strings.Split(message.Get("openid.signed"), ",")
+	for _, field := range signed {
+		val := message.Get("openid." + field)
+		hmac.Write([]byte(fmt.Sprintf("%s:%s\n", field, val)))
+	}
+	return base64.StdEncoding.EncodeToString(hmac.Sum(nil)), nil
+}
+
+func (a *Association) VerifySignature(message Message) bool {
+	expected, err := a.ComputeSignature(message)
+	if err != nil {
+		return false
+	}
+	received := message.Get("openid.sig")
+	return received == expected
 }
 
 type AssociationRequestOptions struct {
@@ -262,6 +328,7 @@ func parseAssociation(endpoint *url.URL, message Message) (*Association, error) 
 	association := &Association{
 		Endpoint:   endpoint.String(),
 		Handle:     message.Get("assoc_handle"),
+		MACKey:     message.Get("mac_key"),
 		Type:       message.Get("assoc_type"),
 		Expiration: time.Now().Add(time.Duration(lifetimeSeconds) * time.Second),
 	}
@@ -272,7 +339,7 @@ func (a *Association) HasExpired() bool {
 	return !time.Now().Before(a.Expiration)
 }
 
-func (e *Endpoint) ValidateWithOP(client *http.Client, response Message) bool {
+func (e *Endpoint) ValidateResponse(client *http.Client, response Message) bool {
 	request := newMessage()
 	for k, v := range response {
 		request[k] = v

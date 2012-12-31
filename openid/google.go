@@ -25,13 +25,17 @@ func startGoogleLogin(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("Error getting Google XRDS document: %s", err)
 	}
 
-	// TODO(rwsims): Add association request.
+	endpoint := xrds.XRD.Service.URI
 
-	requestURL, err := url.Parse(xrds.XRD.Service.URI)
+	assoc, err := associateWithOP(c, endpoint)
+	if err != nil {
+		return fmt.Errorf("Error associating with google: %s", err)
+	}
+
+	requestURL, err := url.Parse(endpoint)
 	if err != nil {
 		return fmt.Errorf("Error parsing URI %s", xrds.XRD.Service.URI)
 	}
-
 	params := requestURL.Query()
 	params.Set("openid.mode", "checkid_setup")
 	params.Set("openid.ns", "http://specs.openid.net/auth/2.0")
@@ -39,6 +43,7 @@ func startGoogleLogin(w http.ResponseWriter, r *http.Request) error {
 	params.Set("openid.realm", "http://innerhearthyoga.appspot.com/")
 	params.Set("openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select")
 	params.Set("openid.identity", "http://specs.openid.net/auth/2.0/identifier_select")
+	params.Set("openid.assoc_handle", assoc.Handle)
 	requestURL.RawQuery = params.Encode()
 
 	http.Redirect(w, r, requestURL.String(), http.StatusSeeOther)
@@ -52,13 +57,16 @@ func googleResponse(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("OpenID authentication failed, response from OP: %s", r.URL)
 	}
 
-	xrds, err := getXRDSDocument(c, googleXRDS)
-	if err != nil {
-		return fmt.Errorf("Error getting Google XRDS document: %s", err)
+	endpoint := r.FormValue("openid.op_endpoint")
+	assoc := lookupAssociation(c, endpoint)
+	if assoc == nil {
+		return fmt.Errorf("Could not find Google session association")
 	}
-	valid, err := verifyWithOP(c, xrds.XRD.Service.URI, r.URL.Query())
-	if err != nil || !valid {
-		return fmt.Errorf("Could not validate response with OP: %s", err)
+	if r.FormValue("openid.assoc_handle") != assoc.Handle {
+		return fmt.Errorf("Association handle mismatch")
+	}
+	if assoc.HasExpired() {
+		return fmt.Errorf("Attempting to use expired association")
 	}
 
 	id := r.FormValue("openid.claimed_id")

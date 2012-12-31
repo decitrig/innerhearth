@@ -10,9 +10,12 @@ import (
 	"model"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"appengine"
+	"appengine/datastore"
 	"appengine/urlfetch"
 )
 
@@ -93,10 +96,15 @@ func getXRDSDocument(c appengine.Context, url string) (*xrds, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching XDRS document: %s", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("XDRS request returned status %d", resp.StatusCode)
 	}
-	defer resp.Body.Close()
+	xrdsLocation := resp.Header.Get("X-XRDS-Location")
+	if len(xrdsLocation) > 0 {
+		c.Infof("Following location header: %s", xrdsLocation)
+		return getXRDSDocument(c, xrdsLocation)
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response body")
@@ -108,9 +116,11 @@ func getXRDSDocument(c appengine.Context, url string) (*xrds, error) {
 	return xrds, nil
 }
 
-func parseDirectResponse(body io.Reader) (map[string][]string, error) {
+type DirectResponse map[string]string
+
+func parseDirectResponse(body io.Reader) (DirectResponse, error) {
 	reader := bufio.NewReader(body)
-	values := make(map[string][]string, 0)
+	values := make(map[string]string, 0)
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -125,7 +135,10 @@ func parseDirectResponse(body io.Reader) (map[string][]string, error) {
 		}
 		key := strings.TrimSpace(line[0:idx])
 		value := strings.TrimSpace(line[idx+1:])
-		values[key] = append(values[key], value)
+		values[key] = value
+	}
+	if values["ns"] != openIDNamespace {
+		return nil, fmt.Errorf("Missing/incorrect ns value %s in response %s", values["ns"], values)
 	}
 	return values, nil
 }
@@ -145,12 +158,80 @@ func verifyWithOP(c appengine.Context, opURL string, values url.Values) (bool, e
 	if err != nil {
 		return false, fmt.Errorf("Error parsing direct response: %s", err)
 	}
-	c.Infof("Parsed response body: %s", parsed)
-	if len(parsed["ns"]) == 0 || parsed["ns"][0] != openIDNamespace {
-		return false, fmt.Errorf("Invalid namespace in response: %s", parsed)
-	}
-	if len(parsed["is_valid"]) == 0 || parsed["is_valid"][0] != "true" {
+	if parsed["is_valid"] != "true" {
 		return false, fmt.Errorf("OP declared response invalid")
 	}
 	return true, nil
+}
+
+type OpenIDAssociation struct {
+	Endpoint   string    `datastore: "-"`
+	Handle     string    `datastore: ",noindex"`
+	Type       string    `datastore: ",noindex"`
+	Expiration time.Time `datastore: ",noindex"`
+}
+
+func (a *OpenIDAssociation) HasExpired() bool {
+	return !time.Now().Before(a.Expiration)
+}
+
+func requestAssociation(c appengine.Context, endpoint string) (*OpenIDAssociation, error) {
+	form := map[string][]string{
+		"openid.ns":           {"http://specs.openid.net/auth/2.0"},
+		"openid.mode":         {"associate"},
+		"openid.assoc_type":   {"HMAC-SHA256"},
+		"openid.session_type": {"no-encryption"},
+	}
+	client := urlfetch.Client(c)
+	resp, err := client.PostForm(endpoint, form)
+	if err != nil {
+		return nil, fmt.Errorf("Error making request: %s", err)
+	}
+	defer resp.Body.Close()
+	parsed, err := parseDirectResponse(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing direct request: %s", err)
+	}
+	if len(parsed["error"]) != 0 {
+		return nil, fmt.Errorf("OP returned error: %s", parsed["error"])
+	}
+	lifetimeSeconds, err := strconv.ParseInt(parsed["expires_in"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse %s into seconds", parsed["expires_in"])
+	}
+	association := &OpenIDAssociation{
+		Endpoint:   endpoint,
+		Handle:     parsed["assoc_handle"],
+		Type:       parsed["assoc_type"],
+		Expiration: time.Now().Add(time.Duration(lifetimeSeconds) * time.Second),
+	}
+	return association, nil
+}
+
+func associateWithOP(c appengine.Context, endpoint string) (*OpenIDAssociation, error) {
+	key := datastore.NewKey(c, "OpenIDAssociation", endpoint, 0, nil)
+	assoc := &OpenIDAssociation{Endpoint: endpoint}
+	err := datastore.Get(c, key, assoc)
+	if err != nil || !time.Now().Before(assoc.Expiration) {
+		assoc, err := requestAssociation(c, endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("Error associating with %s: %s", endpoint, err)
+		}
+		if _, err := datastore.Put(c, key, assoc); err != nil {
+			c.Errorf("Error storing association with %s: %s", endpoint, err)
+		}
+	}
+	return assoc, nil
+}
+
+func lookupAssociation(c appengine.Context, endpoint string) *OpenIDAssociation {
+	key := datastore.NewKey(c, "OpenIDAssociation", endpoint, 0, nil)
+	assoc := &OpenIDAssociation{Endpoint: endpoint}
+	if err := datastore.Get(c, key, assoc); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			c.Errorf("Error looking up association for %s: %s", endpoint, err)
+		}
+		return nil
+	}
+	return assoc
 }

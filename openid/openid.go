@@ -210,11 +210,11 @@ func parseDirectResponse(body io.Reader) (Message, error) {
 	message := newMessage()
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
+		if err != nil && err != io.EOF {
 			return nil, fmt.Errorf("Error reading response body: %s", err)
+		}
+		if len(line) == 0 {
+			break
 		}
 		idx := strings.Index(line, ":")
 		if idx < 0 {
@@ -223,6 +223,9 @@ func parseDirectResponse(body io.Reader) (Message, error) {
 		key := strings.TrimSpace(line[0:idx])
 		value := strings.TrimSpace(line[idx+1:])
 		message.Set(key, value)
+		if err == io.EOF {
+			break
+		}
 	}
 	if ns := message.Get("ns"); ns != openIDNamespace {
 		return nil, fmt.Errorf("Missing/incorrect ns value %s in response %s", ns, message)
@@ -248,6 +251,10 @@ type Association struct {
 	MACKey     string
 	Type       string
 	Expiration time.Time
+}
+
+func (a *Association) Expired() bool {
+	return !time.Now().Before(a.Expiration)
 }
 
 func (a *Association) GetHMACAlgorithm() (hash.Hash, error) {
@@ -277,13 +284,19 @@ func (a *Association) ComputeSignature(message Message) (string, error) {
 	return base64.StdEncoding.EncodeToString(hmac.Sum(nil)), nil
 }
 
-func (a *Association) VerifySignature(message Message) bool {
+func (a *Association) VerifySignature(message Message) error {
+	if handle := message.Get("openid.assoc_handle"); handle != a.Handle {
+		return fmt.Errorf("Wrong handle; expected %s but got %s", a.Handle, handle)
+	}
 	expected, err := a.ComputeSignature(message)
 	if err != nil {
-		return false
+		return fmt.Errorf("error computing signature: %s", err)
 	}
 	received := message.Get("openid.sig")
-	return received == expected
+	if received != expected {
+		return fmt.Errorf("Expected %s, got %s", expected, received)
+	}
+	return nil
 }
 
 type AssociationRequestOptions struct {

@@ -42,7 +42,8 @@ type Provider struct {
 
 var (
 	providers = []Provider{
-		{"Google", "http://www.google.com/accounts/o8/id"},
+		{"Google", "https://www.google.com/accounts/o8/id"},
+		{"Yahoo", "https://me.yahoo.com"},
 	}
 	loginPage = template.Must(template.ParseFiles("login/login.html"))
 )
@@ -78,6 +79,9 @@ func lookupAssociation(c appengine.Context, endpoint string) *openid.Association
 	if err := datastore.Get(c, key, assoc); err != nil {
 		return nil
 	}
+	if assoc.Expired() {
+		return nil
+	}
 	assoc.Endpoint = endpoint
 	return assoc
 }
@@ -98,13 +102,16 @@ func openIDDiscovery(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	request := openid.NewAuthorizationRequest("", "http://innerhearthyoga.appspot.com/login/verify")
-	assoc, err := endpoint.RequestAssociation(client, nil)
-	if err != nil {
-		c.Infof("Unable to request association with %s: %s", endpoint, err)
-	} else {
-		storeAssociation(c, assoc)
-		request.Association = assoc
+	assoc := lookupAssociation(c, endpoint.String())
+	if assoc == nil {
+		assoc, err := endpoint.RequestAssociation(client, nil)
+		if err != nil {
+			c.Infof("Unable to request association with %s: %s", endpoint, err)
+		} else {
+			storeAssociation(c, assoc)
+		}
 	}
+	request.Association = assoc
 	endpoint.SendAuthorizationRequest(w, r, request)
 	return nil
 }
@@ -123,11 +130,11 @@ func openIDVerification(w http.ResponseWriter, r *http.Request) error {
 	if assoc == nil {
 		client := urlfetch.Client(c)
 		if !endpoint.ValidateResponse(client, response) {
-			return fmt.Errorf("OP did not validate response")
+			return fmt.Errorf("No association found and OP did not validate response")
 		}
 	}
-	if !assoc.VerifySignature(response) {
-		return fmt.Errorf("Could not validate signature")
+	if err := assoc.VerifySignature(response); err != nil {
+		return fmt.Errorf("Could not verify signature: %s", err)
 	}
 	fmt.Fprintf(w, "Got valid OpenID authentication response.")
 	return nil

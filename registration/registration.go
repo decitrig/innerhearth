@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sync"
 
 	"appengine"
 	"appengine/taskqueue"
@@ -19,6 +20,39 @@ var (
 	sessionCookieName   = "innerhearth-session-id"
 )
 
+type requestVariable struct {
+	lock sync.Mutex
+	m    map[*http.Request]interface{}
+}
+
+func (v *requestVariable) Get(r *http.Request) interface{} {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	if v.m == nil {
+		return nil
+	}
+	return v.m[r]
+}
+
+func (v *requestVariable) Set(r *http.Request, val interface{}) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	if v.m == nil {
+		v.m = map[*http.Request]interface{}{}
+	}
+	v.m[r] = val
+}
+
+type requestUser struct {
+	User    *user.User
+	Account *model.UserAccount
+}
+
+var (
+	userVariable  = &requestVariable{}
+	tokenVariable = &requestVariable{}
+)
+
 type appError struct {
 	Error   error
 	Message string
@@ -26,6 +60,14 @@ type appError struct {
 }
 
 type handler func(w http.ResponseWriter, r *http.Request) *appError
+
+func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := fn(w, r); err != nil {
+		c := appengine.NewContext(r)
+		c.Errorf("Error: %s", err.Error)
+		http.Error(w, err.Message, err.Code)
+	}
+}
 
 func postOnly(handler handler) handler {
 	return func(w http.ResponseWriter, r *http.Request) *appError {
@@ -36,6 +78,42 @@ func postOnly(handler handler) handler {
 	}
 }
 
+func needsUser(handler handler) handler {
+	return func(w http.ResponseWriter, r *http.Request) *appError {
+		c := appengine.NewContext(r)
+		u := user.Current(c)
+		if u == nil {
+			return &appError{fmt.Errorf("No logged in user"), "An error occurred", http.StatusInternalServerError}
+		}
+		account, err := model.GetAccount(c, u)
+		if err != nil {
+			http.Redirect(w, r, "/login/account?continue="+r.URL.Path, http.StatusSeeOther)
+			return nil
+		}
+		userVariable.Set(r, &requestUser{u, account})
+		return handler(w, r)
+	}
+}
+
+func xsrfProtected(handler handler) handler {
+	return needsUser(func(w http.ResponseWriter, r *http.Request) *appError {
+		u := userVariable.Get(r).(*requestUser)
+		if u == nil {
+			return &appError{fmt.Errorf("No user in request"), "An error ocurred", http.StatusInternalServerError}
+		}
+		c := appengine.NewContext(r)
+		token, err := model.GetXSRFToken(c, u.Account.AccountID)
+		if err != nil {
+			return &appError{fmt.Errorf("Could not get XSRF token for id %s: %s", u.Account.AccountID, err), "An error occurred", http.StatusInternalServerError}
+		}
+		tokenVariable.Set(r, token)
+		if r.Method == "POST" && !token.Validate(r.FormValue("xsrf_token")) {
+			return &appError{fmt.Errorf("Invalid XSRF token"), "Unauthorized", http.StatusUnauthorized}
+		}
+		return handler(w, r)
+	})
+}
+
 func validXSRFToken(r *http.Request) bool {
 	c := appengine.NewContext(r)
 	token := r.FormValue("xsrf_token")
@@ -43,17 +121,9 @@ func validXSRFToken(r *http.Request) bool {
 	return model.ValidXSRFToken(c, email, token)
 }
 
-func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := fn(w, r); err != nil {
-		c := appengine.NewContext(r)
-		c.Errorf("Error: %s", err.Error)
-		http.Error(w, err.Message, err.Code)
-	}
-}
-
 func init() {
-	http.Handle("/registration", handler(registration))
-	http.Handle("/registration/new", handler(postOnly(newRegistration)))
+	http.Handle("/registration", handler(xsrfProtected(registration)))
+	http.Handle("/registration/new", handler(postOnly(xsrfProtected(newRegistration))))
 }
 
 func filterRegisteredClasses(classes []*model.Class, registrations []*model.Registration) []*model.Class {
@@ -75,33 +145,23 @@ func filterRegisteredClasses(classes []*model.Class, registrations []*model.Regi
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
-	u := user.Current(c)
-	if u == nil {
-		return &appError{fmt.Errorf("No logged in user"), "An error occurred", http.StatusInternalServerError}
-	}
 	classes, err := model.ListClasses(c)
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
-	token, err := model.GetXSRFToken(c, u.ID)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
-	account, err := model.GetAccount(c, u)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
-	registrations := model.ListUserRegistrations(c, account.AccountID)
+	u := userVariable.Get(r).(*requestUser)
+	registrations := model.ListUserRegistrations(c, u.Account.AccountID)
 	classes = filterRegisteredClasses(classes, registrations)
 	logout, err := user.LogoutURL(c, "/")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
 		"Classes":       classes,
 		"XSRFToken":     token.Token,
 		"LogoutURL":     logout,
-		"Account":       account,
+		"Account":       u.Account,
 		"Registrations": registrations,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {

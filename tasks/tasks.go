@@ -53,7 +53,7 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) error {
 	}
 	msg := &mail.Message{
 		Sender:  "no-reply@innerhearthyoga.appspotmail.com",
-		To:      []string{r.FormValue("email")},
+		To:      []string{account.Email},
 		Subject: fmt.Sprintf("Registration for %s at Inner Hearth Yoga", r.FormValue("class")),
 		Body:    buf.String(),
 	}

@@ -19,6 +19,13 @@ type AdminXSRFToken struct {
 	Expiration time.Time
 }
 
+func (t *AdminXSRFToken) Validate(provided string) bool {
+	if !time.Now().Before(t.Expiration) {
+		return false
+	}
+	return provided == t.Token
+}
+
 func marshalToken(token interface{}) ([]byte, error) {
 	t, ok := token.(*AdminXSRFToken)
 	if !ok {

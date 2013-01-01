@@ -83,11 +83,7 @@ func GetXSRFToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
 	if token != nil && now.Before(token.Expiration) {
 		return token, nil
 	}
-	token, err = MakeXSRFToken(c, id)
-	if err != nil {
-		return nil, err
-	}
-	return token, nil
+	return MakeXSRFToken(c, id)
 }
 
 func token(id string) string {

@@ -20,20 +20,9 @@ var (
 )
 
 func init() {
-	http.Handle("/registration/admin", handler(adminOnly(admin)))
-	http.Handle("/registration/admin/add-class", handler(adminOnly(addClass)))
-	http.Handle("/registration/admin/delete-class", handler(adminOnly(deleteClass)))
-}
-
-func adminOnly(handler handler) handler {
-	return func(w http.ResponseWriter, r *http.Request) *appError {
-		c := appengine.NewContext(r)
-		if !user.IsAdmin(c) {
-			redirectToLogin(w, r)
-			return nil
-		}
-		return handler(w, r)
-	}
+	http.Handle("/registration/admin", handler(admin))
+	http.Handle("/registration/admin/add-class", handler(addClass))
+	http.Handle("/registration/admin/delete-class", handler(deleteClass))
 }
 
 func admin(w http.ResponseWriter, r *http.Request) *appError {

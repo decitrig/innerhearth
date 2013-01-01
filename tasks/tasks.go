@@ -36,23 +36,25 @@ func init() {
 
 func emailConfirmation(w http.ResponseWriter, r *http.Request) error {
 	c := appengine.NewContext(r)
-	reg, err := model.GetRegistration(c, r.FormValue("class"), r.FormValue("email"))
+	account, err := model.GetAccountByID(c, r.FormValue("account"))
+	if err != nil {
+		return fmt.Errorf("Error looking up account: %s", err)
+	}
+	reg, err := model.GetRegistration(c, r.FormValue("class"), account.AccountID)
 	if err != nil {
 		return fmt.Errorf("Error looking up registration: %s", err)
 	}
 	buf := &bytes.Buffer{}
 	if err := confirmationEmail.Execute(buf, map[string]interface{}{
-		"Class":       r.FormValue("class"),
-		"Email":       r.FormValue("email"),
-		"ConfirmLink": "http://innerhearthyoga.appspot.com/registration/confirm?code=" + reg.ConfirmationCode,
-		"RejectLink":  "http://innerhearthyoga.appspot.com/registration/reject?code=" + reg.ConfirmationCode,
+		"Class": reg.ClassName,
+		"Email": account.Email,
 	}); err != nil {
 		return fmt.Errorf("Error executing email template: %s", err)
 	}
 	msg := &mail.Message{
 		Sender:  "no-reply@innerhearthyoga.appspotmail.com",
 		To:      []string{r.FormValue("email")},
-		Subject: fmt.Sprintf("Please confirm registration for %s at Inner Hearth Yoga", r.FormValue("class")),
+		Subject: fmt.Sprintf("Registration for %s at Inner Hearth Yoga", r.FormValue("class")),
 		Body:    buf.String(),
 	}
 	if err := mail.Send(c, msg); err != nil {

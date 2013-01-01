@@ -1,11 +1,7 @@
 <!DOCTYPE html>
 Choose your login provider:
 <ul>
-{{range $k, $v := .Providers}}
+{{range $k, $v := .DirectProviders}}
 <li><a href="{{$v}}">{{$k}}</a>
 {{end}}
 </ul>
-<form method="POST" action="/login/discover">
-	<input type="text" name="openid_identifier" />
-	<button>Login</button>
-</form>

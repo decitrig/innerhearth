@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>New Account Creation</title>
+<h1>Welcome to Inner Hearth Yoga!</h1>
+<form method="post" action="/login/account/new">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	<input type="hidden" name="target" value="{{.Target}}" />
+	<p>Please enter your account information. All fields are required.
+	<ul>
+		<li>
+			<label for="firstname">Name:</label>
+			<input type="text" required="required" name="firstname" id="firstname" placeholder="First"/>
+			<input type="text" required="required" name="lastname" id="lastname" placeholder="Last"/>
+		<li>
+			<label for="email">Email:</label>
+			<input type="email" id="email" required="required" name="email" placeholder="your.email@host.com"/>
+	</ul>
+	<p>We store this data only for registration, billing and attendance purposes.</p>
+	<button>Create Account</button>
+</form>

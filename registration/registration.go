@@ -53,36 +53,7 @@ func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func init() {
 	http.Handle("/registration", handler(registration))
-	http.Handle("/registration/cookiecheck", handler(cookieCheck))
 	http.Handle("/registration/new", handler(postOnly(newRegistration)))
-}
-
-func redirectToLogin(w http.ResponseWriter, r *http.Request) *appError {
-	c := appengine.NewContext(r)
-	url, err := user.LoginURL(c, r.URL.String())
-	if err != nil {
-		return &appError{err, "An error occured", http.StatusInternalServerError}
-	}
-	w.Header().Set("Location", url)
-	w.WriteHeader(http.StatusSeeOther)
-	return nil
-}
-
-func newSessionCookie() *http.Cookie {
-	return &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    model.MakeSessionID(),
-		HttpOnly: true,
-	}
-}
-
-func readOrCreateSessionCookie(r *http.Request) *http.Cookie {
-	if cookie, err := r.Cookie(sessionCookieName); err != nil {
-		return cookie
-	}
-	cookie := newSessionCookie()
-	r.AddCookie(cookie)
-	return cookie
 }
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
@@ -91,24 +62,27 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	if u == nil {
 		return &appError{fmt.Errorf("No logged in user"), "An error occurred", http.StatusInternalServerError}
 	}
-	cookie, err := r.Cookie(sessionCookieName)
-	if err != nil {
-		w.Header().Set("Location", "/registration/cookiecheck")
-		http.SetCookie(w, newSessionCookie())
-		w.WriteHeader(http.StatusSeeOther)
-		return nil
-	}
 	classes, err := model.ListClasses(c)
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
-	token, err := model.GetXSRFToken(c, cookie.Value)
+	token, err := model.GetXSRFToken(c, u.ID)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	account, err := model.GetAccount(c, u)
+	if err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	logout, err := user.LogoutURL(c, "/")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	data := map[string]interface{}{
 		"Classes":   classes,
 		"XSRFToken": token.Token,
+		"LogoutURL": logout,
+		"Account":   account,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -124,15 +98,15 @@ func classFull(w http.ResponseWriter, r *http.Request, class string) *appError {
 }
 
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
-	cookie, err := r.Cookie(sessionCookieName)
+	c := appengine.NewContext(r)
+	account, err := model.GetCurrentUserAccount(c)
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
-	c := appengine.NewContext(r)
-	if !model.ValidXSRFToken(c, cookie.Value, r.FormValue("xsrf_token")) {
-		return &appError{fmt.Errorf("Invalid XSRF token for %s", cookie.Value), "Authorization error", http.StatusUnauthorized}
+	if !model.ValidXSRFToken(c, account.AccountID, r.FormValue("xsrf_token")) {
+		return &appError{fmt.Errorf("Invalid XSRF token for %s", account.AccountID), "Authorization error", http.StatusUnauthorized}
 	}
-	reg := model.NewRegistration(c, r.FormValue("class"), r.FormValue("email"))
+	reg := model.NewRegistration(c, r.FormValue("class"), account.AccountID)
 	if err := reg.Insert(c); err != nil {
 		if fullError, ok := err.(*model.ClassFullError); ok {
 			return classFull(w, r, fullError.Class)
@@ -140,8 +114,8 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
 	}
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
-		"email": {r.FormValue("email")},
-		"class": {r.FormValue("class")},
+		"account": {account.AccountID},
+		"class":   {r.FormValue("class")},
 	})
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		return &appError{fmt.Errorf("Error enqueuing email task for registration %v: %s", reg, err),
@@ -149,24 +123,11 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusInternalServerError}
 	}
 	data := map[string]interface{}{
-		"Email": r.FormValue("email"),
+		"Email": account.Email,
 		"Class": r.FormValue("class"),
 	}
 	if err = newRegistrationPage.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
 	}
-	return nil
-}
-
-func cookieCheck(w http.ResponseWriter, r *http.Request) *appError {
-	if _, err := r.Cookie(sessionCookieName); err != nil {
-		if err != http.ErrNoCookie {
-			return &appError{err, "An error occurred", http.StatusInternalServerError}
-		}
-		fmt.Fprintf(w, "We were unable to write a session cookie; registration requires that cookies be enabled.")
-		return nil
-	}
-	w.Header().Set("Location", "/registration")
-	w.WriteHeader(http.StatusSeeOther)
 	return nil
 }

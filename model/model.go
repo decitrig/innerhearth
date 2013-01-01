@@ -1,8 +1,6 @@
 package model
 
 import (
-	"crypto/sha512"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -87,45 +85,34 @@ func DeleteClass(c appengine.Context, className string) error {
 }
 
 type Registration struct {
-	ClassName        string
-	StudentEmail     string
-	Created          time.Time
-	Confirmed        time.Time
-	ConfirmationCode string `datastore: ",noindex"`
+	ClassName string
+	AccountID string
+	Created   time.Time
 }
 
-func newConfirmationCode(class, email string) string {
-	hash := sha512.New()
-	hash.Write([]byte(class))
-	hash.Write([]byte(email))
-	hash.Write([]byte(time.Now().String()))
-	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
-}
-
-func NewRegistration(c appengine.Context, className, studentEmail string) *Registration {
+func NewRegistration(c appengine.Context, className, accountID string) *Registration {
 	return &Registration{
-		ClassName:        className,
-		StudentEmail:     studentEmail,
-		Created:          time.Now(),
-		ConfirmationCode: newConfirmationCode(className, studentEmail),
+		AccountID: accountID,
+		ClassName: className,
+		Created:   time.Now(),
 	}
 }
 
-func GetRegistration(c appengine.Context, className, studentEmail string) (*Registration, error) {
+func GetRegistration(c appengine.Context, className, accountID string) (*Registration, error) {
 	reg := &Registration{
-		ClassName:    className,
-		StudentEmail: studentEmail,
+		ClassName: className,
+		AccountID: accountID,
 	}
 	key := reg.createKey(c)
 	if err := datastore.Get(c, key, reg); err != nil {
-		return nil, fmt.Errorf("Couldn't find registration for %s in %s: %s", studentEmail, className, err)
+		return nil, fmt.Errorf("Couldn't find registration for %s in %s: %s", accountID, className, err)
 	}
 	return reg, nil
 }
 
 func (r *Registration) createKey(c appengine.Context) *datastore.Key {
 	classKey := datastore.NewKey(c, "Class", r.ClassName, 0, nil)
-	return datastore.NewKey(c, "Registration", r.StudentEmail, 0, classKey)
+	return datastore.NewKey(c, "Registration", r.AccountID, 0, classKey)
 }
 
 func (r *Registration) Insert(c appengine.Context) error {

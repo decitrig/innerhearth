@@ -63,8 +63,8 @@ func CountRegistrations(c appengine.Context, class string) (int32, error) {
 	return int32(len(keys)), nil
 }
 
-func ListClasses(c appengine.Context) ([]Class, error) {
-	cs := make([]Class, 0)
+func ListClasses(c appengine.Context) ([]*Class, error) {
+	cs := make([]*Class, 0)
 	q := datastore.NewQuery("Class").
 		Order("Name")
 	if _, err := q.GetAll(c, &cs); err != nil {
@@ -108,6 +108,23 @@ func GetRegistration(c appengine.Context, className, accountID string) (*Registr
 		return nil, fmt.Errorf("Couldn't find registration for %s in %s: %s", accountID, className, err)
 	}
 	return reg, nil
+}
+
+func ListUserRegistrations(c appengine.Context, accountID string) []*Registration {
+	q := datastore.NewQuery("Registration").
+		Filter("AccountID =", accountID)
+	registrations := []*Registration{}
+	for it := q.Run(c); ; {
+		reg := &Registration{}
+		if _, err := it.Next(reg); err != nil {
+			if err == datastore.Done {
+				break
+			}
+			continue
+		}
+		registrations = append(registrations, reg)
+	}
+	return registrations
 }
 
 func (r *Registration) createKey(c appengine.Context) *datastore.Key {

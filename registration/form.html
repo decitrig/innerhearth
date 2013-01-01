@@ -2,7 +2,16 @@
 <title>Inner Hearth Yoga Registration</title>
 <img src="images/large_logo.png" />
 <p>Welcome, <b>{{.Account.FirstName}} {{.Account.LastName}}</b> [<a href="{{.LogoutURL}}">logout</a>]</p>
+{{if .Registrations}}
+<h1>Your Registrations</h1>
+<ul>
+{{range .Registrations}}
+<li>{{.ClassName}}
+{{end}}
+</ul>
+{{end}}
 {{if .Classes}}
+<h1>Register for a Class</h1>
 <form action="/registration/new" method="post">
 	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
   <ul>

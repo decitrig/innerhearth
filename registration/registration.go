@@ -56,6 +56,23 @@ func init() {
 	http.Handle("/registration/new", handler(postOnly(newRegistration)))
 }
 
+func filterRegisteredClasses(classes []*model.Class, registrations []*model.Registration) []*model.Class {
+	if len(registrations) == 0 || len(classes) == 0 {
+		return classes
+	}
+	registered := map[string]bool{}
+	for _, r := range registrations {
+		registered[r.ClassName] = true
+	}
+	filtered := []*model.Class{}
+	for _, c := range classes {
+		if !registered[c.Name] {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered
+}
+
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
@@ -74,15 +91,18 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
+	registrations := model.ListUserRegistrations(c, account.AccountID)
+	classes = filterRegisteredClasses(classes, registrations)
 	logout, err := user.LogoutURL(c, "/")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	data := map[string]interface{}{
-		"Classes":   classes,
-		"XSRFToken": token.Token,
-		"LogoutURL": logout,
-		"Account":   account,
+		"Classes":       classes,
+		"XSRFToken":     token.Token,
+		"LogoutURL":     logout,
+		"Account":       account,
+		"Registrations": registrations,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}

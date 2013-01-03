@@ -32,8 +32,10 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListClasses(true)
+	classes := scheduler.ListClasses(false)
+	u := userVariable.Get(r).(*requestUser)
 	data := map[string]interface{}{
+		"Email":     u.UserAccount.Email,
 		"LogoutURL": url,
 		"Classes":   classes,
 	}
@@ -85,6 +87,7 @@ func addClassFromPost(r *http.Request) error {
 		DayOfWeek:     fields["dayofweek"],
 		StartTime:     mustParseTime("15:04", fields["starttime"]),
 		LengthMinutes: int32(mustParseInt(fields["length"], 32)),
+		Active:        true,
 	}
 	switch fields["type"] {
 	case "session":
@@ -133,26 +136,27 @@ func addClass(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func doDelete(w http.ResponseWriter, r *http.Request) *appError {
-	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	className := r.FormValue("class")
-	if err := scheduler.DeleteClass(className); err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
-	c.Infof("Deleted class %s", className)
-	http.Redirect(w, r, "/registration/admin", http.StatusSeeOther)
-	return nil
-}
-
 func deleteClass(w http.ResponseWriter, r *http.Request) *appError {
-	if r.Method == "POST" {
-		return doDelete(w, r)
+	c := appengine.NewContext(r)
+	classID := int64(mustParseInt(r.FormValue("class"), 64))
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return &appError{fmt.Errorf("Couldn't find class %d", classID),
+			"Couldn't find class", http.StatusInternalServerError}
 	}
-	className := r.FormValue("class")
+	if r.Method == "POST" {
+		if err := scheduler.DeleteClass(class); err != nil {
+			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		}
+		c.Infof("Deleted class %d", class.ID)
+		http.Redirect(w, r, "/registration/admin", http.StatusSeeOther)
+		return nil
+	}
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
-		"ClassName": className,
+		"ClassName": class.Title,
+		"ClassID":   class.ID,
 		"XSRFToken": token.Token,
 	}
 	if err := deleteClassConfirmation.Execute(w, data); err != nil {

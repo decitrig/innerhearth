@@ -1,6 +1,8 @@
+
 <!DOCTYPE html>
 <title>Registration Admin</title>
-<a href="{{.LogoutURL}}">logout</a>
+{{.Email}} [<a href="{{.LogoutURL}}">logout</a>]
+{{with .Classes}}
 <h1>Classes</h1>
 <table>
 	<tr>
@@ -9,13 +11,16 @@
 		<th>Teacher</th>
 		<th>Start Time</th>
 		<th>Length</th>
-		<th>Drop-in-Only</th>
 		<td>&nbsp;</td>
 	</tr>
-	{{range .Classes}}
+	{{range .}}
 	<tr>
 		<td>
+			{{if .DropInOnly}}
+			<i>{{.Title}}</i>
+			{{else}}
 			{{.Title}}
+			{{end}}
 		</td>
 		<td>
 			{{.DayOfWeek}}
@@ -30,14 +35,12 @@
 			{{.LengthMinutes}}m
 		</td>
 		<td>
-			{{.DropInOnly}}
-		</td>
-		<td>
-			<a href="/registration/admin/delete-class?class={{.Title}}">delete</a>
+			<a href="/registration/admin/delete-class?class={{.ID}}">delete</a>
 		</td>
 	</tr>
 	{{end}}
 </table>
+{{end}}
 <a href="/registration/admin/add-class">add class</a>
 
 

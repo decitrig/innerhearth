@@ -1,4 +1,4 @@
-We have recieved a registration for "{{.Class}}" from {{.Email}}. Please bring your payment with you when you arrive at the studio.
+We have recieved a registration for {{.Class.Title}} on {{.Class.DayOfWeek}} with {{.Class.Teacher}} from {{.Email}}. Please bring your payment with you when you arrive at the studio.
 
 If you did not intend to register for this class, or if you have any questions, please contact us at info@innerhearthyoga.com.
 

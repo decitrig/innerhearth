@@ -17,6 +17,7 @@ var (
 	registrationForm    = template.Must(template.ParseFiles("registration/form.html"))
 	newRegistrationPage = template.Must(template.ParseFiles("registration/registration-new.html"))
 	classFullPage       = template.Must(template.ParseFiles("registration/full-class.html"))
+	registrationConfirm = template.Must(template.ParseFiles("registration/registration-confirm.html"))
 	sessionCookieName   = "innerhearth-session-id"
 )
 
@@ -104,7 +105,11 @@ func xsrfProtected(handler handler) handler {
 		c := appengine.NewContext(r)
 		token, err := model.GetXSRFToken(c, u.AccountID)
 		if err != nil {
-			return &appError{fmt.Errorf("Could not get XSRF token for id %s: %s", u.AccountID, err), "An error occurred", http.StatusInternalServerError}
+			return &appError{
+				fmt.Errorf("Could not get XSRF token for id %s: %s", u.AccountID, err),
+				"An error occurred",
+				http.StatusInternalServerError,
+			}
 		}
 		tokenVariable.Set(r, token)
 		if r.Method == "POST" && !token.Validate(r.FormValue("xsrf_token")) {
@@ -116,20 +121,20 @@ func xsrfProtected(handler handler) handler {
 
 func init() {
 	http.Handle("/registration", handler(xsrfProtected(registration)))
-	http.Handle("/registration/new", handler(postOnly(xsrfProtected(newRegistration))))
+	http.Handle("/registration/new", handler(xsrfProtected(newRegistration)))
 }
 
 func filterRegisteredClasses(classes []*model.Class, registrations []*model.Registration) []*model.Class {
 	if len(registrations) == 0 || len(classes) == 0 {
 		return classes
 	}
-	registered := map[string]bool{}
+	registered := map[int64]bool{}
 	for _, r := range registrations {
-		registered[r.ClassTitle] = true
+		registered[r.ClassID] = true
 	}
 	filtered := []*model.Class{}
 	for _, c := range classes {
-		if !registered[c.Title] {
+		if !registered[c.ID] {
 			filtered = append(filtered, c)
 		}
 	}
@@ -141,7 +146,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListClasses(true)
 	u := userVariable.Get(r).(*requestUser)
-	registrar := model.NewStudentRegistrar(c, u.AccountID)
+	registrar := model.NewRegistrar(c, u.AccountID)
 	registrations := registrar.ListRegistrations()
 	classes = filterRegisteredClasses(classes, registrations)
 	logout, err := user.LogoutURL(c, "/")
@@ -150,11 +155,11 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
-		"Classes":       classes,
-		"XSRFToken":     token.Token,
-		"LogoutURL":     logout,
-		"Account":       u.UserAccount,
-		"Registrations": registrations,
+		"SessionClasses": classes,
+		"XSRFToken":      token.Token,
+		"LogoutURL":      logout,
+		"Account":        u.UserAccount,
+		"Registrations":  registrations,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -171,31 +176,53 @@ func classFull(w http.ResponseWriter, r *http.Request, class string) *appError {
 
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	u := userVariable.Get(r).(*requestUser)
-	/*
-		reg := model.NewRegistration(c, r.FormValue("class"), account.AccountID)
-		if err := reg.Insert(c); err != nil {
-			if fullError, ok := err.(*model.ClassFullError); ok {
-				return classFull(w, r, fullError.Class)
-			}
-			return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
-		}
-	*/
-	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
-		"account": {u.AccountID},
-		"class":   {r.FormValue("class")},
-	})
 	c := appengine.NewContext(r)
-	if _, err := taskqueue.Add(c, t, ""); err != nil {
-		return &appError{fmt.Errorf("Error enqueuing email task for registration: %s", err),
+	classID := mustParseInt(r.FormValue("class"), 64)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return &appError{fmt.Errorf("Couldn't find class %d", classID),
 			"An error occurred, please go back and try again",
 			http.StatusInternalServerError}
 	}
-	data := map[string]interface{}{
-		"Email": u.UserAccount.Email,
-		"Class": r.FormValue("class"),
+	if r.Method == "POST" {
+		roster := model.NewRoster(c, class)
+		if _, err := roster.AddStudent(u.AccountID); err != nil {
+			if err == model.ErrClassFull {
+				if err := classFullPage.Execute(w, nil); err != nil {
+					return &appError{err, "An error occurred", http.StatusInternalServerError}
+				}
+			}
+			return &appError{
+				fmt.Errorf("Error when registering student %s in class %d: %s", u.AccountID, class.ID, err),
+				"An error occurred, please go back and try again.",
+				http.StatusInternalServerError,
+			}
+		}
+		t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
+			"account": {u.AccountID},
+			"class":   {fmt.Sprintf("%d", class.ID)},
+		})
+		if _, err := taskqueue.Add(c, t, ""); err != nil {
+			return &appError{fmt.Errorf("Error enqueuing email task for registration: %s", err),
+				"An error occurred, please go back and try again",
+				http.StatusInternalServerError}
+		}
+		data := map[string]interface{}{
+			"Email": u.UserAccount.Email,
+			"Class": class,
+		}
+		if err := newRegistrationPage.Execute(w, data); err != nil {
+			return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
+		}
+		return nil
 	}
-	if err := newRegistrationPage.Execute(w, data); err != nil {
-		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
+	if err := registrationConfirm.Execute(w, map[string]interface{}{
+		"XSRFToken": token.Token,
+		"Class":     class,
+	}); err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	return nil
 }

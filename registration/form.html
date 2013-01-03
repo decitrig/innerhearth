@@ -10,21 +10,26 @@
 {{end}}
 </ul>
 {{end}}
-{{if .Classes}}
 <h1>Register for a Class</h1>
 <p>Currently, this system will only save you a space in a class. Payment will be accepted at the studio. Online payments are coming soon!</p>
-<form action="/registration/new" method="post">
-	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
-  <ul>
-    <li><label for="class">Choose class:</label>
-      <select id="class" name="class">
-				{{range .Classes}}
-				<option>{{.Name}}</option>
-				{{end}}
-      </select>
-  </ul>
-  <button type="submit">Register</button>
-</form>
+{{with .SessionClasses}}
+<table>
+	<tr>
+		<th>Class</th>
+		<th>Teacher</th>
+		<th>Day</th>
+		<th>Time</th>
+</tr>
+	{{range .}}
+	<tr>
+		<td>{{.Title}}</td>
+		<td>{{.Teacher}}</td>
+		<td>{{.DayOfWeek}}</td>
+		<td>{{.StartTime.Format "3:04pm"}}</td>
+		<td><a href="/registration/new?class={{.ID}}">register</a></td>
+	</tr>
+	{{end}}
+</table>
 {{else}}
-<p>Sorry, there are no classes currently available for registration. Please check back soon!</p>
+<p>No more classes are available this session</p>
 {{end}}

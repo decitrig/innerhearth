@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<form method="post">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	{{with .Class}}
+	<input type="hidden" name="class" value="{{.ID}}" />
+	<p>Register for {{.Teacher}}'s {{.Title}} on {{.DayOfWeek}}s at {{.StartTime.Format "3:04pm"}}?</p>
+	{{end}}
+	<button>Register</button>
+</form>

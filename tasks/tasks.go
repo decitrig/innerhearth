@@ -36,17 +36,19 @@ func init() {
 
 func emailConfirmation(w http.ResponseWriter, r *http.Request) error {
 	c := appengine.NewContext(r)
+	registrar := model.NewRegistrar(c)
+	reg := registrar.LookupRegistration(r.FormValue("class"), r.FormValue("account"))
+	if reg == nil {
+		c.Errorf("Couldn't find registration of %s in %s", r.FormValue("account"), r.FormValue("class"))
+		return nil
+	}
 	account, err := model.GetAccountByID(c, r.FormValue("account"))
 	if err != nil {
 		return fmt.Errorf("Error looking up account: %s", err)
 	}
-	reg, err := model.GetRegistration(c, r.FormValue("class"), account.AccountID)
-	if err != nil {
-		return fmt.Errorf("Error looking up registration: %s", err)
-	}
 	buf := &bytes.Buffer{}
 	if err := confirmationEmail.Execute(buf, map[string]interface{}{
-		"Class": reg.ClassName,
+		"Class": reg.ClassTitle,
 		"Email": account.Email,
 	}); err != nil {
 		return fmt.Errorf("Error executing email template: %s", err)

@@ -44,8 +44,8 @@ func (v *requestVariable) Set(r *http.Request, val interface{}) {
 }
 
 type requestUser struct {
-	User    *user.User
-	Account *model.UserAccount
+	*user.User
+	*model.UserAccount
 }
 
 var (
@@ -102,9 +102,9 @@ func xsrfProtected(handler handler) handler {
 			return &appError{fmt.Errorf("No user in request"), "An error ocurred", http.StatusInternalServerError}
 		}
 		c := appengine.NewContext(r)
-		token, err := model.GetXSRFToken(c, u.Account.AccountID)
+		token, err := model.GetXSRFToken(c, u.AccountID)
 		if err != nil {
-			return &appError{fmt.Errorf("Could not get XSRF token for id %s: %s", u.Account.AccountID, err), "An error occurred", http.StatusInternalServerError}
+			return &appError{fmt.Errorf("Could not get XSRF token for id %s: %s", u.AccountID, err), "An error occurred", http.StatusInternalServerError}
 		}
 		tokenVariable.Set(r, token)
 		if r.Method == "POST" && !token.Validate(r.FormValue("xsrf_token")) {
@@ -112,13 +112,6 @@ func xsrfProtected(handler handler) handler {
 		}
 		return handler(w, r)
 	})
-}
-
-func validXSRFToken(r *http.Request) bool {
-	c := appengine.NewContext(r)
-	token := r.FormValue("xsrf_token")
-	email := user.Current(c).Email
-	return model.ValidXSRFToken(c, email, token)
 }
 
 func init() {
@@ -132,11 +125,11 @@ func filterRegisteredClasses(classes []*model.Class, registrations []*model.Regi
 	}
 	registered := map[string]bool{}
 	for _, r := range registrations {
-		registered[r.ClassName] = true
+		registered[r.ClassTitle] = true
 	}
 	filtered := []*model.Class{}
 	for _, c := range classes {
-		if !registered[c.Name] {
+		if !registered[c.Title] {
 			filtered = append(filtered, c)
 		}
 	}
@@ -145,12 +138,11 @@ func filterRegisteredClasses(classes []*model.Class, registrations []*model.Regi
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
-	classes, err := model.ListClasses(c)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
+	scheduler := model.NewScheduler(c)
+	classes := scheduler.ListClasses(true)
 	u := userVariable.Get(r).(*requestUser)
-	registrations := model.ListUserRegistrations(c, u.Account.AccountID)
+	registrar := model.NewStudentRegistrar(c, u.AccountID)
+	registrations := registrar.ListRegistrations()
 	classes = filterRegisteredClasses(classes, registrations)
 	logout, err := user.LogoutURL(c, "/")
 	if err != nil {
@@ -161,7 +153,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		"Classes":       classes,
 		"XSRFToken":     token.Token,
 		"LogoutURL":     logout,
-		"Account":       u.Account,
+		"Account":       u.UserAccount,
 		"Registrations": registrations,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
@@ -178,35 +170,31 @@ func classFull(w http.ResponseWriter, r *http.Request, class string) *appError {
 }
 
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
-	c := appengine.NewContext(r)
-	account, err := model.GetCurrentUserAccount(c)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
-	if !model.ValidXSRFToken(c, account.AccountID, r.FormValue("xsrf_token")) {
-		return &appError{fmt.Errorf("Invalid XSRF token for %s", account.AccountID), "Authorization error", http.StatusUnauthorized}
-	}
-	reg := model.NewRegistration(c, r.FormValue("class"), account.AccountID)
-	if err := reg.Insert(c); err != nil {
-		if fullError, ok := err.(*model.ClassFullError); ok {
-			return classFull(w, r, fullError.Class)
+	u := userVariable.Get(r).(*requestUser)
+	/*
+		reg := model.NewRegistration(c, r.FormValue("class"), account.AccountID)
+		if err := reg.Insert(c); err != nil {
+			if fullError, ok := err.(*model.ClassFullError); ok {
+				return classFull(w, r, fullError.Class)
+			}
+			return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
 		}
-		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
-	}
+	*/
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
-		"account": {account.AccountID},
+		"account": {u.AccountID},
 		"class":   {r.FormValue("class")},
 	})
+	c := appengine.NewContext(r)
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
-		return &appError{fmt.Errorf("Error enqueuing email task for registration %v: %s", reg, err),
+		return &appError{fmt.Errorf("Error enqueuing email task for registration: %s", err),
 			"An error occurred, please go back and try again",
 			http.StatusInternalServerError}
 	}
 	data := map[string]interface{}{
-		"Email": account.Email,
+		"Email": u.UserAccount.Email,
 		"Class": r.FormValue("class"),
 	}
-	if err = newRegistrationPage.Execute(w, data); err != nil {
+	if err := newRegistrationPage.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}
 	}
 	return nil

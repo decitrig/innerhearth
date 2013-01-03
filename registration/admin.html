@@ -4,27 +4,40 @@
 <h1>Classes</h1>
 <table>
 	<tr>
-		<th>Name</th>
-		<th>Registrations</th>
-		<th>Capacity</th>
-		<th>&nbsp;</th>
+		<th>Title</th>
+		<th>Day</th>
+		<th>Teacher</th>
+		<th>Start Time</th>
+		<th>Length</th>
+		<th>Drop-in-Only</th>
+		<td>&nbsp;</td>
 	</tr>
 	{{range .Classes}}
 	<tr>
-		<td>{{.Name}}</td>
-		<td>{{.Registrations}}</td>
-		<td>{{.Capacity}}</td>
 		<td>
-			{{if .Registrations}}
-			&nbsp;
-			{{else}}
-			<a href="/registration/admin/delete-class?class={{.Name}}">delete</a>
-			{{end}}
+			{{.Title}}
+		</td>
+		<td>
+			{{.DayOfWeek}}
+		</td>
+		<td>
+			{{.Teacher}}
+		</td>
+		<td>
+			{{.StartTime.Format "15:04"}}
+		</td>
+		<td>
+			{{.LengthMinutes}}m
+		</td>
+		<td>
+			{{.DropInOnly}}
+		</td>
+		<td>
+			<a href="/registration/admin/delete-class?class={{.Title}}">delete</a>
 		</td>
 	</tr>
 	{{end}}
 </table>
 <a href="/registration/admin/add-class">add class</a>
-
 
 

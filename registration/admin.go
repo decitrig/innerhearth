@@ -1,11 +1,11 @@
 package registration
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
+	"time"
 
 	"appengine"
 	"appengine/user"
@@ -20,9 +20,9 @@ var (
 )
 
 func init() {
-	http.Handle("/registration/admin", handler(admin))
-	http.Handle("/registration/admin/add-class", handler(addClass))
-	http.Handle("/registration/admin/delete-class", handler(deleteClass))
+	http.Handle("/registration/admin", handler(xsrfProtected(admin)))
+	http.Handle("/registration/admin/add-class", handler(xsrfProtected(addClass)))
+	http.Handle("/registration/admin/delete-class", handler(xsrfProtected(deleteClass)))
 }
 
 func admin(w http.ResponseWriter, r *http.Request) *appError {
@@ -31,18 +31,8 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
-	classes, err := model.ListClasses(c)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
-	for idx, class := range classes {
-		count, err := model.CountRegistrations(c, class.Name)
-		if err != nil {
-			c.Errorf("error: %s", err)
-			continue
-		}
-		classes[idx].Registrations = count
-	}
+	scheduler := model.NewScheduler(c)
+	classes := scheduler.ListClasses(true)
 	data := map[string]interface{}{
 		"LogoutURL": url,
 		"Classes":   classes,
@@ -53,27 +43,76 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func addClassFromPost(r *http.Request) error {
-	if r == nil {
-		return errors.New("request must not be nil")
+func getRequiredFields(r *http.Request, fields ...string) (map[string]string, error) {
+	m := map[string]string{}
+	for _, f := range fields {
+		v := r.FormValue(f)
+		if v == "" {
+			return nil, fmt.Errorf("Failed to get field '%s'", f)
+		}
+		m[f] = v
 	}
-	maxStudents, err := strconv.ParseInt(r.FormValue("maxstudents"), 10, 32)
+	return m, nil
+}
+
+func mustParseInt(s string, size int) int64 {
+	n, err := strconv.ParseInt(s, 10, size)
 	if err != nil {
-		return fmt.Errorf("could not parse %s as int32: %s",
-			r.FormValue("maxstudents"),
-			err)
+		panic(err)
 	}
-	class := model.NewClass(r.FormValue("name"), int32(maxStudents))
+	return n
+}
+
+func mustParseTime(layout, value string) time.Time {
+	t, err := time.Parse(layout, value)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func addClassFromPost(r *http.Request) error {
+	fields, err := getRequiredFields(r, "name", "description", "teacher", "maxstudents",
+		"dayofweek", "starttime", "length", "type")
+	if err != nil {
+		return err
+	}
+	class := &model.Class{
+		Title:         fields["name"],
+		Description:   fields["description"],
+		Teacher:       fields["teacher"],
+		Capacity:      int32(mustParseInt(fields["maxstudents"], 32)),
+		DayOfWeek:     fields["dayofweek"],
+		StartTime:     mustParseTime("15:04", fields["starttime"]),
+		LengthMinutes: int32(mustParseInt(fields["length"], 32)),
+	}
+	switch fields["type"] {
+	case "session":
+		times, err := getRequiredFields(r, "startdate", "enddate")
+		if err != nil {
+			return err
+		}
+		class.BeginDate = mustParseTime("2006-01-02", times["startdate"])
+		class.EndDate = mustParseTime("2006-01-02", times["enddate"])
+		class.DropInOnly = false
+
+	case "dropin":
+		class.DropInOnly = true
+
+	default:
+		return fmt.Errorf("Unknown class type: %s", fields["type"])
+	}
 	c := appengine.NewContext(r)
-	return class.Insert(c)
+	scheduler := model.NewScheduler(c)
+	if err := scheduler.AddNew(class); err != nil {
+		return fmt.Errorf("Error adding new class %s: %s", class.Title, err)
+	}
+	return nil
 }
 
 func addClass(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	if r.Method == "POST" {
-		if !validXSRFToken(r) {
-			return &appError{errors.New("Invalid XSRF Token"), "Authorization failure", http.StatusUnauthorized}
-		}
 		if err := addClassFromPost(r); err != nil {
 			if err != model.ErrClassExists {
 				return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -81,14 +120,10 @@ func addClass(w http.ResponseWriter, r *http.Request) *appError {
 			return &appError{err, fmt.Sprintf("Class %s already exists", r.FormValue("name")), http.StatusInternalServerError}
 		}
 		c.Infof("Successfully added class %s", r.FormValue("name"))
-		w.Header().Set("Location", "/registration/admin")
-		w.WriteHeader(http.StatusSeeOther)
+		http.Redirect(w, r, "/registration/admin", http.StatusSeeOther)
 		return nil
 	}
-	token, err := model.GetXSRFToken(c, user.Current(c).Email)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
 		"XSRFToken": token.Token,
 	}
@@ -100,28 +135,22 @@ func addClass(w http.ResponseWriter, r *http.Request) *appError {
 
 func doDelete(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
 	className := r.FormValue("class")
-	if err := model.DeleteClass(c, className); err != nil {
+	if err := scheduler.DeleteClass(className); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	c.Infof("Deleted class %s", className)
-	w.Header().Set("Location", "/registration/admin")
-	w.WriteHeader(http.StatusSeeOther)
+	http.Redirect(w, r, "/registration/admin", http.StatusSeeOther)
 	return nil
 }
 
 func deleteClass(w http.ResponseWriter, r *http.Request) *appError {
-	className := r.FormValue("class")
-	c := appengine.NewContext(r)
 	if r.Method == "POST" {
-		if !validXSRFToken(r) {
-			return &appError{errors.New("Invalid XSRF Token"), "Authorization failure", http.StatusUnauthorized}
-		}
+		return doDelete(w, r)
 	}
-	token, err := model.GetXSRFToken(c, user.Current(c).Email)
-	if err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
+	className := r.FormValue("class")
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
 		"ClassName": className,
 		"XSRFToken": token.Token,

@@ -84,6 +84,7 @@ func addClassFromPost(r *http.Request) error {
 		Description:   fields["description"],
 		Teacher:       fields["teacher"],
 		Capacity:      int32(mustParseInt(fields["maxstudents"], 32)),
+		SpacesLeft:    int32(mustParseInt(fields["maxstudents"], 32)),
 		DayOfWeek:     fields["dayofweek"],
 		StartTime:     mustParseTime("15:04", fields["starttime"]),
 		LengthMinutes: int32(mustParseInt(fields["length"], 32)),

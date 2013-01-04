@@ -16,18 +16,6 @@ var (
 	ErrAlreadyRegistered = errors.New("Student is already registered for class")
 )
 
-type ClassFullError struct {
-	Class string
-}
-
-func (e *ClassFullError) Error() string {
-	return fmt.Sprintf("Class %s is full", e.Class)
-}
-
-func classFullError(class string) error {
-	return &ClassFullError{class}
-}
-
 type Class struct {
 	ID          int64  `datastore: "-"`
 	Title       string `datastore: ",noindex"`
@@ -44,8 +32,8 @@ type Class struct {
 
 	DropInOnly bool
 
-	// The number of students who can register for the class.
-	Capacity int32 `datastore: ",noindex"`
+	Capacity   int32 `datastore: ",noindex"`
+	SpacesLeft int32
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the
@@ -64,6 +52,7 @@ type Scheduler interface {
 	GetClass(id int64) *Class
 	ListClasses(activeOnly bool) []*Class
 	DeleteClass(c *Class) error
+	ListOpenClasses(activeOnly bool) []*Class
 }
 
 type scheduler struct {
@@ -92,6 +81,24 @@ func (s *scheduler) AddNew(c *Class) error {
 func (s *scheduler) ListClasses(activeOnly bool) []*Class {
 	classes := []*Class{}
 	q := datastore.NewQuery("Class")
+	if activeOnly {
+		q = q.Filter("Active =", true)
+	}
+	keys, err := q.GetAll(s, &classes)
+	if err != nil {
+		s.Errorf("Error listing classes: %s", err)
+		return nil
+	}
+	for idx, key := range keys {
+		classes[idx].ID = key.IntID()
+	}
+	return classes
+}
+
+func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
+	classes := []*Class{}
+	q := datastore.NewQuery("Class").
+		Filter("SpacesLeft >", 0)
 	if activeOnly {
 		q = q.Filter("Active =", true)
 	}
@@ -201,6 +208,22 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 			}
 			return ErrAlreadyRegistered
 		}
+
+		classKey := datastore.NewKey(ctx, "Class", "", reg.ClassID, nil)
+		class := &Class{}
+		if err := datastore.Get(ctx, classKey, class); err != nil {
+			return fmt.Errorf("Error looking up class %d for registration %+v: %s",
+				reg.ClassID, reg, err)
+		}
+		class.ID = classKey.IntID()
+		if class.SpacesLeft == 0 {
+			return ErrClassFull
+		}
+		class.SpacesLeft--
+		if _, err := datastore.Put(ctx, classKey, class); err != nil {
+			return fmt.Errorf("Error updating class %d: %s", class.ID, err)
+		}
+
 		if _, err := datastore.Put(ctx, key, reg); err != nil {
 			return fmt.Errorf("Error writing registration %+v: %s", reg, err)
 		}
@@ -210,6 +233,42 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 		return nil, err
 	}
 	return reg, nil
+}
+
+func (r *roster) getClass(ctx appengine.Context) *Class {
+	class := &Class{}
+	if err := datastore.Get(ctx, r.class.key(ctx), class); err != nil {
+		ctx.Errorf("Couldnt' find class %d: %s", r.class.ID, err)
+		return nil
+	}
+	class.ID = r.class.ID
+	return class
+}
+
+func (r *roster) DropStudent(studentID string) error {
+	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
+		reg := r.LookupRegistration(studentID)
+		if reg == nil {
+			return fmt.Errorf("Student %s not registered for class %d", studentID, r.class.ID)
+		}
+		class := r.getClass(ctx)
+		if class == nil {
+			return fmt.Errorf("No such class class %d", r.class.ID)
+		}
+		class.SpacesLeft++
+		if class.SpacesLeft > class.Capacity {
+			r.Warningf("Tried to increase space for class %d beyond capacity", class.ID)
+			class.SpacesLeft = class.Capacity
+		}
+		if _, err := datastore.Put(ctx, class.key(ctx), class); err != nil {
+			return fmt.Errorf("Error updating class %d: %s", class.ID, err)
+		}
+		if err := datastore.Delete(ctx, reg.key(ctx)); err != nil {
+			return fmt.Errorf("Error deleting registration %+v: %s", reg, err)
+		}
+		return nil
+	}, nil)
+	return err
 }
 
 func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, error) {
@@ -264,7 +323,7 @@ func (r *registrar) ListRegisteredClasses() []*Class {
 	classes := make([]*Class, len(classKeys))
 	for i, c := range tmp {
 		c.ID = classKeys[i].IntID()
-		classes[i] = &c
+		classes[i] = &tmp[i]
 	}
 	return classes
 }

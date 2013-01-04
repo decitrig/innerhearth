@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <title>Inner Hearth Yoga Registration</title>
 <img src="images/large_logo.png" />
-<p>Welcome, <b>{{.Account.FirstName}} {{.Account.LastName}}</b> [<a href="{{.LogoutURL}}">logout</a>]</p>
+<p>Welcome, <b>{{.Account.FirstName}} {{.Account.LastName}}</b>
+{{if .IsAdmin}}[<a href="/registration/admin">admin</a>]{{end}}
+[<a href="{{.LogoutURL}}">logout</a>]</p>
 {{if .Registrations}}
 <h1>Your Registrations</h1>
 <ul>

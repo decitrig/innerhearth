@@ -144,12 +144,12 @@ func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListClasses(true)
+	classes := scheduler.ListOpenClasses(true)
 	u := userVariable.Get(r).(*requestUser)
 	registrar := model.NewRegistrar(c, u.AccountID)
 	registered := registrar.ListRegisteredClasses()
 	classes = filterRegisteredClasses(classes, registered)
-	logout, err := user.LogoutURL(c, "/")
+	logout, err := user.LogoutURL(c, "/registration")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
@@ -160,6 +160,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,
 		"Registrations":  registered,
+		"IsAdmin":        user.IsAdmin(c),
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -189,9 +190,12 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 		roster := model.NewRoster(c, class)
 		if _, err := roster.AddStudent(u.AccountID); err != nil {
 			if err == model.ErrClassFull {
-				if err := classFullPage.Execute(w, nil); err != nil {
+				if err2 := classFullPage.Execute(w, map[string]interface{}{
+					"Class": class,
+				}); err2 != nil {
 					return &appError{err, "An error occurred", http.StatusInternalServerError}
 				}
+				return nil
 			}
 			return &appError{
 				fmt.Errorf("Error when registering student %s in class %d: %s", u.AccountID, class.ID, err),

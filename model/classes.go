@@ -170,7 +170,7 @@ func (r *roster) ListRegistrations() []*Registration {
 	q := datastore.NewQuery("Registration").
 		Ancestor(r.class.key(r))
 	rs := []*Registration{}
-	if _, err := q.GetAll(r, rs); err != nil {
+	if _, err := q.GetAll(r, &rs); err != nil {
 		r.Errorf("Error looking up registrations for class %d: %s", r.class.ID, err)
 		return nil
 	}
@@ -218,6 +218,7 @@ func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, err
 
 type Registrar interface {
 	ListRegistrations() []*Registration
+	ListRegisteredClasses() []*Class
 }
 
 type registrar struct {
@@ -237,4 +238,33 @@ func (r *registrar) ListRegistrations() []*Registration {
 		return nil
 	}
 	return rs
+}
+
+func (r *registrar) ListRegisteredClasses() []*Class {
+	q := datastore.NewQuery("Registration").
+		Filter("StudentID =", r.studentID).
+		KeysOnly()
+	regKeys, err := q.GetAll(r, nil)
+	if err != nil {
+		r.Errorf("Error getting reg keys for student %s: %s", r.studentID, err)
+		return nil
+	}
+	if len(regKeys) == 0 {
+		return nil
+	}
+	classKeys := make([]*datastore.Key, len(regKeys))
+	for i, k := range regKeys {
+		classKeys[i] = k.Parent()
+	}
+	tmp := make([]Class, len(classKeys))
+	if err := datastore.GetMulti(r, classKeys, tmp); err != nil {
+		r.Errorf("Error getting registered classes for %s: %s", r.studentID, err)
+		return nil
+	}
+	classes := make([]*Class, len(classKeys))
+	for i, c := range tmp {
+		c.ID = classKeys[i].IntID()
+		classes[i] = &c
+	}
+	return classes
 }

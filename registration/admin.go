@@ -153,6 +153,12 @@ func deleteClass(w http.ResponseWriter, r *http.Request) *appError {
 		http.Redirect(w, r, "/registration/admin", http.StatusSeeOther)
 		return nil
 	}
+	roster := model.NewRoster(c, class)
+	regs := roster.ListRegistrations()
+	if regs != nil && len(regs) > 0 {
+		fmt.Fprintf(w, "This class is not empty")
+		return nil
+	}
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
 		"ClassName": class.Title,

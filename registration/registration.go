@@ -124,17 +124,17 @@ func init() {
 	http.Handle("/registration/new", handler(xsrfProtected(newRegistration)))
 }
 
-func filterRegisteredClasses(classes []*model.Class, registrations []*model.Registration) []*model.Class {
-	if len(registrations) == 0 || len(classes) == 0 {
+func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {
+	if len(registered) == 0 || len(classes) == 0 {
 		return classes
 	}
-	registered := map[int64]bool{}
-	for _, r := range registrations {
-		registered[r.ClassID] = true
+	ids := map[int64]bool{}
+	for _, r := range registered {
+		ids[r.ID] = true
 	}
 	filtered := []*model.Class{}
 	for _, c := range classes {
-		if !registered[c.ID] {
+		if !ids[c.ID] {
 			filtered = append(filtered, c)
 		}
 	}
@@ -147,8 +147,8 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	classes := scheduler.ListClasses(true)
 	u := userVariable.Get(r).(*requestUser)
 	registrar := model.NewRegistrar(c, u.AccountID)
-	registrations := registrar.ListRegistrations()
-	classes = filterRegisteredClasses(classes, registrations)
+	registered := registrar.ListRegisteredClasses()
+	classes = filterRegisteredClasses(classes, registered)
 	logout, err := user.LogoutURL(c, "/")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -159,7 +159,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		"XSRFToken":      token.Token,
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,
-		"Registrations":  registrations,
+		"Registrations":  registered,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}

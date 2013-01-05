@@ -135,6 +135,13 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 		fmt.Fprintf(w, "Please go back and enter all required data.")
 		return fmt.Errorf("Missing required fields: %s", err)
 	}
+	if err := model.ClaimEmail(c, u.ID, values["email"]); err != nil {
+		if err == model.ErrEmailInUse {
+			fmt.Fprintf(w, "That email is in use, please go back and choose another email.")
+			return nil
+		}
+		return fmt.Errorf("Error claiming email %s: %s", values["email"], err)
+	}
 	account := &model.UserAccount{
 		FirstName: values["firstname"],
 		LastName:  values["lastname"],

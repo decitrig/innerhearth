@@ -1,18 +1,60 @@
 package model
 
 import (
+	"errors"
 	"fmt"
+	"time"
 
 	"appengine"
 	"appengine/datastore"
 	"appengine/user"
 )
 
+var (
+	ErrEmailInUse = errors.New("The email is already in use")
+)
+
+type ClaimedEmail struct {
+	ClaimedBy *datastore.Key
+}
+
+func checkClaimAvailable(c appengine.Context, email string) error {
+	key := datastore.NewKey(c, "ClaimedEmail", email, 0, nil)
+	claim := &ClaimedEmail{}
+	if err := datastore.Get(c, key, claim); err != datastore.ErrNoSuchEntity {
+		if err != nil {
+			return fmt.Errorf("Error looking up claim on %s: %s", email, err)
+		}
+		return ErrEmailInUse
+	}
+	return nil
+}
+
+func ClaimEmail(c appengine.Context, accountID, email string) error {
+	if err := checkClaimAvailable(c, email); err != nil {
+		return err
+	}
+	err := datastore.RunInTransaction(c, func(ctx appengine.Context) error {
+		accountKey := datastore.NewKey(ctx, "UserAccount", accountID, 0, nil)
+		if err := checkClaimAvailable(ctx, email); err != nil {
+			return err
+		}
+		claim := &ClaimedEmail{accountKey}
+		key := datastore.NewKey(ctx, "ClaimedEmail", email, 0, nil)
+		if _, err := datastore.Put(ctx, key, claim); err != nil {
+			return err
+		}
+		return nil
+	}, nil)
+	return err
+}
+
 type UserAccount struct {
 	AccountID string `datastore: "-"`
 	FirstName string `datastore: ",noindex"`
 	LastName  string
 	Email     string
+	Confirmed time.Time `datastore: ",noindex"`
 }
 
 func HasAccount(c appengine.Context, u *user.User) bool {

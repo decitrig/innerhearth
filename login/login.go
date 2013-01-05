@@ -65,6 +65,7 @@ func init() {
 	handle("/login/account", accountCheck)
 	handle("/login/account/new", postOnly(createNewAccount))
 	handle("/login/confirm", confirmNewAccount)
+	handle("/login/confirm/resend", resendConfirmEmail)
 }
 
 func login(w http.ResponseWriter, r *http.Request) error {
@@ -211,5 +212,32 @@ func confirmNewAccount(w http.ResponseWriter, r *http.Request) error {
 	}); err != nil {
 		return fmt.Errorf("Error rendering template: %s", err)
 	}
+	return nil
+}
+
+func resendConfirmEmail(w http.ResponseWriter, r *http.Request) error {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	if u == nil {
+		return fmt.Errorf("No logged in user")
+	}
+	account, err := model.GetAccount(c, u)
+	if err != nil {
+		return fmt.Errorf("Error looking up account for user %s: %s", u.ID, err)
+	}
+	if r.Method != "POST" {
+		http.Error(w, "Not found", http.StatusNotFound)
+	}
+	if !model.ValidXSRFToken(c, account.AccountID, r.FormValue("xsrf_token")) {
+		return fmt.Errorf("Invalid XSRF token")
+	}
+	t := taskqueue.NewPOSTTask("/task/email-account-confirmation", map[string][]string{
+		"email": {account.Email},
+		"code":  {account.ConfirmationCode},
+	})
+	if _, err := taskqueue.Add(c, t, ""); err != nil {
+		c.Errorf("Error enqueuing account email task: %s", err)
+	}
+	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
 	return nil
 }

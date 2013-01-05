@@ -18,7 +18,6 @@ var (
 	newRegistrationPage = template.Must(template.ParseFiles("registration/registration-new.html"))
 	classFullPage       = template.Must(template.ParseFiles("registration/full-class.html"))
 	registrationConfirm = template.Must(template.ParseFiles("registration/registration-confirm.html"))
-	sessionCookieName   = "innerhearth-session-id"
 )
 
 type requestVariable struct {
@@ -143,9 +142,9 @@ func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class 
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
+	u := userVariable.Get(r).(*requestUser)
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListOpenClasses(true)
-	u := userVariable.Get(r).(*requestUser)
 	registrar := model.NewRegistrar(c, u.AccountID)
 	registered := registrar.ListRegisteredClasses()
 	classes = filterRegisteredClasses(classes, registered)
@@ -178,6 +177,10 @@ func classFull(w http.ResponseWriter, r *http.Request, class string) *appError {
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	u := userVariable.Get(r).(*requestUser)
 	c := appengine.NewContext(r)
+	if u.Confirmed.IsZero() {
+		http.Redirect(w, r, "/registration", http.StatusSeeOther)
+		return nil
+	}
 	classID := mustParseInt(r.FormValue("class"), 64)
 	scheduler := model.NewScheduler(c)
 	class := scheduler.GetClass(classID)

@@ -9,6 +9,9 @@ handlers:
 - url: /favicon.ico
   static_files: favicon.ico
   upload: favicon.ico
+- url: /login/confirm.*
+  script: _go_app
+  login: required
 - url: /registration/admin.*
   script: _go_app
   login: admin

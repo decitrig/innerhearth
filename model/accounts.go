@@ -50,11 +50,12 @@ func ClaimEmail(c appengine.Context, accountID, email string) error {
 }
 
 type UserAccount struct {
-	AccountID string `datastore: "-"`
-	FirstName string `datastore: ",noindex"`
-	LastName  string
-	Email     string
-	Confirmed time.Time `datastore: ",noindex"`
+	AccountID        string `datastore: "-"`
+	FirstName        string `datastore: ",noindex"`
+	LastName         string
+	Email            string
+	ConfirmationCode string
+	Confirmed        time.Time `datastore: ",noindex"`
 }
 
 func HasAccount(c appengine.Context, u *user.User) bool {

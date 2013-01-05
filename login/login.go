@@ -1,11 +1,15 @@
 package login
 
 import (
+	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
 	"appengine"
+	"appengine/taskqueue"
 	"appengine/user"
 
 	"model"
@@ -121,6 +125,13 @@ func getRequiredFields(r *http.Request, fields ...string) (map[string]string, er
 	return values, nil
 }
 
+func newConfirmCode(email string) string {
+	hash := sha512.New()
+	hash.Write([]byte(email))
+	hash.Write([]byte(time.Now().String()))
+	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
+}
+
 func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
@@ -143,12 +154,20 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("Error claiming email %s: %s", values["email"], err)
 	}
 	account := &model.UserAccount{
-		FirstName: values["firstname"],
-		LastName:  values["lastname"],
-		Email:     values["email"],
+		FirstName:        values["firstname"],
+		LastName:         values["lastname"],
+		Email:            values["email"],
+		ConfirmationCode: newConfirmCode(values["email"]),
 	}
 	if err := model.StoreAccount(c, u, account); err != nil {
 		return fmt.Errorf("Error storing user account: %s", err)
+	}
+	t := taskqueue.NewPOSTTask("/task/email-account-confirmation", map[string][]string{
+		"email": {account.Email},
+		"code":  {account.ConfirmationCode},
+	})
+	if _, err := taskqueue.Add(c, t, ""); err != nil {
+		c.Errorf("Error enqueuing account email task: %s", err)
 	}
 	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
 	return nil

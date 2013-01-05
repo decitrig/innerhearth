@@ -14,11 +14,14 @@ import (
 )
 
 var (
-	confirmationEmail = template.Must(template.ParseFiles("registration/confirmation-email.txt"))
+	confirmationEmail   = template.Must(template.ParseFiles("registration/confirmation-email.txt"))
+	accountConfirmEmail = template.Must(template.ParseFiles("login/account-confirm-email.txt"))
+	noReply             = "no-reply@innerhearthyoga.appspotmail.com"
 )
 
 func init() {
 	http.HandleFunc("/task/email-confirmation", emailConfirmation)
+	http.HandleFunc("/task/email-account-confirmation", emailAccountConfirmation)
 }
 
 func emailConfirmation(w http.ResponseWriter, r *http.Request) {
@@ -56,12 +59,43 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	msg := &mail.Message{
-		Sender:  "no-reply@innerhearthyoga.appspotmail.com",
+		Sender:  noReply,
 		To:      []string{account.Email},
 		Subject: fmt.Sprintf("Registration for %s at Inner Hearth Yoga", class.Title),
 		Body:    buf.String(),
 	}
 	if err := mail.Send(c, msg); err != nil {
 		c.Criticalf("Couldn't send email to '%s': %s", account.Email, err)
+	}
+}
+
+func emailAccountConfirmation(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	email := r.FormValue("email")
+	if email == "" {
+		c.Errorf("Couldn't parse email from task request: %s", r)
+		return
+	}
+	code := r.FormValue("code")
+	if code == "" {
+		c.Errorf("Couldn't parse code from task request: %s", r)
+		return
+	}
+	buf := &bytes.Buffer{}
+	if err := accountConfirmEmail.Execute(buf, map[string]interface{}{
+		"Email": email,
+		"Code":  code,
+	}); err != nil {
+		c.Criticalf("Couldn't create account confirm template: %s", err)
+		return
+	}
+	msg := &mail.Message{
+		Sender:  noReply,
+		To:      []string{email},
+		Subject: "Inner Hearth Yoga account confirmation",
+		Body:    buf.String(),
+	}
+	if err := mail.Send(c, msg); err != nil {
+		c.Criticalf("Couldn't send email to '%s': %s", email, err)
 	}
 }

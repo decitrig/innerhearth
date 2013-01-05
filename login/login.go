@@ -55,14 +55,16 @@ var (
 		"Flickr":    "flickr.com/{{.}}",
 		"WordPress": "{{.}}.wordpress.com",
 	}
-	loginPage      = template.Must(template.ParseFiles("login/login.html"))
-	newAccountPage = template.Must(template.ParseFiles("login/new-account.html"))
+	loginPage          = template.Must(template.ParseFiles("login/login.html"))
+	newAccountPage     = template.Must(template.ParseFiles("login/new-account.html"))
+	accountConfirmPage = template.Must(template.ParseFiles("login/confirm-account.html"))
 )
 
 func init() {
 	handle("/_ah/login_required", login)
 	handle("/login/account", accountCheck)
 	handle("/login/account/new", postOnly(createNewAccount))
+	handle("/login/confirm", confirmNewAccount)
 }
 
 func login(w http.ResponseWriter, r *http.Request) error {
@@ -170,5 +172,44 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}
 	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
+	return nil
+}
+
+func confirmNewAccount(w http.ResponseWriter, r *http.Request) error {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	if u == nil {
+		return fmt.Errorf("No logged in user")
+	}
+	account, err := model.GetAccount(c, u)
+	if err != nil {
+		return fmt.Errorf("Error looking up account for user %s: %s", u.ID, err)
+	}
+	xsrfToken, err := model.GetXSRFToken(c, account.AccountID)
+	if err != nil {
+		return fmt.Errorf("Error getting XSRF token: %s", err)
+	}
+	if r.Method == "POST" {
+		if !model.ValidXSRFToken(c, account.AccountID, r.FormValue("xsrf_token")) {
+			return fmt.Errorf("Invalid XSRF token")
+		}
+		values, err := getRequiredFields(r, "code")
+		if err != nil {
+			return fmt.Errorf("Missing required fields: %s", err)
+		}
+		if err := model.ConfirmAccount(c, values["code"], account); err != nil {
+			return fmt.Errorf("Couldn't confirm account %s: %s", account.AccountID, err)
+		}
+		http.Redirect(w, r, "/registration", http.StatusSeeOther)
+		return nil
+	}
+
+	if err := accountConfirmPage.Execute(w, map[string]interface{}{
+		"Email":     account.Email,
+		"XSRFToken": xsrfToken.Token,
+		"Code":      r.FormValue("code"),
+	}); err != nil {
+		return fmt.Errorf("Error rendering template: %s", err)
+	}
 	return nil
 }

@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<form method="post">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	<input type="hidden" name="code" value="{{.Code}}" />
+	<p>Confirm account for {{.Email}}</p>
+	<button>Confirm</button>
+</form>

@@ -54,7 +54,7 @@ type UserAccount struct {
 	FirstName        string `datastore: ",noindex"`
 	LastName         string
 	Email            string
-	ConfirmationCode string
+	ConfirmationCode string    `datastore: ",noindex"`
 	Confirmed        time.Time `datastore: ",noindex"`
 }
 
@@ -87,6 +87,21 @@ func GetAccountByID(c appengine.Context, id string) (*UserAccount, error) {
 
 func StoreAccount(c appengine.Context, u *user.User, account *UserAccount) error {
 	key := datastore.NewKey(c, "UserAccount", u.ID, 0, nil)
+	if _, err := datastore.Put(c, key, account); err != nil {
+		return fmt.Errorf("Error storing account: %s", err)
+	}
+	return nil
+}
+
+func ConfirmAccount(c appengine.Context, code string, account *UserAccount) error {
+	if code != account.ConfirmationCode {
+		return fmt.Errorf("Incorrect code")
+	}
+	if !account.Confirmed.IsZero() {
+		return nil
+	}
+	account.Confirmed = time.Now()
+	key := datastore.NewKey(c, "UserAccount", account.AccountID, 0, nil)
 	if _, err := datastore.Put(c, key, account); err != nil {
 		return fmt.Errorf("Error storing account: %s", err)
 	}

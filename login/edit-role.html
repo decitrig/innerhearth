@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Admin - edit user role</title>
+<form method="POST">
+<input name="xsrf_token" value="{{.XSRFToken}}" type="hidden" />
+<input name="userid" value="{{.Account.AccountID}}" type="hidden" />
+{{.Account.Email}}'s role is currently {{or .Account.Role "STUDENT"}}.
+Choose a new role:
+<select name="role">
+	<option>STUDENT</option>
+	<option>TEACHER</option>
+	<option>STAFF</option>
+</select>
+<button>Submit</button>
+</form>

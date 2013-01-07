@@ -49,6 +49,27 @@ func ClaimEmail(c appengine.Context, accountID, email string) error {
 	return err
 }
 
+type UserRole string
+
+const (
+	RoleStudent = ""
+	RoleTeacher = "TEACHER"
+	RoleStaff   = "STAFF"
+	RoleAdmin   = "ADMIN"
+)
+
+func ParseRole(r string) UserRole {
+	switch r {
+	case "TEACHER":
+		return RoleTeacher
+	case "STAFF":
+		return RoleStaff
+	case "ADMIN":
+		return RoleAdmin
+	}
+	return RoleStudent
+}
+
 type UserAccount struct {
 	AccountID        string `datastore: "-"`
 	FirstName        string `datastore: ",noindex"`
@@ -56,6 +77,7 @@ type UserAccount struct {
 	Email            string
 	ConfirmationCode string    `datastore: ",noindex"`
 	Confirmed        time.Time `datastore: ",noindex"`
+	Role             UserRole
 }
 
 func HasAccount(c appengine.Context, u *user.User) bool {
@@ -82,11 +104,54 @@ func GetAccountByID(c appengine.Context, id string) (*UserAccount, error) {
 		return nil, fmt.Errorf("Error looking up account: %s", err)
 	}
 	account.AccountID = id
+	if user.IsAdmin(c) {
+		account.Role = RoleAdmin
+	}
 	return account, nil
 }
 
+func GetAccountByEmail(c appengine.Context, email string) *UserAccount {
+	q := datastore.NewQuery("UserAccount").
+		Filter("Email =", email).
+		Limit(2)
+	accounts := []*UserAccount{}
+	keys, err := q.GetAll(c, &accounts)
+	if err != nil {
+		c.Errorf("Error looking up user %s", email)
+		return nil
+	}
+	if len(accounts) > 1 {
+		c.Criticalf("More than 1 account for email %s: %v", accounts)
+		return nil
+	}
+	if len(accounts) == 0 {
+		return nil
+	}
+	account := accounts[0]
+	account.AccountID = keys[0].StringID()
+	return account
+}
+
+func ListRoleAccounts(c appengine.Context, role UserRole) []*UserAccount {
+	q := datastore.NewQuery("UserAccount").
+		Filter("Role =", role)
+	accounts := []*UserAccount{}
+	_, err := q.GetAll(c, &accounts)
+	if err != nil {
+		c.Errorf("Error getting %s accounts: %s", role, err)
+		return nil
+	}
+	return accounts
+}
+
 func StoreAccount(c appengine.Context, u *user.User, account *UserAccount) error {
-	key := datastore.NewKey(c, "UserAccount", u.ID, 0, nil)
+	var id string
+	if u == nil {
+		id = account.AccountID
+	} else {
+		id = u.ID
+	}
+	key := datastore.NewKey(c, "UserAccount", id, 0, nil)
 	if _, err := datastore.Put(c, key, account); err != nil {
 		return fmt.Errorf("Error storing account: %s", err)
 	}

@@ -58,6 +58,8 @@ var (
 	loginPage          = template.Must(template.ParseFiles("login/login.html"))
 	newAccountPage     = template.Must(template.ParseFiles("login/new-account.html"))
 	accountConfirmPage = template.Must(template.ParseFiles("login/confirm-account.html"))
+	adminPage          = template.Must(template.ParseFiles("login/admin.html"))
+	editRolePage       = template.Must(template.ParseFiles("login/edit-role.html"))
 )
 
 func init() {
@@ -66,6 +68,8 @@ func init() {
 	handle("/login/account/new", postOnly(createNewAccount))
 	handle("/login/confirm", confirmNewAccount)
 	handle("/login/confirm/resend", resendConfirmEmail)
+	handle("/login/admin", admin)
+	handle("/login/admin/edit-role", editUserRole)
 }
 
 func login(w http.ResponseWriter, r *http.Request) error {
@@ -85,6 +89,26 @@ func login(w http.ResponseWriter, r *http.Request) error {
 	}
 	if err := loginPage.Execute(w, data); err != nil {
 		return fmt.Errorf("Error rendering login page template: %s", err)
+	}
+	return nil
+}
+
+func admin(w http.ResponseWriter, r *http.Request) error {
+	c := appengine.NewContext(r)
+	u, err := model.GetCurrentUserAccount(c)
+	if err != nil {
+		return fmt.Errorf("No logged in user")
+	}
+	logout, err := user.LogoutURL(c, r.URL.String())
+	if err != nil {
+		return fmt.Errorf("Error getting logout url: %s", err)
+	}
+	if err := adminPage.Execute(w, map[string]interface{}{
+		"Email":     u.Email,
+		"LogoutURL": logout,
+		"Staff":     model.ListRoleAccounts(c, model.RoleStaff),
+	}); err != nil {
+		return fmt.Errorf("Error rendering admin page: %s", err)
 	}
 	return nil
 }
@@ -239,5 +263,50 @@ func resendConfirmEmail(w http.ResponseWriter, r *http.Request) error {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}
 	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
+	return nil
+}
+
+func editUserRole(w http.ResponseWriter, r *http.Request) error {
+	c := appengine.NewContext(r)
+	current, err := model.GetCurrentUserAccount(c)
+	if err != nil {
+		return fmt.Errorf("No logged in user: %s", err)
+	}
+	if r.Method == "POST" {
+		fields, err := getRequiredFields(r, "xsrf_token", "userid", "role")
+		if err != nil {
+			return fmt.Errorf("Couldn't parse required fields: %s", err)
+		}
+		if !model.ValidXSRFToken(c, current.AccountID, fields["xsrf_token"]) {
+			return fmt.Errorf("Invalid XSRF token")
+		}
+		account, err := model.GetAccountByID(c, fields["userid"])
+		if err != nil {
+			return fmt.Errorf("Couldn't find user account %s: %s", account.AccountID, err)
+		}
+		account.Role = model.ParseRole(fields["role"])
+		if err := model.StoreAccount(c, nil, account); err != nil {
+			return fmt.Errorf("Error writing account %s: %s", account.AccountID, err)
+		}
+		http.Redirect(w, r, "/login/admin", http.StatusSeeOther)
+	}
+	xsrfToken, err := model.GetXSRFToken(c, current.AccountID)
+	if err != nil {
+		return fmt.Errorf("Error getting XSRF token: %s", err)
+	}
+	fields, err := getRequiredFields(r, "email")
+	if err != nil {
+		return fmt.Errorf("Couldn't parse required fields: %s", err)
+	}
+	account := model.GetAccountByEmail(c, fields["email"])
+	if account == nil {
+		return fmt.Errorf("Couldnt' find account for %s", fields["email"])
+	}
+	if err := editRolePage.Execute(w, map[string]interface{}{
+		"Account":   account,
+		"XSRFToken": xsrfToken.Token,
+	}); err != nil {
+		return fmt.Errorf("Couldn't execute template: %s", err)
+	}
 	return nil
 }

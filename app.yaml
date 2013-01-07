@@ -12,6 +12,9 @@ handlers:
 - url: /login/confirm.*
   script: _go_app
   login: required
+- url: /login/admin.*
+  script: _go_app
+  login: admin
 - url: /registration/admin.*
   script: _go_app
   login: admin

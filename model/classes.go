@@ -46,6 +46,10 @@ func (c *Class) key(ctx appengine.Context) *datastore.Key {
 	return datastore.NewKey(ctx, "Class", "", c.ID, nil)
 }
 
+func (c *Class) Registrations() int32 {
+	return c.Capacity - c.SpacesLeft
+}
+
 // A Scheduler is responsible for manipulating classes.
 type Scheduler interface {
 	AddNew(c *Class) error
@@ -55,6 +59,7 @@ type Scheduler interface {
 	ListOpenClasses(activeOnly bool) []*Class
 	GetTeacherNames(classes []*Class) map[int64]string
 	GetTeacher(class *Class) *UserAccount
+	GetClassesForTeacher(teacher *UserAccount) []*Class
 }
 
 type scheduler struct {
@@ -107,6 +112,21 @@ func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
 	keys, err := q.GetAll(s, &classes)
 	if err != nil {
 		s.Errorf("Error listing classes: %s", err)
+		return nil
+	}
+	for idx, key := range keys {
+		classes[idx].ID = key.IntID()
+	}
+	return classes
+}
+
+func (s *scheduler) GetClassesForTeacher(t *UserAccount) []*Class {
+	q := datastore.NewQuery("Class").
+		Filter("Teacher =", t.key(s))
+	classes := []*Class{}
+	keys, err := q.GetAll(s, &classes)
+	if err != nil {
+		s.Errorf("Error listing classes for teacher %s: %s", t.AccountID, err)
 		return nil
 	}
 	for idx, key := range keys {
@@ -189,6 +209,7 @@ func (r *Registration) key(c appengine.Context) *datastore.Key {
 type Roster interface {
 	LookupRegistration(studentID string) *Registration
 	ListRegistrations() []*Registration
+	GetStudents(registrations []*Registration) []*UserAccount
 	AddStudent(studentID string) (*Registration, error)
 	AddDropIn(studentID string, date time.Time) (*Registration, error)
 }
@@ -211,6 +232,20 @@ func (r *roster) ListRegistrations() []*Registration {
 		return nil
 	}
 	return rs
+}
+
+func (r *roster) GetStudents(rs []*Registration) []*UserAccount {
+	keys := make([]*datastore.Key, len(rs))
+	students := make([]*UserAccount, len(rs))
+	for idx, reg := range rs {
+		keys[idx] = datastore.NewKey(r, "UserAccount", reg.StudentID, 0, nil)
+		students[idx] = &UserAccount{}
+	}
+	if err := datastore.GetMulti(r, keys, students); err != nil {
+		r.Errorf("Error looking up students from registrations: %s", err)
+		return nil
+	}
+	return students
 }
 
 func (r *roster) LookupRegistration(studentID string) *Registration {

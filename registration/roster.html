@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<h1>{{.Class.Title}}</h1>
+<table>
+{{range .Registrations}}
+<tr>
+	<td>{{.FirstName}}</td>
+	<td>{{.LastName}}</td>
+	<td>{{.Email}}</td>
+</tr>
+{{end}}
+</table>

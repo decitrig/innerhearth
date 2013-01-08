@@ -18,6 +18,9 @@ var (
 	newRegistrationPage = template.Must(template.ParseFiles("registration/registration-new.html"))
 	classFullPage       = template.Must(template.ParseFiles("registration/full-class.html"))
 	registrationConfirm = template.Must(template.ParseFiles("registration/registration-confirm.html"))
+	teacherPage         = template.Must(template.ParseFiles("registration/teacher.html"))
+	teacherRosterPage   = template.Must(template.ParseFiles("registration/roster.html"))
+	teacherRegisterPage = template.Must(template.ParseFiles("registration/teacher-register.html"))
 )
 
 type requestVariable struct {
@@ -122,9 +125,23 @@ func xsrfProtected(handler handler) handler {
 	})
 }
 
+func teachersOnly(handler handler) handler {
+	return xsrfProtected(func(w http.ResponseWriter, r *http.Request) *appError {
+		u := getRequestUser(r)
+		if !(u.Role.IsStaff() || u.Role.CanTeach()) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return nil
+		}
+		return handler(w, r)
+	})
+}
+
 func init() {
 	http.Handle("/registration", handler(xsrfProtected(registration)))
 	http.Handle("/registration/new", handler(xsrfProtected(newRegistration)))
+	http.Handle("/registration/teacher", handler(teachersOnly(teacher)))
+	http.Handle("/registration/teacher/roster", handler(teachersOnly(teacherRoster)))
+	http.Handle("/registration/teacher/register", handler(teachersOnly(teacherRegister)))
 }
 
 func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {
@@ -142,6 +159,95 @@ func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class 
 		}
 	}
 	return filtered
+}
+
+func teacher(w http.ResponseWriter, r *http.Request) *appError {
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	u := getRequestUser(r)
+	classes := scheduler.GetClassesForTeacher(u.UserAccount)
+	if err := teacherPage.Execute(w, map[string]interface{}{
+		"Classes": classes,
+	}); err != nil {
+		return &appError{err, "Not implemented", http.StatusNotFound}
+	}
+	return nil
+}
+
+func teacherRoster(w http.ResponseWriter, r *http.Request) *appError {
+	fields, err := getRequiredFields(r, "class")
+	if err != nil {
+		return &appError{err, "Must specify a class", http.StatusBadRequest}
+	}
+	classID := mustParseInt(fields["class"], 64)
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return &appError{
+			fmt.Errorf("Couldn't find class %d", classID),
+			"Error looking up class",
+			http.StatusInternalServerError,
+		}
+	}
+	roster := model.NewRoster(c, class)
+	registrations := roster.ListRegistrations()
+	if err := teacherRosterPage.Execute(w, map[string]interface{}{
+		"Class":         class,
+		"Registrations": roster.GetStudents(registrations),
+	}); err != nil {
+		return &appError{err, "An error ocurred", http.StatusInternalServerError}
+	}
+	return nil
+}
+
+func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
+	if r.Method == "POST" {
+		fields, err := getRequiredFields(r, "xsrf_token", "class", "firstname", "lastname", "email")
+		if err != nil {
+			return &appError{err, "Missing required fields", http.StatusBadRequest}
+		}
+		c := appengine.NewContext(r)
+		scheduler := model.NewScheduler(c)
+		class := scheduler.GetClass(mustParseInt(fields["class"], 64))
+		if class == nil {
+			return &appError{
+				fmt.Errorf("Couldn't find class %d", fields["class"]),
+				"Error looking up class",
+				http.StatusInternalServerError,
+			}
+		}
+		account := &model.UserAccount{
+			FirstName: fields["firstname"],
+			LastName:  fields["lastname"],
+			Email:     fields["email"],
+		}
+		if p := r.FormValue("phone"); p != "" {
+			account.Phone = p
+		}
+		account.AccountID = "PAPERREGISTRATION|" + fields["email"]
+		if err := model.StoreAccount(c, nil, account); err != nil {
+			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		}
+		roster := model.NewRoster(c, class)
+		if _, err := roster.AddStudent(account.AccountID); err != nil {
+			if err == model.ErrAlreadyRegistered {
+				fmt.Fprintf(w, "Student with that email already registered for this class")
+				return nil
+			}
+			return &appError{err, "Error registering student", http.StatusInternalServerError}
+		}
+		http.Redirect(w, r, fmt.Sprintf("/registration/teacher/roster?class=%d", class.ID), http.StatusSeeOther)
+		return nil
+	}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
+	if err := teacherRegisterPage.Execute(w, map[string]interface{}{
+		"XSRFToken": token.Token,
+		"ClassID":   r.FormValue("class"),
+	}); err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	return nil
 }
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {

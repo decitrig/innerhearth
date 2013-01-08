@@ -2,7 +2,8 @@
 <title>Inner Hearth Yoga Registration</title>
 <img src="images/large_logo.png" />
 <p>Welcome, <b>{{.Account.FirstName}} {{.Account.LastName}}</b>
-{{if or .IsAdmin}}[<a href="/registration/admin">admin</a>]{{end}}
+{{if .IsAdmin}}[<a href="/registration/admin">admin</a>]{{end}}
+{{if .Account.Role.CanTeach}}[<a href="/registration/teacher">teacher</a>]{{end}}
 [<a href="{{.LogoutURL}}">logout</a>]</p>
 {{if .Account.Confirmed.IsZero }}
 <p>You cannot register for classes until you confirm your account. Please check your email for an account confirmation message.

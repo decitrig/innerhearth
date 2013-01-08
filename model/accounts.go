@@ -84,6 +84,7 @@ type UserAccount struct {
 	FirstName string `datastore: ",noindex"`
 	LastName  string
 	Email     string
+	Phone     string
 
 	ConfirmationCode string    `datastore: ",noindex"`
 	Confirmed        time.Time `datastore: ",noindex"`
@@ -95,6 +96,10 @@ type UserAccount struct {
 func (a *UserAccount) SetRole(role UserRole) {
 	a.Role = role
 	a.CanTeach = role.CanTeach()
+}
+
+func (a *UserAccount) key(c appengine.Context) *datastore.Key {
+	return datastore.NewKey(c, "UserAccount", a.AccountID, 0, nil)
 }
 
 func HasAccount(c appengine.Context, u *user.User) bool {

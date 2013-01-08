@@ -60,6 +60,7 @@ type Scheduler interface {
 	GetTeacherNames(classes []*Class) map[int64]string
 	GetTeacher(class *Class) *UserAccount
 	GetClassesForTeacher(teacher *UserAccount) []*Class
+	WriteClass(class *Class) error
 }
 
 type scheduler struct {
@@ -185,6 +186,14 @@ func (s *scheduler) DeleteClass(c *Class) error {
 		return fmt.Errorf("Error deleting class %d: %s", c.ID, err)
 	}
 	return err
+}
+
+func (s *scheduler) WriteClass(c *Class) error {
+	key := c.key(s)
+	if _, err := datastore.Put(s, key, c); err != nil {
+		return fmt.Errorf("Error writing class %d: %s", c.ID, err)
+	}
+	return nil
 }
 
 func NewScheduler(c appengine.Context) Scheduler {

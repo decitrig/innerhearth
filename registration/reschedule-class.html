@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Reschedule Class</title>
+<h1>Reschedule {{.Class.Title}}</h1>
+<p>Currently {{.Class.DayOfWeek}}s at {{.Class.StartTime.Format "03:04 PM"}}
+<form action="/registration/admin/reschedule-class" method="post">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	<input type="hidden" name="class" value="{{.Class.ID}}" />
+	<fieldset>
+		<h2>Schedule</h2>
+		<ul>
+			<li><label for="dayofweek">Day:</label>
+				<select name="dayofweek" id="dayofweek">
+					<option {{daySelected .Class "Monday"}}>Monday</option>
+					<option {{daySelected .Class "Tuesday"}}>Tuesday</option>
+					<option {{daySelected .Class "Wednesday"}}>Wednesday</option>
+					<option {{daySelected .Class "Thursday"}}>Thursday</option>
+					<option {{daySelected .Class "Friday"}}>Friday</option>
+					<option {{daySelected .Class "Saturday"}}>Saturday</option>
+					<option {{daySelected .Class "Sunday"}}>Sunday</option>
+				</select>
+			<li><label for="starttime">Start time (HH:MMam):</label>
+				{{$time := .Class.StartTime.Format "15:04"}}
+				<input type="time" name="starttime" required="required" id="starttime" value="{{$time}}" />
+			<li><label for="length">Length (minutes):</label>
+				<input type="number" min="0" max="999" required="required" id="length" name="length" value="{{.Class.LengthMinutes}}"/>
+		</ul>
+	</fieldset>
+	{{if not .Class.DropInOnly}}
+	<fieldset>
+		<h2>Session Dates</h2>
+		<ul>
+			<li><label for="startdate">Start Date (MM/DD/YYYY):</label>
+				<input type="date" name="startdate" id="startdate" />
+			<li><label for="enddate">End Date (MM/DD/YYYY):</label>
+				<input type="date" name="enddate" id="enddate" />
+		</ul>
+		<button name="type" value="session">Add Session Class</button>
+	</fieldset>
+	{{end}}
+	<button>Reschedule</button>
+</form>

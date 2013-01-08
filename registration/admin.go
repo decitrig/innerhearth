@@ -14,10 +14,20 @@ import (
 	"model"
 )
 
+func daySelected(c *model.Class, day string) template.HTMLAttr {
+	if c.DayOfWeek == day {
+		return template.HTMLAttr(`selected="selected"`)
+	}
+	return template.HTMLAttr("")
+}
+
 var (
 	adminPage               = template.Must(template.ParseFiles("registration/admin.html"))
 	deleteClassConfirmation = template.Must(template.ParseFiles("registration/delete-confirm.html"))
 	addClassForm            = template.Must(template.ParseFiles("registration/add-class.html"))
+	rescheduleClassPage     = template.Must(template.New("reschedule-class.html").Funcs(template.FuncMap{
+		"daySelected": daySelected,
+	}).ParseFiles("registration/reschedule-class.html"))
 )
 
 func staffOnly(handler handler) handler {
@@ -35,6 +45,7 @@ func init() {
 	http.Handle("/registration/admin", handler(staffOnly(admin)))
 	http.Handle("/registration/admin/add-class", handler(staffOnly(addClass)))
 	http.Handle("/registration/admin/delete-class", handler(staffOnly(deleteClass)))
+	http.Handle("/registration/admin/reschedule-class", handler(staffOnly(rescheduleClass)))
 }
 
 func admin(w http.ResponseWriter, r *http.Request) *appError {
@@ -182,6 +193,51 @@ func deleteClass(w http.ResponseWriter, r *http.Request) *appError {
 		"XSRFToken": token.Token,
 	}
 	if err := deleteClassConfirmation.Execute(w, data); err != nil {
+		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	return nil
+}
+
+func rescheduleClass(w http.ResponseWriter, r *http.Request) *appError {
+	c := appengine.NewContext(r)
+	classID := mustParseInt(r.FormValue("class"), 64)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return &appError{
+			fmt.Errorf("Couldn't find class %d", classID),
+			"Couldn't find class",
+			http.StatusInternalServerError,
+		}
+	}
+	if r.Method == "POST" {
+		fields, err := getRequiredFields(r, "dayofweek", "starttime", "length")
+		if err != nil {
+			return &appError{err, "Missing required fields", http.StatusBadRequest}
+		}
+		class.DayOfWeek = fields["dayofweek"]
+		class.StartTime = mustParseTime("15:04", fields["starttime"])
+		class.LengthMinutes = int32(mustParseInt(fields["length"], 32))
+		if !class.DropInOnly {
+			times, err := getRequiredFields(r, "startdate", "enddate")
+			if err != nil {
+				return &appError{err, "Missing required fields", http.StatusBadRequest}
+			}
+			class.BeginDate = mustParseTime("2006-01-02", times["startdate"])
+			class.EndDate = mustParseTime("2006-01-02", times["enddate"])
+		}
+		if err := scheduler.WriteClass(class); err != nil {
+			return &appError{err, "Error storing class", http.StatusInternalServerError}
+		}
+		http.Redirect(w, r, "/registration/admin", http.StatusSeeOther)
+	}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
+	if err := rescheduleClassPage.Funcs(template.FuncMap{
+		"daySelected": daySelected,
+	}).Execute(w, map[string]interface{}{
+		"Class":     class,
+		"XSRFToken": token.Token,
+	}); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
 	}
 	return nil

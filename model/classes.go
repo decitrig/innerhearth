@@ -372,13 +372,19 @@ func (r *registrar) ListRegistrations() []*Registration {
 	return rs
 }
 
-func (r *registrar) ListRegisteredClasses() []*Class {
+func (r *registrar) listPaperRegistrations() []*Class {
+	account, err := GetAccountByID(r, r.studentID)
+	if err != nil {
+		r.Errorf("Error looking up paper registrations for %s: %s", r.studentID, err)
+		return nil
+	}
+	r.Infof("Looking up paper registrations for %s", "PAPERREGISTRATION|"+account.Email)
 	q := datastore.NewQuery("Registration").
-		Filter("StudentID =", r.studentID).
+		Filter("StudentID =", "PAPERREGISTRATION|"+account.Email).
 		KeysOnly()
 	regKeys, err := q.GetAll(r, nil)
 	if err != nil {
-		r.Errorf("Error getting reg keys for student %s: %s", r.studentID, err)
+		r.Errorf("Error getting paper reg keys for student %s: %s", r.studentID, err)
 		return nil
 	}
 	if len(regKeys) == 0 {
@@ -397,6 +403,45 @@ func (r *registrar) ListRegisteredClasses() []*Class {
 	for i, c := range tmp {
 		c.ID = classKeys[i].IntID()
 		classes[i] = &tmp[i]
+	}
+	return classes
+}
+
+func (r *registrar) ListRegisteredClasses() []*Class {
+	r.Infof("Listing registered classes for %s", r.studentID)
+	q := datastore.NewQuery("Registration").
+		Filter("StudentID =", r.studentID).
+		KeysOnly()
+	regKeys, err := q.GetAll(r, nil)
+	if err != nil {
+		r.Errorf("Error getting reg keys for student %s: %s", r.studentID, err)
+		return nil
+	}
+	classKeys := make([]*datastore.Key, len(regKeys))
+	classes := make([]*Class, len(classKeys))
+	for i, k := range regKeys {
+		classKeys[i] = k.Parent()
+		classes[i] = &Class{}
+	}
+	if err := datastore.GetMulti(r, classKeys, classes); err != nil {
+		r.Errorf("Error getting registered classes for %s: %s", r.studentID, err)
+		return nil
+	}
+	classesByID := map[int64]*Class{}
+	for _, class := range classes {
+		classesByID[class.ID] = class
+	}
+	paperClasses := r.listPaperRegistrations()
+	if paperClasses == nil {
+		return classes
+	}
+	r.Infof("Found %d registrations for %s", len(paperClasses), r.studentID)
+	for _, class := range paperClasses {
+		classesByID[class.ID] = class
+	}
+	classes = []*Class{}
+	for _, class := range classesByID {
+		classes = append(classes, class)
 	}
 	return classes
 }

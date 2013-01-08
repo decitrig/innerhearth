@@ -217,17 +217,20 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 				http.StatusInternalServerError,
 			}
 		}
-		account := &model.UserAccount{
-			FirstName: fields["firstname"],
-			LastName:  fields["lastname"],
-			Email:     fields["email"],
-		}
-		if p := r.FormValue("phone"); p != "" {
-			account.Phone = p
-		}
-		account.AccountID = "PAPERREGISTRATION|" + fields["email"]
-		if err := model.StoreAccount(c, nil, account); err != nil {
-			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		account := model.GetAccountByEmail(c, fields["email"])
+		if account == nil {
+			account = &model.UserAccount{
+				FirstName: fields["firstname"],
+				LastName:  fields["lastname"],
+				Email:     fields["email"],
+			}
+			if p := r.FormValue("phone"); p != "" {
+				account.Phone = p
+			}
+			account.AccountID = "PAPERREGISTRATION|" + fields["email"]
+			if err := model.StoreAccount(c, nil, account); err != nil {
+				return &appError{err, "An error occurred", http.StatusInternalServerError}
+			}
 		}
 		roster := model.NewRoster(c, class)
 		if _, err := roster.AddStudent(account.AccountID); err != nil {
@@ -303,11 +306,6 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusInternalServerError}
 	}
 	if r.Method == "POST" {
-		return &appError{
-			fmt.Errorf("Registrations disabled"),
-			"Online registration is temporarily disabled",
-			http.StatusNotFound,
-		}
 		roster := model.NewRoster(c, class)
 		if _, err := roster.AddStudent(u.AccountID); err != nil {
 			if err == model.ErrClassFull {

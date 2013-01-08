@@ -408,7 +408,6 @@ func (r *registrar) listPaperRegistrations() []*Class {
 }
 
 func (r *registrar) ListRegisteredClasses() []*Class {
-	r.Infof("Listing registered classes for %s", r.studentID)
 	q := datastore.NewQuery("Registration").
 		Filter("StudentID =", r.studentID).
 		KeysOnly()
@@ -435,7 +434,6 @@ func (r *registrar) ListRegisteredClasses() []*Class {
 	if paperClasses == nil {
 		return classes
 	}
-	r.Infof("Found %d registrations for %s", len(paperClasses), r.studentID)
 	for _, class := range paperClasses {
 		classesByID[class.ID] = class
 	}

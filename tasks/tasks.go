@@ -37,6 +37,7 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) {
 		c.Errorf("Couldn't find class %d", classID)
 		http.Error(w, "Missing class", http.StatusInternalServerError)
 	}
+	teacher := scheduler.GetTeacher(class)
 	roster := model.NewRoster(c, class)
 	reg := roster.LookupRegistration(r.FormValue("account"))
 	if reg == nil {
@@ -52,8 +53,9 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 	buf := &bytes.Buffer{}
 	if err := confirmationEmail.Execute(buf, map[string]interface{}{
-		"Class": class,
-		"Email": account.Email,
+		"Class":   class,
+		"Email":   account.Email,
+		"Teacher": teacher,
 	}); err != nil {
 		c.Criticalf("Couldn't create email to '%s': %s", account.Email, err)
 		return

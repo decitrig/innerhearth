@@ -58,6 +58,14 @@ const (
 	RoleAdmin   = "ADMIN"
 )
 
+func (r UserRole) CanTeach() bool {
+	return r.IsStaff() || r == RoleTeacher
+}
+
+func (r UserRole) IsStaff() bool {
+	return r == RoleStaff || r == RoleAdmin
+}
+
 func ParseRole(r string) UserRole {
 	switch r {
 	case "TEACHER":
@@ -71,13 +79,22 @@ func ParseRole(r string) UserRole {
 }
 
 type UserAccount struct {
-	AccountID        string `datastore: "-"`
-	FirstName        string `datastore: ",noindex"`
-	LastName         string
-	Email            string
+	AccountID string `datastore: "-"`
+
+	FirstName string `datastore: ",noindex"`
+	LastName  string
+	Email     string
+
 	ConfirmationCode string    `datastore: ",noindex"`
 	Confirmed        time.Time `datastore: ",noindex"`
-	Role             UserRole
+
+	Role     UserRole
+	CanTeach bool
+}
+
+func (a *UserAccount) SetRole(role UserRole) {
+	a.Role = role
+	a.CanTeach = role.CanTeach()
 }
 
 func HasAccount(c appengine.Context, u *user.User) bool {
@@ -139,6 +156,18 @@ func ListRoleAccounts(c appengine.Context, role UserRole) []*UserAccount {
 	_, err := q.GetAll(c, &accounts)
 	if err != nil {
 		c.Errorf("Error getting %s accounts: %s", role, err)
+		return nil
+	}
+	return accounts
+}
+
+func ListTeachers(c appengine.Context) []*UserAccount {
+	q := datastore.NewQuery("UserAccount").
+		Filter("CanTeach =", true)
+	accounts := []*UserAccount{}
+	_, err := q.GetAll(c, &accounts)
+	if err != nil {
+		c.Errorf("Error listing teachers: %s", err)
 		return nil
 	}
 	return accounts

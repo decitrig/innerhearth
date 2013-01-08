@@ -95,6 +95,10 @@ func needsUser(handler handler) handler {
 	}
 }
 
+func getRequestUser(r *http.Request) *requestUser {
+	return userVariable.Get(r).(*requestUser)
+}
+
 func xsrfProtected(handler handler) handler {
 	return needsUser(func(w http.ResponseWriter, r *http.Request) *appError {
 		u := userVariable.Get(r).(*requestUser)
@@ -145,6 +149,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	u := userVariable.Get(r).(*requestUser)
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListOpenClasses(true)
+	teachers := scheduler.GetTeacherNames(classes)
 	registrar := model.NewRegistrar(c, u.AccountID)
 	registered := registrar.ListRegisteredClasses()
 	classes = filterRegisteredClasses(classes, registered)
@@ -159,7 +164,8 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,
 		"Registrations":  registered,
-		"IsAdmin":        user.IsAdmin(c),
+		"IsAdmin":        u.Role.IsStaff(),
+		"Teachers":       teachers,
 	}
 	if err := registrationForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -184,6 +190,7 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	classID := mustParseInt(r.FormValue("class"), 64)
 	scheduler := model.NewScheduler(c)
 	class := scheduler.GetClass(classID)
+	teacher := scheduler.GetTeacher(class)
 	if class == nil {
 		return &appError{fmt.Errorf("Couldn't find class %d", classID),
 			"An error occurred, please go back and try again",
@@ -216,8 +223,9 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 				http.StatusInternalServerError}
 		}
 		data := map[string]interface{}{
-			"Email": u.UserAccount.Email,
-			"Class": class,
+			"Email":   u.UserAccount.Email,
+			"Class":   class,
+			"Teacher": teacher,
 		}
 		if err := newRegistrationPage.Execute(w, data); err != nil {
 			return &appError{err, "An error occurred; please go back and try again.", http.StatusInternalServerError}

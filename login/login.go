@@ -284,7 +284,7 @@ func editUserRole(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return fmt.Errorf("Couldn't find user account %s: %s", account.AccountID, err)
 		}
-		account.Role = model.ParseRole(fields["role"])
+		account.SetRole(model.ParseRole(fields["role"]))
 		if err := model.StoreAccount(c, nil, account); err != nil {
 			return fmt.Errorf("Error writing account %s: %s", account.AccountID, err)
 		}

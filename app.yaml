@@ -17,7 +17,7 @@ handlers:
   login: admin
 - url: /registration/admin.*
   script: _go_app
-  login: admin
+  login: required
 - url: /registration.*
   script: _go_app
   login: required

@@ -11,7 +11,11 @@
 			<li><label for="description">Description:</label>
 				<textarea name="description" id="description" required="required"></textarea>
 			<li><label for="teacher">Teacher:</label>
-				<input type="text" name="teacher" id="teacher" required="required" />
+				<select name="teacher" id="teacher">
+					{{range .Teachers}}
+					<option value="{{.AccountID}}">{{.FirstName}}</option>
+					{{end}}
+				</select>
 			<li><label for="maxstudents">Max students:</label>
 				<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" />
 		</ul>

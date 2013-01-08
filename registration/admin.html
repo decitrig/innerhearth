@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <title>Registration Admin</title>
 {{.Email}} [<a href="{{.LogoutURL}}">logout</a>]
+{{$names := .Teachers}}
 {{with .Classes}}
 <h1>Classes</h1>
 <table>
 	<tr>
 		<th>Title</th>
-		<th>Day</th>
 		<th>Teacher</th>
+		<th>Day</th>
 		<th>Start Time</th>
 		<th>Length</th>
 		<td>&nbsp;</td>
@@ -22,10 +23,10 @@
 			{{end}}
 		</td>
 		<td>
-			{{.DayOfWeek}}
+			{{index $names .ID}}
 		</td>
 		<td>
-			{{.Teacher}}
+			{{.DayOfWeek}}
 		</td>
 		<td>
 			{{.StartTime.Format "15:04"}}

@@ -20,7 +20,7 @@ type Class struct {
 	ID          int64  `datastore: "-"`
 	Title       string `datastore: ",noindex"`
 	Description string `datastore: ",noindex"`
-	Teacher     string
+	Teacher     *datastore.Key
 
 	DayOfWeek     string
 	StartTime     time.Time `datastore: ",noindex"`
@@ -53,6 +53,8 @@ type Scheduler interface {
 	ListClasses(activeOnly bool) []*Class
 	DeleteClass(c *Class) error
 	ListOpenClasses(activeOnly bool) []*Class
+	GetTeacherNames(classes []*Class) map[int64]string
+	GetTeacher(class *Class) *UserAccount
 }
 
 type scheduler struct {
@@ -111,6 +113,33 @@ func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
 		classes[idx].ID = key.IntID()
 	}
 	return classes
+}
+
+func (s *scheduler) GetTeacherNames(classes []*Class) map[int64]string {
+	keys := make([]*datastore.Key, len(classes))
+	teachers := make([]*UserAccount, len(classes))
+	for idx, class := range classes {
+		keys[idx] = class.Teacher
+		teachers[idx] = &UserAccount{}
+	}
+	if err := datastore.GetMulti(s, keys, teachers); err != nil {
+		s.Errorf("Error looking up teacher names: %s", err)
+		return nil
+	}
+	names := map[int64]string{}
+	for idx, class := range classes {
+		names[class.ID] = teachers[idx].FirstName
+	}
+	return names
+}
+
+func (s *scheduler) GetTeacher(class *Class) *UserAccount {
+	t := &UserAccount{}
+	if err := datastore.Get(s, class.Teacher, t); err != nil {
+		s.Criticalf("Couldn't get teacher for class %d: %s", class.ID, err)
+		return nil
+	}
+	return t
 }
 
 func (s *scheduler) DeleteClass(c *Class) error {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"appengine"
+	"appengine/datastore"
 	"appengine/user"
 
 	"model"
@@ -19,10 +20,21 @@ var (
 	addClassForm            = template.Must(template.ParseFiles("registration/add-class.html"))
 )
 
+func staffOnly(handler handler) handler {
+	return xsrfProtected(func(w http.ResponseWriter, r *http.Request) *appError {
+		u := getRequestUser(r)
+		if !u.Role.IsStaff() {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return nil
+		}
+		return handler(w, r)
+	})
+}
+
 func init() {
-	http.Handle("/registration/admin", handler(xsrfProtected(admin)))
-	http.Handle("/registration/admin/add-class", handler(xsrfProtected(addClass)))
-	http.Handle("/registration/admin/delete-class", handler(xsrfProtected(deleteClass)))
+	http.Handle("/registration/admin", handler(staffOnly(admin)))
+	http.Handle("/registration/admin/add-class", handler(staffOnly(addClass)))
+	http.Handle("/registration/admin/delete-class", handler(staffOnly(deleteClass)))
 }
 
 func admin(w http.ResponseWriter, r *http.Request) *appError {
@@ -33,11 +45,13 @@ func admin(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListClasses(false)
+	teachers := scheduler.GetTeacherNames(classes)
 	u := userVariable.Get(r).(*requestUser)
 	data := map[string]interface{}{
 		"Email":     u.UserAccount.Email,
 		"LogoutURL": url,
 		"Classes":   classes,
+		"Teachers":  teachers,
 	}
 	if err := adminPage.Execute(w, data); err != nil {
 		return &appError{err, "An error occured", http.StatusInternalServerError}
@@ -79,10 +93,11 @@ func addClassFromPost(r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	c := appengine.NewContext(r)
 	class := &model.Class{
 		Title:         fields["name"],
 		Description:   fields["description"],
-		Teacher:       fields["teacher"],
+		Teacher:       datastore.NewKey(c, "UserAccount", fields["teacher"], 0, nil),
 		Capacity:      int32(mustParseInt(fields["maxstudents"], 32)),
 		SpacesLeft:    int32(mustParseInt(fields["maxstudents"], 32)),
 		DayOfWeek:     fields["dayofweek"],
@@ -106,7 +121,6 @@ func addClassFromPost(r *http.Request) error {
 	default:
 		return fmt.Errorf("Unknown class type: %s", fields["type"])
 	}
-	c := appengine.NewContext(r)
 	scheduler := model.NewScheduler(c)
 	if err := scheduler.AddNew(class); err != nil {
 		return fmt.Errorf("Error adding new class %s: %s", class.Title, err)
@@ -130,6 +144,7 @@ func addClass(w http.ResponseWriter, r *http.Request) *appError {
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
 		"XSRFToken": token.Token,
+		"Teachers":  model.ListTeachers(c),
 	}
 	if err := addClassForm.Execute(w, data); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}

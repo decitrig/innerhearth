@@ -2,7 +2,7 @@
 <title>Inner Hearth Yoga Registration</title>
 <img src="images/large_logo.png" />
 <p>Welcome, <b>{{.Account.FirstName}} {{.Account.LastName}}</b>
-{{if .IsAdmin}}[<a href="/registration/admin">admin</a>]{{end}}
+{{if or .IsAdmin}}[<a href="/registration/admin">admin</a>]{{end}}
 [<a href="{{.LogoutURL}}">logout</a>]</p>
 {{if .Account.Confirmed.IsZero }}
 <p>You cannot register for classes until you confirm your account. Please check your email for an account confirmation message.
@@ -11,11 +11,12 @@
 	<p>Didn't receive an email? <button>Resend Confirmation</button>
 </form>
 {{else}}
+{{$names := .Teachers}}
 {{if .Registrations}}
 <h1>Your Registrations</h1>
 <ul>
 {{range .Registrations}}
-<li>{{.Title}} with {{.Teacher}} on {{.DayOfWeek}}s
+<li>{{.Title}} with {{index $names .ID}} on {{.DayOfWeek}}s
 {{end}}
 </ul>
 {{end}}
@@ -32,7 +33,7 @@
 	{{range .}}
 	<tr>
 		<td>{{.Title}}</td>
-		<td>{{.Teacher}}</td>
+		<td>{{index $names .ID}}</td>
 		<td>{{.DayOfWeek}}</td>
 		<td>{{.StartTime.Format "3:04pm"}}</td>
 		<td><a href="/registration/new?class={{.ID}}">register</a></td>

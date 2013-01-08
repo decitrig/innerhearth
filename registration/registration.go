@@ -303,6 +303,11 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusInternalServerError}
 	}
 	if r.Method == "POST" {
+		return &appError{
+			fmt.Errorf("Registrations disabled"),
+			"Online registration is temporarily disabled",
+			http.StatusNotFound,
+		}
 		roster := model.NewRoster(c, class)
 		if _, err := roster.AddStudent(u.AccountID); err != nil {
 			if err == model.ErrClassFull {

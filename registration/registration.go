@@ -300,6 +300,16 @@ func (s byDayThenTime) Less(i, j int) bool {
 	return l.ID < r.ID
 }
 
+func sessionClassesOnly(in []*model.Class) []*model.Class {
+	out := []*model.Class{}
+	for _, c := range in {
+		if !c.DropInOnly {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	u := userVariable.Get(r).(*requestUser)
@@ -317,7 +327,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
-		"SessionClasses": classes,
+		"SessionClasses": sessionClassesOnly(classes),
 		"XSRFToken":      token.Token,
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,

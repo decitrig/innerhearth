@@ -378,7 +378,6 @@ func (r *registrar) listPaperRegistrations() []*Class {
 		r.Errorf("Error looking up paper registrations for %s: %s", r.studentID, err)
 		return nil
 	}
-	r.Infof("Looking up paper registrations for %s", "PAPERREGISTRATION|"+account.Email)
 	q := datastore.NewQuery("Registration").
 		Filter("StudentID =", "PAPERREGISTRATION|"+account.Email).
 		KeysOnly()

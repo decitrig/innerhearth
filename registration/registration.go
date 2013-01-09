@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"sync"
 
 	"appengine"
@@ -253,6 +254,52 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+type classes []*model.Class
+
+func (cs classes) Len() int {
+	return len(cs)
+}
+
+func (cs classes) Swap(i, j int) {
+	cs[i], cs[j] = cs[j], cs[i]
+}
+
+type byDayThenTime struct{ classes }
+
+var weekdays = []string{
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday",
+}
+
+func dayLess(d1, d2 string) bool {
+	var i, j int
+	for idx, day := range weekdays {
+		if day == d1 {
+			i = idx
+		}
+		if day == d2 {
+			j = idx
+		}
+	}
+	return i < j
+}
+
+func (s byDayThenTime) Less(i, j int) bool {
+	l, r := s.classes[i], s.classes[j]
+	if l.DayOfWeek != r.DayOfWeek {
+		return dayLess(l.DayOfWeek, r.DayOfWeek)
+	}
+	if l.StartTime != r.StartTime {
+		return l.StartTime.Before(r.StartTime)
+	}
+	return l.ID < r.ID
+}
+
 func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	u := userVariable.Get(r).(*requestUser)
@@ -262,6 +309,8 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	registrar := model.NewRegistrar(c, u.AccountID)
 	registered := registrar.ListRegisteredClasses()
 	classes = filterRegisteredClasses(classes, registered)
+	sort.Sort(byDayThenTime{classes})
+	sort.Sort(byDayThenTime{registered})
 	logout, err := user.LogoutURL(c, "/registration")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}

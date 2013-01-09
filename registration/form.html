@@ -17,7 +17,7 @@ feedback</a> is of course always welcome.</p>
 <h1>Your Registrations</h1>
 <ul>
 {{range .Registrations}}
-<li>{{.Title}} with {{index $names .ID}} on {{.DayOfWeek}}s (valid through {{.EndDate.Format "Jan 2 2006"}})
+<li>{{.Title}} with {{index $names .ID}} at {{.StartTime.Format "3:04pm"}} on {{.DayOfWeek}}s (valid through {{.EndDate.Format "Jan 2 2006"}})
 {{end}}
 </ul>
 {{end}}

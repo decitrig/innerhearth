@@ -17,7 +17,7 @@ feedback</a> is of course always welcome.</p>
 <h1>Your Registrations</h1>
 <ul>
 {{range .Registrations}}
-<li>{{.Title}} with {{index $names .ID}} on {{.DayOfWeek}}s
+<li>{{.Title}} with {{index $names .ID}} on {{.DayOfWeek}}s (valid through {{.EndDate.Format "Jan 2 2006"}})
 {{end}}
 </ul>
 {{end}}
@@ -44,7 +44,10 @@ feedback</a> is of course always welcome.</p>
 		<td>{{index $names .ID}}</td>
 		<td>{{.DayOfWeek}}</td>
 		<td>{{.StartTime.Format "3:04pm"}}</td>
-		<td><a href="/registration/new?class={{.ID}}">register</a></td>
+		<td>
+			<a href="/registration/new?class={{.ID}}">register</a>
+			(valid through {{.EndDate.Format "Jan 2 2006"}})
+		</td>
 	</tr>
 	{{end}}
 </table>

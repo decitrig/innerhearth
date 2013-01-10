@@ -5,13 +5,14 @@
 {{if .IsAdmin}}[<a href="/registration/admin">admin</a>]{{end}}
 {{if .Account.Role.CanTeach}}[<a href="/registration/teacher">teacher</a>]{{end}}
 [<a href="{{.LogoutURL}}">logout</a>]</p>
-<p style="max-width: 800px">This is the online registration system for Inner Hearth Yoga. If
-you encounter any problems,
+<p style="max-width: 800px">This is the online registration system for
+Inner Hearth Yoga. If you encounter any problems,
 please <a href="mailto:info@innerhearthyoga.com">contact us</a>. We
 may run into some technological growing pains as we build our
 community, and we appreciate your
 patience! <a href="mailto:info@innerhearthyoga.com">Friendly
-feedback</a> is of course always welcome.</p>
+feedback</a> is of course always welcome. Click the "feedback" tab at
+the right if you encounter problems and need help.</p>
 
 {{$names := .Teachers}} {{if .Registrations}}
 <h1>Your Registrations</h1>
@@ -55,3 +56,8 @@ feedback</a> is of course always welcome.</p>
 <p>No more classes are available this session</p>
 {{end}}
 {{end}}
+<div id="getsat-widget-3722"></div>
+<script type="text/javascript" src="https://loader.engage.gsfn.us/loader.js"></script>
+<script type="text/javascript">
+if (typeof GSFN !== "undefined") { GSFN.loadWidget(3722,{"containerId":"getsat-widget-3722"}); }
+</script>

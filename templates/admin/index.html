@@ -1,0 +1,14 @@
+{{define "body"}}
+<h1>Fixups</h1>
+<h2>Registrations with no date</h2>
+<table>
+	<tr>
+		<th>Email
+		<th>Title
+		<th>End Date
+	</tr>
+	{{range .NoEndDate}}
+	{{end}}
+</table>
+<h2>Classes with no LongDescription</h2>
+{{end}}

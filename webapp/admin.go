@@ -69,8 +69,12 @@ func init() {
 }
 
 func regsWithNoDate(c appengine.Context) []*datastore.Key {
+	t, err := time.Parse("2006-01-02", "2013-01-01")
+	if err != nil {
+		panic(err)
+	}
 	q := datastore.NewQuery("Registration").
-		Filter("Date =", time.Time{}).
+		Filter("Date <", t).
 		KeysOnly()
 	keys, err := q.GetAll(c, nil)
 	if err != nil {

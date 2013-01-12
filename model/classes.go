@@ -50,6 +50,11 @@ func (c *Class) Registrations() int32 {
 	return c.Capacity - c.SpacesLeft
 }
 
+func (c *Class) GetExpirationTime() time.Time {
+	return c.EndDate.Add(
+		c.StartTime.Add(time.Minute * time.Duration(c.LengthMinutes)).Sub(time.Time{}))
+}
+
 // A Scheduler is responsible for manipulating classes.
 type Scheduler interface {
 	AddNew(c *Class) error
@@ -206,7 +211,7 @@ type Registration struct {
 	StudentID string
 	ClassID   int64
 
-	// If this registration is a drop in, Date is the start time of the class to which it applies.
+	// Expiration date of this registration.
 	Date time.Time
 }
 
@@ -271,6 +276,7 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 	reg := &Registration{
 		ClassID:   r.class.ID,
 		StudentID: studentID,
+		Date:      r.class.GetExpirationTime(),
 	}
 	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
 		key := reg.key(ctx)

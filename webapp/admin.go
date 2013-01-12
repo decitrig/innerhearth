@@ -151,9 +151,7 @@ func fixupNoEndDate(w http.ResponseWriter, r *http.Request, u *adminUser) *Error
 		return InternalError(fmt.Errorf("Error looking up classes: %s", err))
 	}
 	for i, _ := range classes {
-		end := classes[i].EndDate.Add(
-			classes[i].StartTime.Add(time.Minute * time.Duration(classes[i].LengthMinutes)).Sub(time.Time{}))
-		regs[i].Date = end
+		regs[i].Date = classes[i].GetExpirationTime()
 	}
 	if _, err := datastore.PutMulti(c, keys, regs); err != nil {
 		return InternalError(fmt.Errorf("Error updating registration expirations: %s"))

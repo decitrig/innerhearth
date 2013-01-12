@@ -1,5 +1,23 @@
 {{define "body"}}
+<h1>Staff</h1>
+<table>
+	{{range .Staff}}
+	<tr>
+		<td>{{.FirstName}}</td>
+		<td>{{.LastName}}</td>
+		<td>{{.Email}}</td>
+		<td><a href="/login/admin/edit-role?email={{.Email}}">edit role</a></td>
+	{{end}}
+</table>
+
+<form action="/login/admin/edit-role">
+<h1>Edit Role</h1>
+	Email: <input type="email" required="required" name="email" />
+	<button>Edit Role</button>
+</form>
+
 <h1>Fixups</h1>
+{{if .NoEndDate}}
 <h2>Registrations with no date</h2>
 <table>
 	<tr>
@@ -8,7 +26,17 @@
 		<th>End Date
 	</tr>
 	{{range .NoEndDate}}
+	<tr>
+		<td>{{.Email}}
+		<td>{{.Title}}
+		<td>{{.EndDate.Format "2006-01-02"}}
+	</tr>
 	{{end}}
 </table>
+<form action="/admin/fixup/no-end-date" method="POST">
+	<input type="hidden" name="xsrf_token" value="{{.Admin.Token.Token}}" />
+	<button>Fix</button>
+</form>
+{{end}}
 <h2>Classes with no LongDescription</h2>
 {{end}}

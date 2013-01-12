@@ -4,6 +4,9 @@ import (
 	"net/http"
 
 	"appengine"
+	"github.com/gorilla/context"
+
+	"model"
 )
 
 type Error struct {
@@ -22,6 +25,18 @@ func InternalError(err error) *Error {
 
 func UnauthorizedError(err error) *Error {
 	return &Error{err, "Unauthorized", http.StatusUnauthorized}
+}
+
+const (
+	xsrfTokenKey = iota
+)
+
+func GetXSRFToken(r *http.Request) *model.AdminXSRFToken {
+	return context.Get(r, xsrfTokenKey).(*model.AdminXSRFToken)
+}
+
+func SetXSRFToken(r *http.Request, t *model.AdminXSRFToken) {
+	context.Set(r, xsrfTokenKey, t)
 }
 
 type AppHandler interface {

@@ -20,6 +20,9 @@ type AdminXSRFToken struct {
 }
 
 func (t *AdminXSRFToken) Validate(provided string) bool {
+	if t == nil {
+		return false
+	}
 	if !time.Now().Before(t.Expiration) {
 		return false
 	}

@@ -17,26 +17,11 @@
 </form>
 
 <h1>Fixups</h1>
-{{if .NoEndDate}}
 <h2>Registrations with no date</h2>
-<table>
-	<tr>
-		<th>Email
-		<th>Title
-		<th>End Date
-	</tr>
-	{{range .NoEndDate}}
-	<tr>
-		<td>{{.Email}}
-		<td>{{.Title}}
-		<td>{{.EndDate.Format "2006-01-02"}}
-	</tr>
-	{{end}}
-</table>
-<form action="/admin/fixup/no-end-date" method="POST">
-	<input type="hidden" name="xsrf_token" value="{{.Admin.Token.Token}}" />
-	<button>Fix</button>
-</form>
+{{range .NoEndDate}}
+<a href="/admin/fixup/no-end-date?key={{.Encode}}">
+fixup
+</a>
 {{end}}
 <h2>Classes with no LongDescription</h2>
 {{end}}

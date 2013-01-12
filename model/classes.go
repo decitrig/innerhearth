@@ -51,8 +51,9 @@ func (c *Class) Registrations() int32 {
 }
 
 func (c *Class) GetExpirationTime() time.Time {
-	return c.EndDate.Add(
-		c.StartTime.Add(time.Minute * time.Duration(c.LengthMinutes)).Sub(time.Time{}))
+	t := c.StartTime.Add(time.Minute * time.Duration(c.LengthMinutes))
+	t = t.AddDate(1, 0, 0)
+	return c.EndDate.Add(t.Sub(time.Time{}))
 }
 
 // A Scheduler is responsible for manipulating classes.

@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	index = template.Must(template.ParseFiles("templates/admin/base.html", "templates/admin/index.html"))
+	index          = template.Must(template.ParseFiles("templates/admin/base.html", "templates/admin/index.html"))
+	noEndDateFixup = template.Must(template.ParseFiles("templates/admin/fixup-no-end-date.html"))
 )
 
 type adminUser struct {
@@ -67,13 +68,7 @@ func init() {
 	handle("/fixup/no-end-date", fixupNoEndDate)
 }
 
-type regInfo struct {
-	*model.UserAccount
-	*model.Class
-}
-
-func regsWithNoDate(c appengine.Context) []*regInfo {
-	c.Infof("Looking up registrations without expiration dates")
+func regsWithNoDate(c appengine.Context) []*datastore.Key {
 	q := datastore.NewQuery("Registration").
 		Filter("Date =", time.Time{}).
 		KeysOnly()
@@ -82,41 +77,16 @@ func regsWithNoDate(c appengine.Context) []*regInfo {
 		c.Errorf("Error looking up regs: %s", err)
 		return nil
 	}
-	c.Infof("Found %d registrations", len(keys))
-	classKeys := make([]*datastore.Key, len(keys))
-	accountKeys := make([]*datastore.Key, len(keys))
-	for i, k := range keys {
-		classKeys[i] = k.Parent()
-		accountKeys[i] = datastore.NewKey(c, "UserAccount", k.StringID(), 0, nil)
-	}
-	classes := make([]*model.Class, len(keys))
-	students := make([]*model.UserAccount, len(keys))
-	for i, _ := range classes {
-		classes[i] = &model.Class{}
-		students[i] = &model.UserAccount{}
-	}
-	if err := datastore.GetMulti(c, classKeys, classes); err != nil {
-		c.Errorf("Error looking up classes: %s", err)
-		return nil
-	}
-	if err := datastore.GetMulti(c, accountKeys, students); err != nil {
-		c.Errorf("Error looking up accounts: %s", err)
-		return nil
-	}
-	infos := make([]*regInfo, len(classes))
-	for i, _ := range classes {
-		infos[i] = &regInfo{students[i], classes[i]}
-	}
-	return infos
+	return keys
 }
 
 func admin(w http.ResponseWriter, r *http.Request, u *adminUser) *Error {
 	c := appengine.NewContext(r)
-	rs := regsWithNoDate(c)
+	keys := regsWithNoDate(c)
 	if err := index.Execute(w, map[string]interface{}{
 		"Admin":     u,
 		"Email":     "rwsims@gmail.com",
-		"NoEndDate": rs,
+		"NoEndDate": keys,
 	}); err != nil {
 		return InternalError(err)
 	}
@@ -125,36 +95,34 @@ func admin(w http.ResponseWriter, r *http.Request, u *adminUser) *Error {
 
 func fixupNoEndDate(w http.ResponseWriter, r *http.Request, u *adminUser) *Error {
 	if r.Method != "POST" {
-		http.NotFound(w, r)
+		if err := noEndDateFixup.Execute(w, map[string]interface{}{
+			"XSRFToken": u.Token.Token,
+			"Key":       r.FormValue("key"),
+		}); err != nil {
+			return InternalError(err)
+		}
 		return nil
 	}
 	if !u.Token.Validate(r.FormValue("xsrf_token")) {
 		return UnauthorizedError(fmt.Errorf("XSRF token failed validation"))
 	}
 	c := appengine.NewContext(r)
-	q := datastore.NewQuery("Registration").
-		Filter("Date =", time.Time{})
-	regs := []*model.Registration{}
-	keys, err := q.GetAll(c, &regs)
+	key, err := datastore.DecodeKey(r.FormValue("key"))
 	if err != nil {
-		return InternalError(fmt.Errorf("Error looking up regs: %s", err))
+		return InternalError(fmt.Errorf("Error decoding key %s: %s", r.FormValue("key")))
 	}
-	classKeys := make([]*datastore.Key, len(keys))
-	for i, k := range keys {
-		classKeys[i] = k.Parent()
+	reg := &model.Registration{}
+	if err := datastore.Get(c, key, reg); err != nil {
+		return InternalError(fmt.Errorf("Error getting registration: %s", err))
 	}
-	classes := make([]*model.Class, len(keys))
-	for i, _ := range classes {
-		classes[i] = &model.Class{}
+	class := &model.Class{}
+	if err := datastore.Get(c, key.Parent(), class); err != nil {
+		return InternalError(fmt.Errorf("Error looking up class: %s", err))
 	}
-	if err := datastore.GetMulti(c, classKeys, classes); err != nil {
-		return InternalError(fmt.Errorf("Error looking up classes: %s", err))
+	reg.Date = class.GetExpirationTime()
+	if _, err := datastore.Put(c, key, reg); err != nil {
+		return InternalError(fmt.Errorf("Error writing registration: %s", err))
 	}
-	for i, _ := range classes {
-		regs[i].Date = classes[i].GetExpirationTime()
-	}
-	if _, err := datastore.PutMulti(c, keys, regs); err != nil {
-		return InternalError(fmt.Errorf("Error updating registration expirations: %s"))
-	}
+	http.Redirect(w, r, "/admin", http.StatusFound)
 	return nil
 }

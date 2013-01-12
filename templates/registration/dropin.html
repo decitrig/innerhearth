@@ -1,0 +1,24 @@
+{{define "body"}}
+<p>Choose your drop-in date for {{.Class.Title}}</p>
+<div id="datepicker"></div>
+<form method="post" action="/registration/dropin">
+	{{template "XSRFTokenInput" .Token}}
+	<input type="hidden" name="class" value="{{.Class.ID}}" />
+	<input type="date" name="date" id="date" readonly="readonly"/>
+	<button>Drop In</button>
+</form>
+{{end}}
+{{define "script"}}
+<script>
+	$("#datepicker").datepicker({
+	beforeShowDay: function(date) {
+	show = {{dayNumber .Class.DayOfWeek}} == date.getDay()
+	return [show, ""]
+	},
+	dateFormat: "yy-mm-dd",
+	onSelect: function(date, picker) {
+	$("#date").val(date)
+	}
+	})
+</script>
+{{end}}

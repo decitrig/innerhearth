@@ -5,7 +5,9 @@ import (
 	"html/template"
 	"net/http"
 	"sort"
+	"strconv"
 	"sync"
+	"time"
 
 	"appengine"
 	"appengine/taskqueue"
@@ -22,7 +24,24 @@ var (
 	teacherPage         = template.Must(template.ParseFiles("registration/teacher.html"))
 	teacherRosterPage   = template.Must(template.ParseFiles("registration/roster.html"))
 	teacherRegisterPage = template.Must(template.ParseFiles("registration/teacher-register.html"))
+	dropinPage          = template.Must(template.New("base.html").
+				Funcs(template.FuncMap{"dayNumber": dayNumber}).
+				ParseFiles("templates/base.html", "templates/registration/dropin.html"))
 )
+
+var days = map[string]int{
+	"Sunday":    0,
+	"Monday":    1,
+	"Tuesday":   2,
+	"Wednesday": 3,
+	"Thursday":  4,
+	"Friday":    5,
+	"Saturday":  6,
+}
+
+func dayNumber(day string) int {
+	return days[day]
+}
 
 type requestVariable struct {
 	lock sync.Mutex
@@ -143,6 +162,7 @@ func init() {
 	http.Handle("/registration/teacher", handler(teachersOnly(teacher)))
 	http.Handle("/registration/teacher/roster", handler(teachersOnly(teacherRoster)))
 	http.Handle("/registration/teacher/register", handler(teachersOnly(teacherRegister)))
+	http.Handle("/registration/dropin", handler(xsrfProtected(dropin)))
 }
 
 func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {
@@ -327,7 +347,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	data := map[string]interface{}{
-		"SessionClasses": sessionClassesOnly(classes),
+		"SessionClasses": classes,
 		"XSRFToken":      token.Token,
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,
@@ -406,6 +426,65 @@ func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 		"Class":     class,
 	}); err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	}
+	return nil
+}
+
+func internalError(format string, vals ...interface{}) *appError {
+	return &appError{fmt.Errorf(format, vals...), "An internal error occurred", http.StatusInternalServerError}
+}
+
+func dropin(w http.ResponseWriter, r *http.Request) *appError {
+	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return internalError("Couldn't parse class ID '%s': %s", r.FormValue("class"), err)
+	}
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return internalError("Couldn't find class %d", classID)
+	}
+	if r.Method == "POST" {
+		date, err := time.Parse("2006-01-02", r.FormValue("date"))
+		if err != nil {
+			return internalError("Error parsing date '%s': %s", r.FormValue("date"), err)
+		}
+		roster := model.NewRoster(c, class)
+		account := userVariable.Get(r).(*requestUser)
+		if _, err := roster.AddDropIn(account.AccountID, date); err != nil {
+			if err == model.ErrClassFull {
+				return &appError{
+					err,
+					"Sorry, that class is full. Please go back and choose another class.",
+					http.StatusOK,
+				}
+			}
+			if err == model.ErrInvalidDropInDate {
+				return &appError{
+					err,
+					"Sorry, that is an invalid date for that class. Please go back and choose another date.",
+					http.StatusOK,
+				}
+			}
+			if err == model.ErrAlreadyRegistered {
+				return &appError{
+					err,
+					"You appear to alredy be registered for that class. Please go back and choose another class.",
+					http.StatusOK,
+				}
+			}
+			return internalError("Error registering dropin: %s", err)
+		}
+		http.Redirect(w, r, "/registration", http.StatusFound)
+		return nil
+	}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
+	if err := dropinPage.Execute(w, map[string]interface{}{
+		"Class": class,
+		"Token": token,
+	}); err != nil {
+		return internalError("Error executing template: %s", err)
 	}
 	return nil
 }

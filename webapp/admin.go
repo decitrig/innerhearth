@@ -74,7 +74,7 @@ func regsWithNoDate(c appengine.Context) []*datastore.Key {
 		panic(err)
 	}
 	q := datastore.NewQuery("Registration").
-		Filter("Date <", t).
+		Filter("StartDate <", t).
 		KeysOnly()
 	keys, err := q.GetAll(c, nil)
 	if err != nil {
@@ -123,7 +123,7 @@ func fixupNoEndDate(w http.ResponseWriter, r *http.Request, u *adminUser) *Error
 	if err := datastore.Get(c, key.Parent(), class); err != nil {
 		return InternalError(fmt.Errorf("Error looking up class: %s", err))
 	}
-	reg.Date = class.GetExpirationTime()
+	reg.Date = class.EndDate
 	if _, err := datastore.Put(c, key, reg); err != nil {
 		return InternalError(fmt.Errorf("Error writing registration: %s", err))
 	}

@@ -14,6 +14,7 @@ var (
 	ErrClassExists       = errors.New("Class already exists")
 	ErrClassNotEmpty     = errors.New("Class is not empty")
 	ErrAlreadyRegistered = errors.New("Student is already registered for class")
+	ErrInvalidDropInDate = errors.New("Date is not in class's session")
 )
 
 type Class struct {
@@ -28,12 +29,13 @@ type Class struct {
 
 	BeginDate time.Time
 	EndDate   time.Time
-	Active    bool
 
 	DropInOnly bool
-
 	Capacity   int32 `datastore: ",noindex"`
+
+	// The following fields are deprecated, but exist in legacy data.
 	SpacesLeft int32
+	Active     bool
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the
@@ -51,9 +53,26 @@ func (c *Class) Registrations() int32 {
 }
 
 func (c *Class) GetExpirationTime() time.Time {
+	return c.GetEndingTime(c.EndDate)
+}
+
+func (c *Class) GetEndingTime(date time.Time) time.Time {
 	t := c.StartTime.Add(time.Minute * time.Duration(c.LengthMinutes))
 	t = t.AddDate(1, 0, 0)
-	return c.EndDate.Add(t.Sub(time.Time{}))
+	return date.Add(t.Sub(time.Time{}))
+}
+
+func (c *Class) ValidDate(date time.Time) bool {
+	if c.DayOfWeek != date.Weekday().String() {
+		return false
+	}
+	if c.DropInOnly {
+		return true
+	}
+	if date.Before(c.BeginDate) || date.After(c.EndDate) {
+		return false
+	}
+	return true
 }
 
 // A Scheduler is responsible for manipulating classes.
@@ -111,8 +130,7 @@ func (s *scheduler) ListClasses(activeOnly bool) []*Class {
 
 func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
 	classes := []*Class{}
-	q := datastore.NewQuery("Class").
-		Filter("SpacesLeft >", 0)
+	q := datastore.NewQuery("Class")
 	if activeOnly {
 		q = q.Filter("Active =", true)
 	}
@@ -212,8 +230,10 @@ type Registration struct {
 	StudentID string
 	ClassID   int64
 
-	// Expiration date of this registration.
+	// The last date on which this registration is still valid.
 	Date time.Time
+
+	DropIn bool
 }
 
 func (r *Registration) key(c appengine.Context) *datastore.Key {
@@ -240,7 +260,8 @@ func NewRoster(c appengine.Context, class *Class) Roster {
 
 func (r *roster) ListRegistrations() []*Registration {
 	q := datastore.NewQuery("Registration").
-		Ancestor(r.class.key(r))
+		Ancestor(r.class.key(r)).
+		Filter("Date >", time.Now())
 	rs := []*Registration{}
 	if _, err := q.GetAll(r, &rs); err != nil {
 		r.Errorf("Error looking up registrations for class %d: %s", r.class.ID, err)
@@ -278,6 +299,7 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 		ClassID:   r.class.ID,
 		StudentID: studentID,
 		Date:      r.class.GetExpirationTime(),
+		DropIn:    false,
 	}
 	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
 		key := reg.key(ctx)
@@ -296,12 +318,16 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 				reg.ClassID, reg, err)
 		}
 		class.ID = classKey.IntID()
-		if class.SpacesLeft == 0 {
-			return ErrClassFull
+		q := datastore.NewQuery("Registration").
+			Ancestor(classKey).
+			KeysOnly().
+			Filter("Date >=", time.Now().Add(-24*time.Hour))
+		regs, err := q.Count(r)
+		if err != nil {
+			return fmt.Errorf("Error counting registration: %s", err)
 		}
-		class.SpacesLeft--
-		if _, err := datastore.Put(ctx, classKey, class); err != nil {
-			return fmt.Errorf("Error updating class %d: %s", class.ID, err)
+		if int32(regs) >= class.Capacity {
+			return ErrClassFull
 		}
 
 		if _, err := datastore.Put(ctx, key, reg); err != nil {
@@ -352,7 +378,54 @@ func (r *roster) DropStudent(studentID string) error {
 }
 
 func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, error) {
-	return nil, fmt.Errorf("Not yet implemented")
+	if !r.class.ValidDate(date) {
+		return nil, ErrInvalidDropInDate
+	}
+	reg := &Registration{
+		ClassID:   r.class.ID,
+		StudentID: studentID,
+		Date:      r.class.GetEndingTime(date),
+		DropIn:    true,
+	}
+	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
+		key := reg.key(ctx)
+		old := &Registration{}
+		if err := datastore.Get(ctx, key, old); err != datastore.ErrNoSuchEntity {
+			if err != nil {
+				return fmt.Errorf("Error looking up registration %+v: %s", reg, err)
+			}
+			if !old.Date.Before(time.Now()) {
+				return ErrAlreadyRegistered
+			}
+		}
+		classKey := datastore.NewKey(ctx, "Class", "", reg.ClassID, nil)
+		class := &Class{}
+		if err := datastore.Get(ctx, classKey, class); err != nil {
+			return fmt.Errorf("Error looking up class %d for registration %+v: %s",
+				reg.ClassID, reg, err)
+		}
+		class.ID = classKey.IntID()
+		q := datastore.NewQuery("Registration").
+			Ancestor(classKey).
+			KeysOnly().
+			Filter("Date >=", reg.Date)
+		regs, err := q.Count(r)
+		if err != nil {
+			return fmt.Errorf("Error counting registration: %s", err)
+		}
+		if int32(regs) >= class.Capacity {
+			return ErrClassFull
+		}
+
+		if _, err := datastore.Put(ctx, key, reg); err != nil {
+			return fmt.Errorf("Error writing registration %+v: %s", reg, err)
+		}
+		return nil
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return reg, nil
 }
 
 type Registrar interface {
@@ -372,7 +445,8 @@ func NewRegistrar(c appengine.Context, studentID string) Registrar {
 func (r *registrar) ListRegistrations() []*Registration {
 	rs := []*Registration{}
 	q := datastore.NewQuery("Registration").
-		Filter("StudentID =", r.studentID)
+		Filter("StudentID =", r.studentID).
+		Filter("Date >", time.Now())
 	if _, err := q.GetAll(r, &rs); err != nil {
 		return nil
 	}
@@ -416,6 +490,7 @@ func (r *registrar) listPaperRegistrations() []*Class {
 func (r *registrar) ListRegisteredClasses() []*Class {
 	q := datastore.NewQuery("Registration").
 		Filter("StudentID =", r.studentID).
+		Filter("Date >", time.Now()).
 		KeysOnly()
 	regKeys, err := q.GetAll(r, nil)
 	if err != nil {
@@ -433,7 +508,8 @@ func (r *registrar) ListRegisteredClasses() []*Class {
 		return nil
 	}
 	classesByID := map[int64]*Class{}
-	for _, class := range classes {
+	for i, class := range classes {
+		class.ID = classKeys[i].IntID()
 		classesByID[class.ID] = class
 	}
 	paperClasses := r.listPaperRegistrations()

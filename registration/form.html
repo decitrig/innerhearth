@@ -18,7 +18,7 @@ the right if you encounter problems and need help.</p>
 <h1>Your Registrations</h1>
 <ul>
 {{range .Registrations}}
-<li>{{.Title}} with {{index $names .ID}} at {{.StartTime.Format "3:04pm"}} on {{.DayOfWeek}}s (registered through {{.EndDate.Format "Jan 2 2006"}})
+<li>{{.Title}} with {{index $names .ID}} at {{.StartTime.Format "3:04pm"}} on {{.DayOfWeek}}s (registered {{.BeginDate.Format "1/2"}}&ndash;{{.EndDate.Format "1/2"}})
 {{end}}
 </ul>
 {{end}}
@@ -32,7 +32,6 @@ the right if you encounter problems and need help.</p>
 <h1>Register for a Class</h1>
 <p>Currently, this system will only save you a space in a class. Payment will be accepted at the studio. Online payments are coming soon!</p>
 {{with .SessionClasses}}
-<h2>Session Classes</h2>
 <table>
 	<tr>
 		<th>Class</th>
@@ -47,9 +46,14 @@ the right if you encounter problems and need help.</p>
 		<td>{{index $names .ID}}</td>
 		<td>{{.DayOfWeek}}</td>
 		<td>{{.StartTime.Format "3:04pm"}}</td>
-		<td>{{.BeginDate.Format "Jan 2 2006"}} &mdash; {{.EndDate.Format "Jan 2 2006"}}</td>
+		<td>{{.BeginDate.Format "1/2"}}&ndash;{{.EndDate.Format "1/2"}}</td>
+		{{if not .DropInOnly}}
 		<td>
 			<a href="/registration/new?class={{.ID}}">register for session</a>
+		</td>
+		{{end}}
+		<td>
+			<a href="/registration/dropin?class={{.ID}}">drop in</a>
 		</td>
 	</tr>
 	{{end}}

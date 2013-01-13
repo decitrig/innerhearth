@@ -449,7 +449,7 @@ func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, err
 
 type Registrar interface {
 	ListRegistrations() []*Registration
-	ListRegisteredClasses() []*Class
+	ListRegisteredClasses([]*Registration) []*Class
 }
 
 type registrar struct {
@@ -484,75 +484,19 @@ func (r *registrar) ListRegistrations() []*Registration {
 	return append(rs, papers...)
 }
 
-func (r *registrar) listPaperRegistrations() []*Class {
-	account, err := GetAccountByID(r, r.studentID)
-	if err != nil {
-		r.Errorf("Error looking up paper registrations for %s: %s", r.studentID, err)
-		return nil
-	}
-	q := datastore.NewQuery("Registration").
-		Filter("StudentID =", "PAPERREGISTRATION|"+account.Email).
-		KeysOnly()
-	regKeys, err := q.GetAll(r, nil)
-	if err != nil {
-		r.Errorf("Error getting paper reg keys for student %s: %s", r.studentID, err)
-		return nil
-	}
-	if len(regKeys) == 0 {
-		return nil
-	}
-	classKeys := make([]*datastore.Key, len(regKeys))
-	for i, k := range regKeys {
-		classKeys[i] = k.Parent()
-	}
-	tmp := make([]Class, len(classKeys))
-	if err := datastore.GetMulti(r, classKeys, tmp); err != nil {
-		r.Errorf("Error getting registered classes for %s: %s", r.studentID, err)
-		return nil
-	}
+func (r *registrar) ListRegisteredClasses(regs []*Registration) []*Class {
+	classKeys := make([]*datastore.Key, len(regs))
 	classes := make([]*Class, len(classKeys))
-	for i, c := range tmp {
-		c.ID = classKeys[i].IntID()
-		classes[i] = &tmp[i]
-	}
-	return classes
-}
-
-func (r *registrar) ListRegisteredClasses() []*Class {
-	q := datastore.NewQuery("Registration").
-		Filter("StudentID =", r.studentID).
-		Filter("Date >", time.Now()).
-		KeysOnly()
-	regKeys, err := q.GetAll(r, nil)
-	if err != nil {
-		r.Errorf("Error getting reg keys for student %s: %s", r.studentID, err)
-		return nil
-	}
-	classKeys := make([]*datastore.Key, len(regKeys))
-	classes := make([]*Class, len(classKeys))
-	for i, k := range regKeys {
-		classKeys[i] = k.Parent()
+	for i, reg := range regs {
+		classKeys[i] = datastore.NewKey(r, "Class", "", reg.ClassID, nil)
 		classes[i] = &Class{}
 	}
 	if err := datastore.GetMulti(r, classKeys, classes); err != nil {
 		r.Errorf("Error getting registered classes for %s: %s", r.studentID, err)
 		return nil
 	}
-	classesByID := map[int64]*Class{}
-	for i, class := range classes {
-		class.ID = classKeys[i].IntID()
-		classesByID[class.ID] = class
-	}
-	paperClasses := r.listPaperRegistrations()
-	if paperClasses == nil {
-		return classes
-	}
-	for _, class := range paperClasses {
-		classesByID[class.ID] = class
-	}
-	classes = []*Class{}
-	for _, class := range classesByID {
-		classes = append(classes, class)
+	for i, _ := range classes {
+		classes[i].ID = classKeys[i].IntID()
 	}
 	return classes
 }

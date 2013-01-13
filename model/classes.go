@@ -251,8 +251,7 @@ type Registration struct {
 	ClassID   int64
 
 	// The last date on which this registration is still valid.
-	Date time.Time
-
+	Date   time.Time
 	DropIn bool
 }
 

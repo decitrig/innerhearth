@@ -476,6 +476,15 @@ func dropin(w http.ResponseWriter, r *http.Request) *appError {
 			}
 			return internalError("Error registering dropin: %s", err)
 		}
+		t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
+			"account": {account.AccountID},
+			"class":   {fmt.Sprintf("%d", class.ID)},
+		})
+		if _, err := taskqueue.Add(c, t, ""); err != nil {
+			return &appError{fmt.Errorf("Error enqueuing email task for registration: %s", err),
+				"An error occurred, please go back and try again",
+				http.StatusInternalServerError}
+		}
 		http.Redirect(w, r, "/registration", http.StatusFound)
 		return nil
 	}

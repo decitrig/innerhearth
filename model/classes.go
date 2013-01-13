@@ -52,14 +52,25 @@ func (c *Class) Registrations() int32 {
 	return c.Capacity - c.SpacesLeft
 }
 
+func dateOnly(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(),
+		0, 0, 0, 0, t.Location())
+}
+
+func dateTime(d, t time.Time) time.Time {
+	return time.Date(
+		d.Year(), d.Month(), d.Day(),
+		t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location(),
+	)
+}
+
 func (c *Class) GetExpirationTime() time.Time {
 	return c.GetEndingTime(c.EndDate)
 }
 
 func (c *Class) GetEndingTime(date time.Time) time.Time {
 	t := c.StartTime.Add(time.Minute * time.Duration(c.LengthMinutes))
-	t = t.AddDate(1, 0, 0)
-	return date.Add(t.Sub(time.Time{}))
+	return dateTime(date, t)
 }
 
 func (c *Class) ValidDate(date time.Time) bool {
@@ -69,7 +80,8 @@ func (c *Class) ValidDate(date time.Time) bool {
 	if c.DropInOnly {
 		return true
 	}
-	if date.Before(c.BeginDate) || date.After(c.EndDate) {
+	day := dateOnly(date)
+	if day.Before(c.BeginDate) || day.After(c.EndDate) {
 		return false
 	}
 	return true
@@ -139,10 +151,18 @@ func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
 		s.Errorf("Error listing classes: %s", err)
 		return nil
 	}
-	for idx, key := range keys {
-		classes[idx].ID = key.IntID()
+	openClasses := []*Class{}
+	for i, class := range classes {
+		class.ID = keys[i].IntID()
+		if !class.DropInOnly {
+			today := dateOnly(time.Now())
+			if today.After(class.EndDate) || today.Before(class.BeginDate) {
+				continue
+			}
+		}
+		openClasses = append(openClasses, class)
 	}
-	return classes
+	return openClasses
 }
 
 func (s *scheduler) GetClassesForTeacher(t *UserAccount) []*Class {
@@ -450,7 +470,19 @@ func (r *registrar) ListRegistrations() []*Registration {
 	if _, err := q.GetAll(r, &rs); err != nil {
 		return nil
 	}
-	return rs
+	account, err := GetAccountByID(r, r.studentID)
+	if err != nil {
+		r.Errorf("Error looking up paper registrations for %s: %s", r.studentID, err)
+		return nil
+	}
+	papers := []*Registration{}
+	if _, err := datastore.NewQuery("Registration").
+		Filter("StudentID = ", "PAPERREGISTRATION|"+account.Email).
+		GetAll(r, &papers); err != nil {
+		r.Errorf("Error getting paper registrations for %s: %s", account.Email, err)
+		return nil
+	}
+	return append(rs, papers...)
 }
 
 func (r *registrar) listPaperRegistrations() []*Class {

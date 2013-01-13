@@ -28,7 +28,9 @@
 			<label for="phone">Phone (optional):</label>
 			<input type="text" id="phone" name="phone" placeholder="555-555-1212" />
 	</ul>
+	{{if not .Class.DropInOnly}}
 	<button name="type" value="session">Session</button>
-	<!--<button name="type" value="dropin">Drop In</button>-->
+	{{end}}
+	<button name="type" value="dropin">Drop In</button>
 </form>
 <a href="/registration/teacher">All Classes</a>

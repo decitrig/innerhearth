@@ -229,7 +229,7 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 		http.NotFound(w, r)
 		return nil
 	}
-	fields, err := getRequiredFields(r, "xsrf_token", "class", "firstname", "lastname", "email")
+	fields, err := getRequiredFields(r, "xsrf_token", "class", "firstname", "lastname", "email", "type")
 	if err != nil {
 		return &appError{err, "Missing required fields", http.StatusBadRequest}
 	}
@@ -258,13 +258,24 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 			return &appError{err, "An error occurred", http.StatusInternalServerError}
 		}
 	}
-	roster := model.NewRoster(c, class)
-	if _, err := roster.AddStudent(account.AccountID); err != nil {
-		if err == model.ErrAlreadyRegistered {
-			fmt.Fprintf(w, "Student with that email already registered for this class")
-			return nil
+	{
+		roster := model.NewRoster(c, class)
+		var err error
+		switch t := fields["type"]; t {
+		case "dropin":
+			_, err = roster.AddDropIn(account.AccountID, time.Now())
+		case "session":
+			_, err = roster.AddStudent(account.AccountID)
+		default:
+			return internalError("Invalid registration type '%s'", t)
 		}
-		return &appError{err, "Error registering student", http.StatusInternalServerError}
+		if err != nil {
+			if err == model.ErrAlreadyRegistered {
+				fmt.Fprintf(w, "Student with that email already registered for this class")
+				return nil
+			}
+			return &appError{err, "Error registering student", http.StatusInternalServerError}
+		}
 	}
 	http.Redirect(w, r, fmt.Sprintf("/registration/teacher/roster?class=%d", class.ID), http.StatusFound)
 	return nil

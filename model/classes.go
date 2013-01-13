@@ -280,7 +280,7 @@ func NewRoster(c appengine.Context, class *Class) Roster {
 func (r *roster) ListRegistrations() []*Registration {
 	q := datastore.NewQuery("Registration").
 		Ancestor(r.class.key(r)).
-		Filter("Date >", time.Now())
+		Filter("Date >=", dateOnly(time.Now()))
 	rs := []*Registration{}
 	if _, err := q.GetAll(r, &rs); err != nil {
 		r.Errorf("Error looking up registrations for class %d: %s", r.class.ID, err)
@@ -317,7 +317,7 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 	reg := &Registration{
 		ClassID:   r.class.ID,
 		StudentID: studentID,
-		Date:      r.class.GetExpirationTime(),
+		Date:      r.class.EndDate,
 		DropIn:    false,
 	}
 	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
@@ -340,7 +340,7 @@ func (r *roster) AddStudent(studentID string) (*Registration, error) {
 		q := datastore.NewQuery("Registration").
 			Ancestor(classKey).
 			KeysOnly().
-			Filter("Date >=", time.Now().Add(-24*time.Hour))
+			Filter("Date >=", dateOnly(time.Now()))
 		regs, err := q.Count(r)
 		if err != nil {
 			return fmt.Errorf("Error counting registration: %s", err)
@@ -397,13 +397,13 @@ func (r *roster) DropStudent(studentID string) error {
 }
 
 func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, error) {
-	if !r.class.ValidDate(date) {
+	if !r.class.ValidDate(dateOnly(date)) {
 		return nil, ErrInvalidDropInDate
 	}
 	reg := &Registration{
 		ClassID:   r.class.ID,
 		StudentID: studentID,
-		Date:      r.class.GetEndingTime(date),
+		Date:      dateOnly(date),
 		DropIn:    true,
 	}
 	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
@@ -435,7 +435,7 @@ func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, err
 		if int32(regs) >= class.Capacity {
 			return ErrClassFull
 		}
-
+		r.Infof("reg %+v", reg)
 		if _, err := datastore.Put(ctx, key, reg); err != nil {
 			return fmt.Errorf("Error writing registration %+v: %s", reg, err)
 		}
@@ -465,7 +465,7 @@ func (r *registrar) ListRegistrations() []*Registration {
 	rs := []*Registration{}
 	q := datastore.NewQuery("Registration").
 		Filter("StudentID =", r.studentID).
-		Filter("Date >", time.Now())
+		Filter("Date >=", dateOnly(time.Now()))
 	if _, err := q.GetAll(r, &rs); err != nil {
 		return nil
 	}

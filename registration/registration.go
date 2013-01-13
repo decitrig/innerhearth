@@ -281,6 +281,16 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+type regs []*regAndClass
+
+func (r regs) Len() int {
+	return len(r)
+}
+
+func (r regs) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
 type classes []*model.Class
 
 func (cs classes) Len() int {
@@ -292,6 +302,7 @@ func (cs classes) Swap(i, j int) {
 }
 
 type byDayThenTime struct{ classes }
+type regsByDayThenTime struct{ regs }
 
 var weekdays = []string{
 	"Monday",
@@ -327,6 +338,17 @@ func (s byDayThenTime) Less(i, j int) bool {
 	return l.ID < r.ID
 }
 
+func (rs regsByDayThenTime) Less(i, j int) bool {
+	l, r := rs.regs[i], rs.regs[j]
+	if l.DayOfWeek != r.DayOfWeek {
+		return dayLess(l.DayOfWeek, r.DayOfWeek)
+	}
+	if l.StartTime != r.StartTime {
+		return l.StartTime.Before(r.StartTime)
+	}
+	return l.ID < r.ID
+}
+
 func sessionClassesOnly(in []*model.Class) []*model.Class {
 	out := []*model.Class{}
 	for _, c := range in {
@@ -335,6 +357,11 @@ func sessionClassesOnly(in []*model.Class) []*model.Class {
 		}
 	}
 	return out
+}
+
+type regAndClass struct {
+	*model.Registration
+	*model.Class
 }
 
 func registration(w http.ResponseWriter, r *http.Request) *appError {
@@ -346,9 +373,13 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	registrar := model.NewRegistrar(c, u.AccountID)
 	registrations := registrar.ListRegistrations()
 	registered := registrar.ListRegisteredClasses(registrations)
+	regsWithClasses := make([]*regAndClass, len(registrations))
+	for i, reg := range registrations {
+		regsWithClasses[i] = &regAndClass{reg, registered[i]}
+	}
 	classes = filterRegisteredClasses(classes, registered)
 	sort.Sort(byDayThenTime{classes})
-	sort.Sort(byDayThenTime{registered})
+	sort.Sort(regsByDayThenTime{regsWithClasses})
 	logout, err := user.LogoutURL(c, "/registration")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -359,7 +390,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		"XSRFToken":      token.Token,
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,
-		"Registrations":  registered,
+		"Registrations":  regsWithClasses,
 		"IsAdmin":        u.Role.IsStaff(),
 		"Teachers":       teachers,
 	}

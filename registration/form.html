@@ -18,7 +18,11 @@ the right if you encounter problems and need help.</p>
 <h1>Your Registrations</h1>
 <ul>
 {{range .Registrations}}
-<li>{{.Title}} with {{index $names .ID}} at {{.StartTime.Format "3:04pm"}} on {{.DayOfWeek}}s (registered {{.BeginDate.Format "1/2"}}&ndash;{{.EndDate.Format "1/2"}})
+{{if .DropIn}}
+<li>{{.Title}} with {{index $names .ID}} at {{.StartTime.Format "3:04pm"}} on {{.Date.Format "1/2"}}
+{{else}}
+<li>{{.Title}} with {{index $names .ID}} at {{.StartTime.Format "3:04pm"}} on {{.DayOfWeek}}s ({{.BeginDate.Format "1/2"}}&ndash;{{.EndDate.Format "1/2"}})
+{{end}}
 {{end}}
 </ul>
 {{end}}

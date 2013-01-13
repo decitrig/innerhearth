@@ -213,7 +213,8 @@ type Registration struct {
 	ClassID   int64
 
 	// Expiration date of this registration.
-	Date time.Time
+	Date   time.Time
+	DropIn bool
 }
 
 func (r *Registration) key(c appengine.Context) *datastore.Key {

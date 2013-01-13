@@ -191,11 +191,13 @@ func teacherRoster(w http.ResponseWriter, r *http.Request) *appError {
 			http.StatusInternalServerError,
 		}
 	}
+	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	roster := model.NewRoster(c, class)
 	registrations := roster.ListRegistrations()
 	if err := teacherRosterPage.Execute(w, map[string]interface{}{
 		"Class":         class,
 		"Registrations": roster.GetStudents(registrations),
+		"XSRFToken":     token.Token,
 	}); err != nil {
 		return &appError{err, "An error ocurred", http.StatusInternalServerError}
 	}
@@ -203,54 +205,48 @@ func teacherRoster(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
-	if r.Method == "POST" {
-		fields, err := getRequiredFields(r, "xsrf_token", "class", "firstname", "lastname", "email")
-		if err != nil {
-			return &appError{err, "Missing required fields", http.StatusBadRequest}
-		}
-		c := appengine.NewContext(r)
-		scheduler := model.NewScheduler(c)
-		class := scheduler.GetClass(mustParseInt(fields["class"], 64))
-		if class == nil {
-			return &appError{
-				fmt.Errorf("Couldn't find class %d", fields["class"]),
-				"Error looking up class",
-				http.StatusInternalServerError,
-			}
-		}
-		account := model.GetAccountByEmail(c, fields["email"])
-		if account == nil {
-			account = &model.UserAccount{
-				FirstName: fields["firstname"],
-				LastName:  fields["lastname"],
-				Email:     fields["email"],
-			}
-			if p := r.FormValue("phone"); p != "" {
-				account.Phone = p
-			}
-			account.AccountID = "PAPERREGISTRATION|" + fields["email"]
-			if err := model.StoreAccount(c, nil, account); err != nil {
-				return &appError{err, "An error occurred", http.StatusInternalServerError}
-			}
-		}
-		roster := model.NewRoster(c, class)
-		if _, err := roster.AddStudent(account.AccountID); err != nil {
-			if err == model.ErrAlreadyRegistered {
-				fmt.Fprintf(w, "Student with that email already registered for this class")
-				return nil
-			}
-			return &appError{err, "Error registering student", http.StatusInternalServerError}
-		}
-		http.Redirect(w, r, fmt.Sprintf("/registration/teacher/roster?class=%d", class.ID), http.StatusSeeOther)
+	if r.Method != "POST" {
+		http.NotFound(w, r)
 		return nil
 	}
-	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
-	if err := teacherRegisterPage.Execute(w, map[string]interface{}{
-		"XSRFToken": token.Token,
-		"ClassID":   r.FormValue("class"),
-	}); err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
+	fields, err := getRequiredFields(r, "xsrf_token", "class", "firstname", "lastname", "email")
+	if err != nil {
+		return &appError{err, "Missing required fields", http.StatusBadRequest}
 	}
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(mustParseInt(fields["class"], 64))
+	if class == nil {
+		return &appError{
+			fmt.Errorf("Couldn't find class %d", fields["class"]),
+			"Error looking up class",
+			http.StatusInternalServerError,
+		}
+	}
+	account := model.GetAccountByEmail(c, fields["email"])
+	if account == nil {
+		account = &model.UserAccount{
+			FirstName: fields["firstname"],
+			LastName:  fields["lastname"],
+			Email:     fields["email"],
+		}
+		if p := r.FormValue("phone"); p != "" {
+			account.Phone = p
+		}
+		account.AccountID = "PAPERREGISTRATION|" + fields["email"]
+		if err := model.StoreAccount(c, nil, account); err != nil {
+			return &appError{err, "An error occurred", http.StatusInternalServerError}
+		}
+	}
+	roster := model.NewRoster(c, class)
+	if _, err := roster.AddStudent(account.AccountID); err != nil {
+		if err == model.ErrAlreadyRegistered {
+			fmt.Fprintf(w, "Student with that email already registered for this class")
+			return nil
+		}
+		return &appError{err, "Error registering student", http.StatusInternalServerError}
+	}
+	http.Redirect(w, r, fmt.Sprintf("/registration/teacher/roster?class=%d", class.ID), http.StatusFound)
 	return nil
 }
 

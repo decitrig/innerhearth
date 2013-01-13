@@ -1,20 +1,7 @@
 <!DOCTYPE html>
 <h1>Your Classes</h1>
-<table>
-	<tr>
-		<th>Title</th>
-		<th>Registrations</th>
-	</tr>
+<ul>
 	{{range .Classes}}
-	<tr>
-		<td>{{.Title}}</td>
-		<td>{{.Registrations}} of {{.Capacity}}</td>
-		{{if .Registrations}}
-		<td><a href="/registration/teacher/roster?class={{.ID}}">roster</a></td>
-		{{end}}
-		{{if .SpacesLeft}}
-		<td><a href="/registration/teacher/register?class={{.ID}}">register</a></td>
-		{{end}}
-	</tr>
+	<li><a href="/registration/teacher/roster?class={{.ID}}">{{.Title}} on {{.DayOfWeek}}s</a></li>
 	{{end}}
-</table>
+</ul>

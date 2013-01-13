@@ -1,11 +1,34 @@
 <!DOCTYPE html>
 <h1>{{.Class.Title}}</h1>
+<p>{{len .Registrations}} of {{.Class.Capacity}} registrations</p>
 <table>
-{{range .Registrations}}
-<tr>
-	<td>{{.FirstName}}</td>
-	<td>{{.LastName}}</td>
-	<td>{{.Email}}</td>
-</tr>
+	<tr>
+		<th colspan="2">Name</th>
+		<th>Email</th>
+		{{range .Registrations}}
+	<tr>
+		<td>{{.FirstName}}</td>
+		<td>{{.LastName}}</td>
+		<td>{{.Email}}</td>
+	</tr>
 {{end}}
 </table>
+<form method="post" action="/registration/teacher/register">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	<input type="hidden" name="class" value="{{.Class.ID}}" />
+	<ul>
+		<li>
+			<label for="firstname">Name:</label>
+			<input type="text" required="required" name="firstname" id="firstname" placeholder="First"/>
+			<input type="text" required="required" name="lastname" id="lastname" placeholder="Last"/>
+		<li>
+			<label for="email">Email:</label>
+			<input type="email" id="email" required="required" name="email" placeholder="student.email@host.com"/>
+		<li>
+			<label for="phone">Phone (optional):</label>
+			<input type="text" id="phone" name="phone" placeholder="555-555-1212" />
+	</ul>
+	<button name="type" value="session">Session</button>
+	<!--<button name="type" value="dropin">Drop In</button>-->
+</form>
+<a href="/registration/teacher">All Classes</a>

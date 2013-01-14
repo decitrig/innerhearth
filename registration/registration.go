@@ -22,7 +22,9 @@ var (
 	classFullPage       = template.Must(template.ParseFiles("registration/full-class.html"))
 	registrationConfirm = template.Must(template.ParseFiles("registration/registration-confirm.html"))
 	teacherPage         = template.Must(template.ParseFiles("registration/teacher.html"))
-	teacherRosterPage   = template.Must(template.ParseFiles("registration/roster.html"))
+	teacherRosterPage   = template.Must(template.New("roster.html").
+				Funcs(template.FuncMap{"dayNumber": dayNumber}).
+				ParseFiles("registration/roster.html"))
 	teacherRegisterPage = template.Must(template.ParseFiles("registration/teacher-register.html"))
 	dropinPage          = template.Must(template.New("base.html").
 				Funcs(template.FuncMap{"dayNumber": dayNumber}).
@@ -263,7 +265,11 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 		var err error
 		switch t := fields["type"]; t {
 		case "dropin":
-			_, err = roster.AddDropIn(account.AccountID, time.Now())
+			day, err := time.Parse("2006-01-02", r.FormValue("date"))
+			if err != nil {
+				return &appError{err, "Wrong time format entered: use YYYY-MM-DD", http.StatusBadRequest}
+			}
+			_, err = roster.AddDropIn(account.AccountID, day)
 		case "session":
 			_, err = roster.AddStudent(account.AccountID)
 		default:

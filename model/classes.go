@@ -143,9 +143,6 @@ func (s *scheduler) ListClasses(activeOnly bool) []*Class {
 func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
 	classes := []*Class{}
 	q := datastore.NewQuery("Class")
-	if activeOnly {
-		q = q.Filter("Active =", true)
-	}
 	keys, err := q.GetAll(s, &classes)
 	if err != nil {
 		s.Errorf("Error listing classes: %s", err)
@@ -156,7 +153,7 @@ func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
 		class.ID = keys[i].IntID()
 		if !class.DropInOnly {
 			today := dateOnly(time.Now())
-			if today.After(class.EndDate) || today.Before(class.BeginDate) {
+			if today.After(class.EndDate) {
 				continue
 			}
 		}

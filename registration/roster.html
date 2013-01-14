@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<head>
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
+</head>
 <h1>{{.Class.Title}}</h1>
 <p>{{len .Registrations}} of {{.Class.Capacity}} registrations</p>
 <table>
@@ -31,6 +34,25 @@
 	{{if not .Class.DropInOnly}}
 	<button name="type" value="session">Session</button>
 	{{end}}
+	<div id="datepicker"></div>
+	<input type="date" name="date" id="date" readonly="readonly"/>
 	<button name="type" value="dropin">Drop In</button>
 </form>
 <a href="/registration/teacher">All Classes</a>
+<script src="http://code.jquery.com/jquery-1.8.3.js"></script>
+<script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+<script>
+	$("#datepicker").datepicker({
+	beforeShowDay: function(date) {
+	show = {{dayNumber .Class.DayOfWeek}} == date.getDay()
+	return [show, ""]
+	},
+	dateFormat: "yy-mm-dd",
+	onSelect: function(date, picker) {
+	$("#date").val(date)
+	}
+	})
+	date = $("#datepicker").datepicker('getDate')
+	date = $.datepicker.formatDate('yy-mm-dd', date)
+	$("#date").val(date)
+</script>

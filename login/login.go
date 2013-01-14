@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"appengine"
@@ -156,7 +157,7 @@ func newConfirmCode(email string) string {
 	hash := sha512.New()
 	hash.Write([]byte(email))
 	hash.Write([]byte(time.Now().String()))
-	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
+	return strings.Trim(base64.URLEncoding.EncodeToString(hash.Sum(nil)), "=")
 }
 
 func createNewAccount(w http.ResponseWriter, r *http.Request) error {

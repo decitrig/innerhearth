@@ -432,7 +432,6 @@ func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, err
 		if int32(regs) >= class.Capacity {
 			return ErrClassFull
 		}
-		r.Infof("reg %+v", reg)
 		if _, err := datastore.Put(ctx, key, reg); err != nil {
 			return fmt.Errorf("Error writing registration %+v: %s", reg, err)
 		}

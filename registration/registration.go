@@ -262,25 +262,27 @@ func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	{
 		roster := model.NewRoster(c, class)
-		var err error
 		switch t := fields["type"]; t {
 		case "dropin":
 			day, err := time.Parse("2006-01-02", r.FormValue("date"))
 			if err != nil {
 				return &appError{err, "Wrong time format entered: use YYYY-MM-DD", http.StatusBadRequest}
 			}
-			_, err = roster.AddDropIn(account.AccountID, day)
+			if _, err = roster.AddDropIn(account.AccountID, day); err != nil {
+				if err == model.ErrAlreadyRegistered {
+					return &appError{err, "Student already registered for this class", http.StatusBadRequest}
+				}
+				return internalError("Error registering drop in: %s", err)
+			}
 		case "session":
-			_, err = roster.AddStudent(account.AccountID)
+			if _, err = roster.AddStudent(account.AccountID); err != nil {
+				if err == model.ErrAlreadyRegistered {
+					return &appError{err, "Student already registered for this class", http.StatusBadRequest}
+				}
+				return internalError("Error registering session: %s", err)
+			}
 		default:
 			return internalError("Invalid registration type '%s'", t)
-		}
-		if err != nil {
-			if err == model.ErrAlreadyRegistered {
-				fmt.Fprintf(w, "Student with that email already registered for this class")
-				return nil
-			}
-			return &appError{err, "Error registering student", http.StatusInternalServerError}
 		}
 	}
 	http.Redirect(w, r, fmt.Sprintf("/registration/teacher/roster?class=%d", class.ID), http.StatusFound)

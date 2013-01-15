@@ -1,11 +1,11 @@
 {{define "body"}}
-<p>Choose your drop-in date for {{.Class.Title}}</p>
+<p>Choose the date you wish to attend {{.Class.Title}}</p>
 <div id="datepicker"></div>
 <form method="post" action="/registration/dropin">
 	{{template "XSRFTokenInput" .Token}}
 	<input type="hidden" name="class" value="{{.Class.ID}}" />
 	<input type="date" name="date" id="date" readonly="readonly"/>
-	<button>Drop In</button>
+	<button>Register</button>
 </form>
 {{end}}
 {{define "script"}}

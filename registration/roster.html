@@ -32,11 +32,13 @@
 			<input type="text" id="phone" name="phone" placeholder="555-555-1212" />
 	</ul>
 	{{if not .Class.DropInOnly}}
+	<p>Register for session</p>
 	<button name="type" value="session">Session</button>
 	{{end}}
+	<p>Register for single day</p>
 	<div id="datepicker"></div>
 	<input type="date" name="date" id="date" readonly="readonly"/>
-	<button name="type" value="dropin">Drop In</button>
+	<button name="type" value="dropin">Register</button>
 </form>
 <a href="/registration/teacher">All Classes</a>
 <script src="http://code.jquery.com/jquery-1.8.3.js"></script>

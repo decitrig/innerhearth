@@ -13,6 +13,9 @@
 		<td>{{.FirstName}}</td>
 		<td>{{.LastName}}</td>
 		<td>{{.Email}}</td>
+		{{if .DropIn}}
+		<td>{{.Date.Format "2006-01-02"}}</td>
+		{{end}}
 	</tr>
 {{end}}
 </table>

@@ -197,6 +197,31 @@ func teacher(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+type registrations []*model.Registration
+
+func (r registrations) Len() int {
+	return len(r)
+}
+
+func (r registrations) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+type ByDate struct {
+	registrations
+}
+
+func (s ByDate) Less(i, j int) bool {
+	a := s.registrations[i]
+	b := s.registrations[j]
+	return a.Date.Before(b.Date)
+}
+
+type regAndStudent struct {
+	*model.Registration
+	*model.UserAccount
+}
+
 func teacherRoster(w http.ResponseWriter, r *http.Request) *appError {
 	fields, err := getRequiredFields(r, "class")
 	if err != nil {
@@ -215,10 +240,16 @@ func teacherRoster(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
 	roster := model.NewRoster(c, class)
-	registrations := roster.ListRegistrations()
+	rs := roster.ListRegistrations()
+	sort.Sort(ByDate{rs})
+	students := roster.GetStudents(rs)
+	regsAndStudents := make([]*regAndStudent, len(rs))
+	for i, _ := range regsAndStudents {
+		regsAndStudents[i] = &regAndStudent{rs[i], students[i]}
+	}
 	if err := teacherRosterPage.Execute(w, map[string]interface{}{
 		"Class":         class,
-		"Registrations": roster.GetStudents(registrations),
+		"Registrations": regsAndStudents,
 		"XSRFToken":     token.Token,
 	}); err != nil {
 		return &appError{err, "An error ocurred", http.StatusInternalServerError}

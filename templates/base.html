@@ -1,13 +1,44 @@
 <!DOCTYPE html>
 <head>
+<link href="http://fonts.googleapis.com/css?family=Amaranth:700|Sanchez" rel="stylesheet" type="text/css">
 <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
+<link rel="stylesheet" href="/css/base.css" />
+{{define "title"}}
+Inner Hearth Yoga
+{{end}}
+<title>{{template "title"}}</title>
 </head>
 <body>
+<div id="header">
+    <table style="width: 100%; text-align: center;">
+        <tr>
+            <td>
+                <img src="images/large_logo.png" alt="Inner Hearth Yoga"/>
+            </td>
+
+            <td style="vertical-align: top">
+                <h1 id="title" class="header-section">Inner Hearth Yoga</h1>
+                <p id="motto">Light your Practice on Fire</p>
+            </td>
+
+            <td style="text-align: right;">
+                <!--<p style="text-align: center">Contact us! We like you!-->
+                <p class="address"><a href="mailto:info@innerhearthyoga.com">info@innerhearthyoga.com</a>
+                <p class="address">412-204-7227
+                <p class="address">
+                <a href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">6736 Reynolds Street</a> (second floor)
+            <p class="address">Pittsburgh, PA 15206
+        </td>
+        <!-- TODO(rwsims): Social icons -->
+    </tr>
+</table>
+</div>
 {{define "XSRFTokenInput"}}
 <input type="hidden" name="xsrf_token" value="{{.Token}}" />
 {{end}}
 {{template "body" .}}
 <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
 <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+{{define "script"}}{{end}}
 {{template "script" .}}
 </body>

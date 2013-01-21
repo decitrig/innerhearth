@@ -1,0 +1,18 @@
+* {
+    font-family: Sanchez, "Times New Roman", serif;
+}
+
+body {
+    background-color: #005166;
+    max-width: 1024px;
+    margin: auto;
+    padding: 1em;
+}
+
+#header {
+    background-color: #fffbc7;
+    padding: .5em 2em;
+    margin-bottom: 1em;
+    border-radius: 10px;
+    box-shadow: 3px 3px 4px black;
+}

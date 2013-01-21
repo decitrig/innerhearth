@@ -1,6 +1,7 @@
 package webapp
 
 import (
+	"html/template"
 	"net/http"
 
 	"appengine"
@@ -61,4 +62,19 @@ func AppHandle(path string, h AppHandler) {
 
 func AppHandleFunc(path string, f AppHandlerFunc) {
 	AppHandle(path, AppHandler(f))
+}
+
+func init() {
+	AppHandleFunc("/", index)
+}
+
+var (
+	indexPage = template.Must(template.ParseFiles("templates/base.html", "templates/index.html"))
+)
+
+func index(w http.ResponseWriter, r *http.Request) *Error {
+	if err := indexPage.Execute(w, nil); err != nil {
+		return InternalError(err)
+	}
+	return nil
 }

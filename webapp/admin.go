@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	index          = template.Must(template.ParseFiles("templates/admin/base.html", "templates/admin/index.html"))
+	adminIndex = template.Must(template.ParseFiles(
+		"templates/admin/base.html", "templates/admin/index.html"))
 	noEndDateFixup = template.Must(template.ParseFiles("templates/admin/fixup-no-end-date.html"))
 )
 
@@ -87,7 +88,7 @@ func regsWithNoDate(c appengine.Context) []*datastore.Key {
 func admin(w http.ResponseWriter, r *http.Request, u *adminUser) *Error {
 	c := appengine.NewContext(r)
 	keys := regsWithNoDate(c)
-	if err := index.Execute(w, map[string]interface{}{
+	if err := adminIndex.Execute(w, map[string]interface{}{
 		"Admin":     u,
 		"Email":     "rwsims@gmail.com",
 		"NoEndDate": keys,

@@ -9,7 +9,7 @@ body {
     padding: 1em;
 }
 
-#header {
+.section {
     background-color: #fffbc7;
     padding: .5em 2em;
     margin-bottom: 1em;

@@ -7,7 +7,7 @@ import (
 	"appengine"
 	"github.com/gorilla/context"
 
-	"model"
+	"github.com/decitrig/innerhearth/model"
 )
 
 type Error struct {

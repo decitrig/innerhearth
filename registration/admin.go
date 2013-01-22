@@ -11,7 +11,7 @@ import (
 	"appengine/datastore"
 	"appengine/user"
 
-	"model"
+	"github.com/decitrig/innerhearth/model"
 )
 
 func daySelected(c *model.Class, day string) template.HTMLAttr {

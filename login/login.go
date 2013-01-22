@@ -13,7 +13,7 @@ import (
 	"appengine/taskqueue"
 	"appengine/user"
 
-	"model"
+	"github.com/decitrig/innerhearth/model"
 )
 
 type loginHandler func(w http.ResponseWriter, r *http.Request) error

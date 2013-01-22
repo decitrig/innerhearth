@@ -10,7 +10,7 @@ import (
 	"appengine/datastore"
 	"appengine/user"
 
-	"model"
+	"github.com/decitrig/innerhearth/model"
 )
 
 var (

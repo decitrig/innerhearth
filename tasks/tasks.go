@@ -10,7 +10,7 @@ import (
 	"appengine"
 	"appengine/mail"
 
-	"model"
+	"github.com/decitrig/innerhearth/model"
 )
 
 var (

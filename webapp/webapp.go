@@ -30,6 +30,7 @@ func UnauthorizedError(err error) *Error {
 
 const (
 	xsrfTokenKey = iota
+	currentUserKey
 )
 
 func GetXSRFToken(r *http.Request) *model.AdminXSRFToken {
@@ -38,6 +39,14 @@ func GetXSRFToken(r *http.Request) *model.AdminXSRFToken {
 
 func SetXSRFToken(r *http.Request, t *model.AdminXSRFToken) {
 	context.Set(r, xsrfTokenKey, t)
+}
+
+func GetCurrentUser(r *http.Request) *model.UserAccount {
+	return context.Get(r, currentUserKey).(*model.UserAccount)
+}
+
+func SetCurrentUser(r *http.Request, u *model.UserAccount) {
+	context.Set(r, currentUserKey, u)
 }
 
 type AppHandler interface {
@@ -52,8 +61,10 @@ func (fn AppHandlerFunc) Serve(w http.ResponseWriter, r *http.Request) *Error {
 
 func AppHandle(path string, h AppHandler) {
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		c := appengine.NewContext(r)
+		u := model.MaybeGetCurrentUser(c)
+		SetCurrentUser(r, u)
 		if err := h.Serve(w, r); err != nil {
-			c := appengine.NewContext(r)
 			c.Errorf("%s", err)
 			http.Error(w, err.Message, err.Code)
 		}
@@ -73,7 +84,12 @@ var (
 )
 
 func index(w http.ResponseWriter, r *http.Request) *Error {
-	if err := indexPage.Execute(w, nil); err != nil {
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	classes := scheduler.ListClasses(true)
+	if err := indexPage.Execute(w, map[string]interface{}{
+		"Classes": classes,
+	}); err != nil {
 		return InternalError(err)
 	}
 	return nil

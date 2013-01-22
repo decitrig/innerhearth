@@ -132,6 +132,23 @@ func GetAccountByID(c appengine.Context, id string) (*UserAccount, error) {
 	return account, nil
 }
 
+func MaybeGetCurrentUser(c appengine.Context) *UserAccount {
+	u := user.Current(c)
+	if u == nil {
+		return nil
+	}
+	key := datastore.NewKey(c, "UserAccount", u.ID, 0, nil)
+	account := &UserAccount{}
+	if err := datastore.Get(c, key, account); err != nil {
+		return nil
+	}
+	account.AccountID = key.StringID()
+	if user.IsAdmin(c) {
+		account.SetRole(RoleAdmin)
+	}
+	return account
+}
+
 func GetAccountByEmail(c appengine.Context, email string) *UserAccount {
 	q := datastore.NewQuery("UserAccount").
 		Filter("Email =", email).

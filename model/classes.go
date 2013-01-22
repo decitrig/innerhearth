@@ -104,6 +104,10 @@ type scheduler struct {
 	appengine.Context
 }
 
+func NewScheduler(c appengine.Context) Scheduler {
+	return &scheduler{c}
+}
+
 func (s *scheduler) GetClass(id int64) *Class {
 	key := datastore.NewKey(s, "Class", "", id, nil)
 	class := &Class{}
@@ -235,10 +239,6 @@ func (s *scheduler) WriteClass(c *Class) error {
 		return fmt.Errorf("Error writing class %d: %s", c.ID, err)
 	}
 	return nil
-}
-
-func NewScheduler(c appengine.Context) Scheduler {
-	return &scheduler{c}
 }
 
 // A Registration represents a reserved space in a class, either for the entire session or as a drop

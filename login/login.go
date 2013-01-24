@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -114,11 +115,19 @@ func admin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func accountCheck(w http.ResponseWriter, r *http.Request) error {
-	target := r.FormValue("continue")
-	if target == "" {
-		target = "/"
+func pathOrRoot(urlString string) string {
+	u, err := url.Parse(urlString)
+	if err != nil {
+		return "/"
 	}
+	if u.Path == "" {
+		return "/"
+	}
+	return u.Path
+}
+
+func accountCheck(w http.ResponseWriter, r *http.Request) error {
+	target := pathOrRoot(r.FormValue("continue"))
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	if u == nil {
@@ -197,7 +206,7 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}
-	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
+	http.Redirect(w, r, pathOrRoot(r.FormValue("target")), http.StatusSeeOther)
 	return nil
 }
 
@@ -263,7 +272,7 @@ func resendConfirmEmail(w http.ResponseWriter, r *http.Request) error {
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}
-	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
+	http.Redirect(w, r, pathOrRoot(r.FormValue("target")), http.StatusSeeOther)
 	return nil
 }
 

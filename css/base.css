@@ -9,6 +9,20 @@ body {
     padding: 1em;
 }
 
+ul.login-providers {
+  list-style-type: none;  
+  padding: 0;
+}
+
+li.login-provider {
+    padding: 1em;
+    background: white;
+    display: inline-block;
+    margin-right: 1em;
+    box-shadow: 1px 1px 2px black;
+    border: 1px solid black;
+}
+
 .section {
     background-color: #fffbc7;
     padding: .5em 2em;

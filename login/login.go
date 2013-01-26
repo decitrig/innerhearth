@@ -65,7 +65,7 @@ var (
 )
 
 func init() {
-	handle("/_ah/login_required", login)
+	//	handle("/_ah/login_required", login)
 	handle("/login/account", accountCheck)
 	handle("/login/account/new", postOnly(createNewAccount))
 	handle("/login/confirm", confirmNewAccount)

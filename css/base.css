@@ -9,6 +9,23 @@ body {
     padding: 1em;
 }
 
+.field-item {
+    margin-bottom: 1em;
+}
+
+.field-label {
+    display: block;
+}
+
+.field-label-required {
+    font-weight: bold;
+}
+
+.field-list {
+    list-style-type: none;
+    padding: 0;
+}
+
 ul.login-providers {
   list-style-type: none;  
   padding: 0;

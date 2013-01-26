@@ -58,7 +58,7 @@ var (
 		"WordPress": "{{.}}.wordpress.com",
 	}
 	loginPage          = template.Must(template.ParseFiles("login/login.html"))
-	newAccountPage     = template.Must(template.ParseFiles("login/new-account.html"))
+	newAccountPage     = template.Must(template.ParseFiles("templates/base.html", "templates/new-account.html"))
 	accountConfirmPage = template.Must(template.ParseFiles("login/confirm-account.html"))
 	adminPage          = template.Must(template.ParseFiles("login/admin.html"))
 	editRolePage       = template.Must(template.ParseFiles("login/edit-role.html"))
@@ -195,6 +195,9 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 		LastName:         values["lastname"],
 		Email:            values["email"],
 		ConfirmationCode: newConfirmCode(values["email"]),
+	}
+	if phone := r.FormValue("phone"); phone != "" {
+		account.Phone = phone
 	}
 	if err := model.StoreAccount(c, u, account); err != nil {
 		return fmt.Errorf("Error storing user account: %s", err)

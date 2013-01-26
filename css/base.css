@@ -26,18 +26,32 @@ body {
     padding: 0;
 }
 
-ul.login-providers {
+.login-providers {
   list-style-type: none;  
   padding: 0;
 }
 
-li.login-provider {
+.login-provider {
     padding: 1em;
     background: white;
     display: inline-block;
     margin-right: 1em;
     box-shadow: 1px 1px 2px black;
     border: 1px solid black;
+}
+
+.nav-links {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-link {
+    display: inline-block;
+    margin-right: 1em;
+}
+
+.nav-link-special {
 }
 
 .section {

@@ -100,7 +100,7 @@ func token(id string) string {
 	hash := sha512.New()
 	hash.Write([]byte(time.Now().String()))
 	hash.Write([]byte(id))
-	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
+	return strings.Trim(base64.URLEncoding.EncodeToString(hash.Sum(nil)), "=")
 }
 
 func cacheToken(c appengine.Context, id string, token *AdminXSRFToken) {

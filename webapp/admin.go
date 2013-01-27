@@ -64,11 +64,6 @@ func handle(path string, h adminHandler) {
 	AppHandle("/admin"+path, h)
 }
 
-func init() {
-	handle("", admin)
-	handle("/fixup/no-end-date", fixupNoEndDate)
-}
-
 func regsWithNoDate(c appengine.Context) []*datastore.Key {
 	t, err := time.Parse("2006-01-02", "2013-01-01")
 	if err != nil {

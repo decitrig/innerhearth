@@ -1,0 +1,9 @@
+{{define "body"}}
+<div class="section">
+  <form method="post">
+    <p>Add "{{.User.Email}}" as a teacher?</p>
+    {{template "XSRFTokenInput" .}}
+    <button>Add Teacher</button>
+  </form>
+</div>
+{{end}}

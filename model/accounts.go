@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"appengine"
@@ -89,8 +90,89 @@ type UserAccount struct {
 	ConfirmationCode string    `datastore: ",noindex"`
 	Confirmed        time.Time `datastore: ",noindex"`
 
+	// DEPRECATED.
 	Role     UserRole
 	CanTeach bool
+}
+
+type Teacher struct {
+	Email     string
+	FirstName string
+}
+
+func AddNewTeacher(c appengine.Context, account *UserAccount) *Teacher {
+	teacher := &Teacher{
+		Email:     account.Email,
+		FirstName: account.FirstName,
+	}
+	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
+	if _, err := datastore.Put(c, key, teacher); err != nil {
+		c.Errorf("Error writing teacher: %s", err)
+		return nil
+	}
+	return teacher
+}
+
+type Staff struct {
+	FirstName string
+	LastName  string
+	Email     string
+}
+
+func AddNewStaff(c appengine.Context, account *UserAccount) *Staff {
+	staff := &Staff{
+		FirstName: account.FirstName,
+		LastName:  account.LastName,
+		Email:     account.Email,
+	}
+	key := datastore.NewKey(c, "Staff", account.AccountID, 0, nil)
+	if _, err := datastore.Put(c, key, staff); err != nil {
+		c.Errorf("Error writing new Staff: %s", err)
+		return nil
+	}
+	return staff
+}
+
+func GetStaff(c appengine.Context, account *UserAccount) *Staff {
+	key := datastore.NewKey(c, "Staff", account.AccountID, 0, nil)
+	staff := &Staff{}
+	if err := datastore.Get(c, key, staff); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			c.Errorf("Error looking up staff entity for %s: %s", account.Email, err)
+		}
+		return nil
+	}
+	return staff
+}
+
+type staffList []*Staff
+
+func (l staffList) Len() int      { return len(l) }
+func (l staffList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+func (l staffList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if a.LastName != b.LastName {
+		return a.LastName < b.LastName
+	}
+	if a.FirstName != b.FirstName {
+		return a.FirstName < b.FirstName
+	}
+	if a.Email != b.Email {
+		return a.Email < b.Email
+	}
+	return false
+}
+
+func ListStaff(c appengine.Context) []*Staff {
+	q := datastore.NewQuery("Staff")
+	staff := []*Staff{}
+	if _, err := q.GetAll(c, &staff); err != nil {
+		c.Errorf("Error listing staff: %s", err)
+		return nil
+	}
+	sort.Sort(staffList(staff))
+	return staff
 }
 
 func (a *UserAccount) SetRole(role UserRole) {

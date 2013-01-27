@@ -1,4 +1,5 @@
 {{define "body"}}
+<div class="section">
 <h1>Staff</h1>
 <table>
 	{{range .Staff}}
@@ -6,22 +7,11 @@
 		<td>{{.FirstName}}</td>
 		<td>{{.LastName}}</td>
 		<td>{{.Email}}</td>
-		<td><a href="/login/admin/edit-role?email={{.Email}}">edit role</a></td>
 	{{end}}
 </table>
-
-<form action="/login/admin/edit-role">
-<h1>Edit Role</h1>
-	Email: <input type="email" required="required" name="email" />
-	<button>Edit Role</button>
+<form action="/admin/add-staff" method="get">
+<input type="email" required="required" name="email" placholder="account@email.com"/>
+<button>Add Staff</button>
 </form>
-
-<h1>Fixups</h1>
-<h2>Registrations with no date</h2>
-{{range .NoEndDate}}
-<a href="/admin/fixup/no-end-date?key={{.Encode}}">
-fixup
-</a>
-{{end}}
-<h2>Classes with no LongDescription</h2>
+</div>
 {{end}}

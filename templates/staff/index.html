@@ -1,0 +1,73 @@
+{{define "Navbar"}}
+<ul class="nav-links">
+  <li><a href="/">Home</a>
+</ul>
+{{end}}
+{{define "body"}}
+<div class="section">
+<h1>Teachers</h1>
+{{with .Teachers}}
+<table>
+  {{range .}}
+  <tr>
+    <td>{{.FirstName}}</td>
+    <td>{{.LastName}}</td>
+    <td>{{.Email}}</td>
+  </tr>
+  {{end}}
+</table>
+{{end}}
+<form action="/staff/add-teacher" method="get">
+  <input type="email" required="required" name="email" id="email" placeholder="address@email.com" />
+  <button>Add Teacher</button>
+</form>
+</div>
+<div class="section">
+<h1>Classes</h1>
+{{with .Classes}}
+<table>
+	<tr>
+		<th>Title</th>
+		<th>Teacher</th>
+		<th>Day</th>
+		<th>Start Time</th>
+		<th>Length</th>
+		<td>&nbsp;</td>
+	</tr>
+	{{range .}}
+	<tr>
+		<td>
+			{{if .DropInOnly}}
+			<i>{{.Title}}</i>
+			{{else}}
+			{{.Title}}
+			{{end}}
+		</td>
+		<td>
+			{{.FirstName}}
+		</td>
+		<td>
+			{{.DayOfWeek}}
+		</td>
+		<td>
+			{{.StartTime.Format "15:04"}}
+		</td>
+		<td>
+			{{.LengthMinutes}}m
+		</td>
+		<td>
+			<a href="/registration/teacher/roster?class={{.ID}}">roster</a>
+		</td>
+		<td>
+			<a href="/registration/admin/reschedule-class?class={{.ID}}">reschedule</a>
+		</td>
+		<td>
+			<a href="/registration/admin/delete-class?class={{.ID}}">delete</a>
+		</td>
+	</tr>
+	{{end}}
+</table>
+{{end}}
+<a href="/registration/admin/add-class">add class</a>
+</div>
+{{end}}

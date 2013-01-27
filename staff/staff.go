@@ -64,9 +64,19 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if account == nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't find account for '%s'", vals["email"]))
 	}
-
+	token := webapp.GetXSRFToken(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.UnauthorizedError(fmt.Errorf("Unauthorized XSRF token given: %s", t))
+		}
+		if teacher := model.AddNewTeacher(c, account); teacher == nil {
+			return webapp.InternalError(fmt.Errorf("Couldn't create teacher for %s", account.Email))
+		}
+		http.Redirect(w, r, "/staff", http.StatusTemporaryRedirect)
+		return nil
+	}
 	data := map[string]interface{}{
-		"Token": webapp.GetXSRFToken(r).Token,
+		"Token": token.Token,
 		"User":  account,
 	}
 	if err := addTeacherPage.Execute(w, data); err != nil {

@@ -98,12 +98,14 @@ type UserAccount struct {
 type Teacher struct {
 	Email     string
 	FirstName string
+	LastName  string
 }
 
 func AddNewTeacher(c appengine.Context, account *UserAccount) *Teacher {
 	teacher := &Teacher{
 		Email:     account.Email,
 		FirstName: account.FirstName,
+		LastName:  account.LastName,
 	}
 	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
 	if _, err := datastore.Put(c, key, teacher); err != nil {
@@ -111,6 +113,49 @@ func AddNewTeacher(c appengine.Context, account *UserAccount) *Teacher {
 		return nil
 	}
 	return teacher
+}
+
+func GetTeacher(c appengine.Context, account *UserAccount) *Teacher {
+	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
+	teacher := &Teacher{}
+	if err := datastore.Get(c, key, teacher); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			c.Errorf("Error looking up teacher for %s: %s", account.Email, err)
+		}
+		return nil
+	}
+	return teacher
+}
+
+type teacherList []*Teacher
+
+func (l teacherList) Len() int      { return len(l) }
+func (l teacherList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+func (l teacherList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if a.LastName != b.LastName {
+		return a.LastName < b.LastName
+	}
+	if a.FirstName != b.FirstName {
+		return a.FirstName < b.FirstName
+	}
+	if a.Email != b.Email {
+		return a.Email < b.Email
+	}
+	return false
+
+}
+
+func ListTeachers(c appengine.Context) []*Teacher {
+	q := datastore.NewQuery("Teacher")
+	teachers := []*Teacher{}
+	if _, err := q.GetAll(c, &teachers); err != nil {
+		c.Errorf("Error looking up teachers: %s", err)
+		return nil
+	}
+	sort.Sort(teacherList(teachers))
+	return teachers
 }
 
 type Staff struct {
@@ -260,18 +305,6 @@ func ListRoleAccounts(c appengine.Context, role UserRole) []*UserAccount {
 	_, err := q.GetAll(c, &accounts)
 	if err != nil {
 		c.Errorf("Error getting %s accounts: %s", role, err)
-		return nil
-	}
-	return accounts
-}
-
-func ListTeachers(c appengine.Context) []*UserAccount {
-	q := datastore.NewQuery("UserAccount").
-		Filter("CanTeach =", true)
-	accounts := []*UserAccount{}
-	_, err := q.GetAll(c, &accounts)
-	if err != nil {
-		c.Errorf("Error listing teachers: %s", err)
 		return nil
 	}
 	return accounts

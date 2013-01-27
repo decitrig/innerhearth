@@ -14,6 +14,7 @@ import (
 var (
 	staffPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
 	addTeacherPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
+	addClassPage   = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
 )
 
 func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
@@ -41,6 +42,7 @@ func handleFunc(path string, fn webapp.AppHandlerFunc) {
 func init() {
 	handleFunc("/staff", staff)
 	handleFunc("/staff/add-teacher", addTeacher)
+	handleFunc("/staff/add-class", addClass)
 }
 
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -80,6 +82,17 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"User":  account,
 	}
 	if err := addTeacherPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	c := appengine.NewContext(r)
+	data := map[string]interface{}{
+		"Teachers": model.ListTeachers(c),
+	}
+	if err := addClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

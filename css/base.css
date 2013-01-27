@@ -26,6 +26,10 @@ body {
     padding: 0;
 }
 
+fieldset {
+    border: 0;
+}
+
 .login-providers {
   list-style-type: none;  
   padding: 0;

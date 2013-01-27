@@ -18,10 +18,11 @@ var (
 )
 
 type Class struct {
-	ID          int64  `datastore: "-"`
-	Title       string `datastore: ",noindex"`
-	Description string `datastore: ",noindex"`
-	Teacher     *datastore.Key
+	ID              int64  `datastore: "-"`
+	Title           string `datastore: ",noindex"`
+	Description     string `datastore: ",noindex"`
+	LongDescription []byte `datastore: ",noindex"`
+	Teacher         *datastore.Key
 
 	DayOfWeek     string
 	StartTime     time.Time `datastore: ",noindex"`

@@ -6,7 +6,8 @@
     {{if not .LoggedIn}}
   <li class="nav-link"><a href="/login">Log In</a>
     {{else}}
-    {{if .User.Role.IsStaff}}<li class="nav-link nav-link-special"><a href="/staff">Staff Portal</a>{{end}}
+    {{if .Staff}}<li class="nav-link nav-link-special"><a href="/staff">Staff Portal</a>{{end}}
+    {{if .Admin}}<li class="nav-link nav-link-special"><a href="/admin">Admin</a>{{end}}
   <li class="nav-link"><a href="{{.LogoutURL}}">Log Out</a>
     {{end}}
 </ul>

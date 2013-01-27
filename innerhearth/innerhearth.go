@@ -40,6 +40,8 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		} else {
 			data["LogoutURL"] = url
 		}
+		data["Staff"] = model.GetStaff(c, u) != nil
+		data["Admin"] = user.IsAdmin(c)
 	} else {
 		data["LoggedIn"] = false
 	}

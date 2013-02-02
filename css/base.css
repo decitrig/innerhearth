@@ -9,6 +9,15 @@ body {
     padding: 1em;
 }
 
+.class-table .weekday {
+    text-align: left;
+    padding-top: .5em;
+}
+
+.class-table td {
+    padding-right: 1.5em;
+}
+
 .field-item {
     margin-bottom: 1em;
 }

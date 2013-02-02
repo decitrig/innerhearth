@@ -24,49 +24,38 @@
 </div>
 <div class="section">
 <h1>Classes</h1>
-{{with .Classes}}
-<table>
-	<tr>
-		<th>Title</th>
-		<th>Teacher</th>
-		<th>Day</th>
-		<th>Time</th>
-		<th>Dates</th>
-	</tr>
-	{{range .}}
-	<tr>
-		<td>
-		  {{.Title}}
-		</td>
-		<td>
-		  {{.FirstName}}
-		</td>
-		<td>
-		  {{.Weekday}}
-		</td>
-		<td>
-		  {{.StartTime.Format "15:04"}} &ndash; {{.EndTime.Format "15:04"}}
-		</td>
-		<td>
-		  {{if not .DropInOnly}}
-		  {{.BeginDate.Format "1/2"}} &ndash; {{.EndDate.Format "1/2"}}
-		  {{else}}
-		  <i>Drop-in Only</i>
-		  {{end}}
-		</td>
-		<td>
-		  <a href="/teacher/roster?class={{.ID}}">roster</a>
-		</td>
-		<td>
-		  <a href="/staff/reschedule-class?class={{.ID}}">reschedule</a>
-		</td>
-		<td>
-		  <a href="/staff/delete-class?class={{.ID}}">delete</a>
-		</td>
-	</tr>
-	{{end}}
+<table class="class-table">
+  {{range $day, $classes := .Classes}}
+  {{with $classes}}
+  <tr>
+    <th colspan="4" class="weekday">{{indexAsWeekday $day}}</th>
+  </tr>
+  {{range .}}
+  <tr>
+    <td>{{.Title}}</td>
+    <td>{{.Teacher.FirstName}}</td>
+    <td>{{.StartTime.Format "15:04"}} &ndash; {{.EndTime.Format "15:04"}}</td>
+    <td>
+      {{if not .DropInOnly}}
+      {{.BeginDate.Format "1/2"}} &ndash; {{.EndDate.Format "1/2"}}
+      {{else}}
+      <i>Drop-in Only</i>
+      {{end}}
+    </td>
+    <td>
+      <a href="/teacher/roster?class={{.ID}}">roster</a>
+    </td>
+    <td>
+      <a href="/staff/reschedule-class?class={{.ID}}">reschedule</a>
+    </td>
+    <td>
+      <a href="/staff/delete-class?class={{.ID}}">delete</a>
+    </td>
+  </tr>
+  {{end}}
+  {{end}}
+  {{end}}
 </table>
-{{end}}
 <a href="/staff/add-class">Add Class</a>
 </div>
 {{end}}

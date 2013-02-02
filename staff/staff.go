@@ -29,18 +29,16 @@ import (
 )
 
 var (
-	staffPage           = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
+	staffPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"indexAsWeekday": func(i int) time.Weekday { return time.Weekday(i) },
+	}).ParseFiles("templates/base.html", "templates/staff/index.html"))
 	addTeacherPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
 	addClassPage        = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
 	deleteClassPage     = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
 	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"weekdayEquals": weekdayEquals,
+		"weekdayEquals": func(a, b time.Weekday) bool { return a == b },
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
 )
-
-func weekdayEquals(a, b time.Weekday) bool {
-	return a == b
-}
 
 func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -73,13 +71,22 @@ func init() {
 	handleFunc("/staff/reschedule-class", rescheduleClass)
 }
 
+func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
+	days := make([][]*model.ClassCalendarData, 7)
+	for _, d := range data {
+		days[d.Weekday] = append(days[d.Weekday], d)
+	}
+	return days
+}
+
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListOpenClasses()
+	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
 	data := map[string]interface{}{
 		"Teachers": model.ListTeachers(c),
-		"Classes":  scheduler.ListCalendarData(classes),
+		"Classes":  classesByDay,
 	}
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)

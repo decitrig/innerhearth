@@ -407,7 +407,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	c := appengine.NewContext(r)
 	u := userVariable.Get(r).(*requestUser)
 	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListOpenClasses(true)
+	classes := scheduler.ListOpenClasses()
 	teachers := scheduler.GetTeacherNames(classes)
 	registrar := model.NewRegistrar(c, u.AccountID)
 	registrations := registrar.ListRegistrations()

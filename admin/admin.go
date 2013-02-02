@@ -49,7 +49,7 @@ func addStaff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if staff := model.AddNewStaff(c, account); staff == nil {
 			return webapp.InternalError(fmt.Errorf("Couldn't add %s as staff", account.Email))
 		}
-		http.Redirect(w, r, "/admin", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/admin", http.StatusSeeOther)
 		return nil
 	}
 	data := map[string]interface{}{

@@ -1,8 +1,8 @@
 {{define "body"}}
 <div class="section">
 <h1>Add Class</h1>
-<form action="/registration/admin/add-class" method="post">
-	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+<form action="/staff/add-class" method="post">
+  {{template "XSRFTokenInput" .Token}}
 	<fieldset>
 		<h2>Class Info</h2>
 		<ul class="field-list">
@@ -25,13 +25,13 @@
 		<ul class="field-list">
 			<li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
 				<select name="dayofweek" id="dayofweek">
-					<option>Monday</option>
-					<option>Tuesday</option>
-					<option>Wednesday</option>
-					<option>Thursday</option>
-					<option>Friday</option>
-					<option>Saturday</option>
-					<option>Sunday</option>
+				  <option value="0">Sunday</option>
+				  <option value="1">Monday</option>
+				  <option value="2">Tuesday</option>
+				  <option value="3">Wednesday</option>
+				  <option value="4">Thursday</option>
+				  <option value="5">Friday</option>
+				  <option value="6">Saturday</option>
 				</select>
 			<li class="field-item"><label class="field-label" for="starttime">Start time (HH:MMam):</label>
 				<input type="time" name="starttime" required="required" id="starttime" />

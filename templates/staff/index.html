@@ -30,39 +30,38 @@
 		<th>Title</th>
 		<th>Teacher</th>
 		<th>Day</th>
-		<th>Start Time</th>
-		<th>Length</th>
-		<td>&nbsp;</td>
+		<th>Time</th>
+		<th>Dates</th>
 	</tr>
 	{{range .}}
 	<tr>
 		<td>
-			{{if .DropInOnly}}
-			<i>{{.Title}}</i>
-			{{else}}
-			{{.Title}}
-			{{end}}
+		  {{.Title}}
 		</td>
 		<td>
-			{{.FirstName}}
+		  {{.FirstName}}
 		</td>
 		<td>
-			{{.DayOfWeek}}
+		  {{.Weekday}}
 		</td>
 		<td>
-			{{.StartTime.Format "15:04"}}
+		  {{.StartTime.Format "15:04"}} &ndash; {{.EndTime.Format "15:04"}}
 		</td>
 		<td>
-			{{.LengthMinutes}}m
+		  {{if not .DropInOnly}}
+		  {{.BeginDate.Format "1/2"}} &ndash; {{.EndDate.Format "1/2"}}
+		  {{else}}
+		  <i>Drop-in Only</i>
+		  {{end}}
 		</td>
 		<td>
-			<a href="/registration/teacher/roster?class={{.ID}}">roster</a>
+		  <a href="/teacher/roster?class={{.ID}}">roster</a>
 		</td>
 		<td>
-			<a href="/registration/admin/reschedule-class?class={{.ID}}">reschedule</a>
+		  <a href="/staff/reschedule-class?class={{.ID}}">reschedule</a>
 		</td>
 		<td>
-			<a href="/registration/admin/delete-class?class={{.ID}}">delete</a>
+		  <a href="/staff/delete-class?class={{.ID}}">delete</a>
 		</td>
 	</tr>
 	{{end}}

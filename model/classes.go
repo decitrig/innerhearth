@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"appengine"
@@ -20,13 +21,12 @@ var (
 type Class struct {
 	ID              int64  `datastore: "-"`
 	Title           string `datastore: ",noindex"`
-	Description     string `datastore: ",noindex"`
 	LongDescription []byte `datastore: ",noindex"`
 	Teacher         *datastore.Key
 
-	DayOfWeek     string
-	StartTime     time.Time `datastore: ",noindex"`
-	LengthMinutes int32     `datastore: ",noindex"`
+	Weekday   time.Weekday
+	StartTime time.Time     `datastore: ",noindex"`
+	Length    time.Duration `datastore: ",noindex"`
 
 	BeginDate time.Time
 	EndDate   time.Time
@@ -35,8 +35,33 @@ type Class struct {
 	Capacity   int32 `datastore: ",noindex"`
 
 	// The following fields are deprecated, but exist in legacy data.
-	SpacesLeft int32
-	Active     bool
+	SpacesLeft    int32
+	Active        bool
+	Description   string `datastore: ",noindex"`
+	LengthMinutes int32  `datastore: ",noindex"`
+	DayOfWeek     string
+}
+
+type ClassCalendarData struct {
+	*Class
+	*Teacher
+	EndTime time.Time
+}
+
+type classCalendarDataList []*ClassCalendarData
+
+func (l classCalendarDataList) Len() int      { return len(l) }
+func (l classCalendarDataList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+func (l classCalendarDataList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if a.Weekday != b.Weekday {
+		return a.Weekday < b.Weekday
+	}
+	if a.StartTime != b.StartTime {
+		return a.StartTime.Before(b.StartTime)
+	}
+	return false
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the
@@ -93,12 +118,14 @@ type Scheduler interface {
 	AddNew(c *Class) error
 	GetClass(id int64) *Class
 	ListClasses(activeOnly bool) []*Class
+	ListOpenClasses() []*Class
+	GetCalendarData(classes []*Class) []*ClassCalendarData
 	DeleteClass(c *Class) error
-	ListOpenClasses(activeOnly bool) []*Class
 	GetTeacherNames(classes []*Class) map[int64]string
 	GetTeacher(class *Class) *UserAccount
 	GetClassesForTeacher(teacher *UserAccount) []*Class
 	WriteClass(class *Class) error
+	GetTeachers(classes []*Class) []*Teacher
 }
 
 type scheduler struct {
@@ -145,26 +172,56 @@ func (s *scheduler) ListClasses(activeOnly bool) []*Class {
 	return classes
 }
 
-func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
-	classes := []*Class{}
-	q := datastore.NewQuery("Class")
-	keys, err := q.GetAll(s, &classes)
+func (s *scheduler) ListOpenClasses() []*Class {
+	dropins := []*Class{}
+	q := datastore.NewQuery("Class").
+		Filter("DropInOnly = ", true)
+	keys, err := q.GetAll(s, &dropins)
 	if err != nil {
-		s.Errorf("Error listing classes: %s", err)
+		s.Errorf("Error listing drop in classes: %s", err)
 		return nil
 	}
-	openClasses := []*Class{}
-	for i, class := range classes {
+	for i, class := range dropins {
 		class.ID = keys[i].IntID()
-		if !class.DropInOnly {
-			today := dateOnly(time.Now())
-			if today.After(class.EndDate) {
-				continue
-			}
-		}
-		openClasses = append(openClasses, class)
 	}
+
+	sessions := []*Class{}
+	q = datastore.NewQuery("Class").
+		Filter("DropInOnly =", false).
+		Filter("EndDate >=", dateOnly(time.Now()))
+	keys, err = q.GetAll(s, &sessions)
+	if err != nil {
+		s.Errorf("Error listing session classes: %s", err)
+		return nil
+	}
+	for i, class := range sessions {
+		class.ID = keys[i].IntID()
+	}
+	openClasses := append(dropins, sessions...)
 	return openClasses
+}
+
+func (s *scheduler) GetCalendarData(classes []*Class) []*ClassCalendarData {
+	teacherKeys := make([]*datastore.Key, len(classes))
+	teachers := make([]*Teacher, len(classes))
+	for i, class := range classes {
+		teacherKeys[i] = class.Teacher
+		teachers[i] = &Teacher{}
+	}
+	if err := datastore.GetMulti(s, teacherKeys, teachers); err != nil {
+		s.Errorf("Error looking up class teachers: %s", err)
+		return nil
+	}
+	data := make([]*ClassCalendarData, len(classes))
+	for i, class := range classes {
+		data[i] = &ClassCalendarData{
+			Class:   class,
+			EndTime: class.StartTime.Add(class.Length),
+			Teacher: teachers[i],
+		}
+	}
+	sort.Sort(classCalendarDataList(data))
+	return data
 }
 
 func (s *scheduler) GetClassesForTeacher(t *UserAccount) []*Class {
@@ -240,6 +297,20 @@ func (s *scheduler) WriteClass(c *Class) error {
 		return fmt.Errorf("Error writing class %d: %s", c.ID, err)
 	}
 	return nil
+}
+
+func (s *scheduler) GetTeachers(classes []*Class) []*Teacher {
+	keys := make([]*datastore.Key, len(classes))
+	teachers := make([]*Teacher, len(classes))
+	for i, class := range classes {
+		keys[i] = class.Teacher
+		teachers[i] = &Teacher{}
+	}
+	if err := datastore.GetMulti(s, keys, teachers); err != nil {
+		s.Errorf("Error looking up teachers: %s", err)
+		return nil
+	}
+	return teachers
 }
 
 // A Registration represents a reserved space in a class, either for the entire session or as a drop

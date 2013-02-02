@@ -127,6 +127,11 @@ func GetTeacher(c appengine.Context, account *UserAccount) *Teacher {
 	return teacher
 }
 
+func MakeTeacherKey(c appengine.Context, account *UserAccount) *datastore.Key {
+	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
+	return key
+}
+
 type teacherList []*Teacher
 
 func (l teacherList) Len() int      { return len(l) }

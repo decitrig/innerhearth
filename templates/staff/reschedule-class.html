@@ -1,0 +1,42 @@
+{{define "body"}}
+<div class="section">
+<h1>Reschedule Class</h1>
+<form  method="post">
+  {{template "XSRFTokenInput" .Token}}
+  <p>{{.Class.Title}} with {{.Class.Teacher.FirstName}}</p>
+	<fieldset>
+		<ul class="field-list">
+			<li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
+				<select name="dayofweek" id="dayofweek">
+				  <option value="0" {{if weekdayEquals 0 .Class.Weekday}}selected="selected"{{end}}>Sunday</option>
+				  <option value="1" {{if weekdayEquals 1 .Class.Weekday}}selected="selected"{{end}}>Monday</option>
+				  <option value="2" {{if weekdayEquals 2 .Class.Weekday}}selected="selected"{{end}}>Tuesday</option>
+				  <option value="3" {{if weekdayEquals 3 .Class.Weekday}}selected="selected"{{end}}>Wednesday</option>
+				  <option value="4" {{if weekdayEquals 4 .Class.Weekday}}selected="selected"{{end}}>Thursday</option>
+				  <option value="5" {{if weekdayEquals 5 .Class.Weekday}}selected="selected"{{end}}>Friday</option>
+				  <option value="6" {{if weekdayEquals 6 .Class.Weekday}}selected="selected"{{end}}>Saturday</option>
+				</select>
+			<li class="field-item"><label class="field-label" for="starttime">Start time (HH:MMam):</label>
+			  {{$startTime := .Class.StartTime.Format "15:04"}}
+				<input type="time" name="starttime" required="required" id="starttime" value="{{$startTime}}"/>
+			<li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
+				<input type="number" min="0" max="999" required="required" id="length" name="length" value="{{.Class.Length.Minutes}}"/>
+		</ul>
+	</fieldset>
+	{{if not .Class.DropInOnly}}
+	<fieldset>
+		<h2>Session Dates</h2>
+		<ul class="field-list">
+			<li class="field-item"><label class="field-label" for="startdate">Start Date (MM/DD/YYYY):</label>
+			  {{$startDate := .Class.BeginDate.Format "2006-01-02"}}
+				<input type="date" name="startdate" id="startdate" value="{{$startDate}}"/>
+			<li class="field-item"><label class="field-label" for="enddate">End Date (MM/DD/YYYY):</label>
+			  {{$endDate := .Class.EndDate.Format "2006-01-02"}}
+				<input type="date" name="enddate" id="enddate" value="{{$endDate}}" />
+		</ul>
+	</fieldset>
+	{{end}}
+	<button>Reschedule</button>
+</form>
+</div>
+{{end}}

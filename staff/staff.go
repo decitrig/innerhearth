@@ -29,11 +29,18 @@ import (
 )
 
 var (
-	staffPage       = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
-	addTeacherPage  = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
-	addClassPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
-	deleteClassPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
+	staffPage           = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
+	addTeacherPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
+	addClassPage        = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
+	deleteClassPage     = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
+	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"weekdayEquals": weekdayEquals,
+	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
 )
+
+func weekdayEquals(a, b time.Weekday) bool {
+	return a == b
+}
 
 func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -63,6 +70,7 @@ func init() {
 	handleFunc("/staff/add-teacher", addTeacher)
 	handleFunc("/staff/add-class", addClass)
 	handleFunc("/staff/delete-class", deleteClass)
+	handleFunc("/staff/reschedule-class", rescheduleClass)
 }
 
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -260,6 +268,9 @@ func deleteClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	token := webapp.GetXSRFToken(r)
 	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
 		if err := s.DeleteClass(class); err != nil {
 			return webapp.InternalError(fmt.Errorf("Error deleting class %d: %s", class.ID, err))
 		}
@@ -271,6 +282,69 @@ func deleteClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Token": token,
 	}
 	if err := deleteClassPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func rescheduleClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Error parsing class id %s: %s", r.FormValue("class"), err))
+	}
+	c := appengine.NewContext(r)
+	s := model.NewScheduler(c)
+	class := s.GetClass(classID)
+	if class == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
+	}
+	token := webapp.GetXSRFToken(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
+
+		fields, err := webapp.ParseRequiredValues(r, "dayofweek", "starttime", "length")
+		if err != nil {
+			return webapp.InternalError(err)
+		}
+		if dayNum, err := strconv.ParseInt(fields["dayofweek"], 10, 0); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing weekday %s: %s", fields["dayofweek"], err))
+		} else {
+			class.Weekday = time.Weekday(dayNum)
+		}
+		if class.StartTime, err = time.Parse("15:04", fields["starttime"]); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err))
+		}
+		if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing class length %s: %s", fields["length"], err))
+		} else {
+			class.Length = time.Duration(lengthMinutes) * time.Minute
+		}
+
+		if !class.DropInOnly {
+			dates, err := webapp.ParseRequiredValues(r, "startdate", "enddate")
+			if err != nil {
+				return webapp.InternalError(err)
+			}
+			if class.BeginDate, err = time.Parse("2006-01-02", dates["startdate"]); err != nil {
+				return webapp.InternalError(fmt.Errorf("Error parsing start date %s: %s", dates["startdate"], err))
+			}
+			if class.EndDate, err = time.Parse("2006-01-02", dates["enddate"]); err != nil {
+				return webapp.InternalError(fmt.Errorf("Error parsing end date %s: %s", dates["enddate"], err))
+			}
+		}
+		if err := s.WriteClass(class); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error writing class: %s", err))
+		}
+		http.Redirect(w, r, "/staff", http.StatusFound)
+		return nil
+	}
+	data := map[string]interface{}{
+		"Class": s.GetCalendarData(class),
+		"Token": token,
+	}
+	if err := rescheduleClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

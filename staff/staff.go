@@ -29,9 +29,10 @@ import (
 )
 
 var (
-	staffPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
-	addTeacherPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
-	addClassPage   = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
+	staffPage       = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
+	addTeacherPage  = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
+	addClassPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
+	deleteClassPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
 )
 
 func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
@@ -41,7 +42,8 @@ func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
 			webapp.RedirectToLogin(w, r, r.URL.Path)
 			return nil
 		}
-		if !u.Role.IsStaff() {
+		c := appengine.NewContext(r)
+		if model.GetStaff(c, u) == nil {
 			return webapp.UnauthorizedError(fmt.Errorf("%s is not staff", u.Email))
 		}
 		return handler.Serve(w, r)
@@ -60,16 +62,16 @@ func init() {
 	handleFunc("/staff", staff)
 	handleFunc("/staff/add-teacher", addTeacher)
 	handleFunc("/staff/add-class", addClass)
+	handleFunc("/staff/delete-class", deleteClass)
 }
 
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListOpenClasses()
-	c.Infof("classes: %v", classes)
 	data := map[string]interface{}{
 		"Teachers": model.ListTeachers(c),
-		"Classes":  scheduler.GetCalendarData(classes),
+		"Classes":  scheduler.ListCalendarData(classes),
 	}
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -205,6 +207,7 @@ func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if teacher == nil {
 			return webapp.InternalError(fmt.Errorf("No such teacher %s", r.FormValue("teacher")))
 		}
+
 		var class *model.Class
 		switch typ := r.FormValue("type"); typ {
 		case "session":
@@ -224,6 +227,7 @@ func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		default:
 			return webapp.InternalError(fmt.Errorf("Unknown class type '%s'", typ))
 		}
+
 		class.Teacher = model.MakeTeacherKey(c, teacher)
 		s := model.NewScheduler(c)
 		if err := s.AddNew(class); err != nil {
@@ -232,11 +236,41 @@ func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		http.Redirect(w, r, "/staff", http.StatusSeeOther)
 		return nil
 	}
+
 	data := map[string]interface{}{
 		"Teachers": model.ListTeachers(c),
 		"Token":    token,
 	}
 	if err := addClassPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func deleteClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Error parsing class id %s: %s", r.FormValue("class"), err))
+	}
+	c := appengine.NewContext(r)
+	s := model.NewScheduler(c)
+	class := s.GetClass(classID)
+	if class == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
+	}
+	token := webapp.GetXSRFToken(r)
+	if r.Method == "POST" {
+		if err := s.DeleteClass(class); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error deleting class %d: %s", class.ID, err))
+		}
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	data := map[string]interface{}{
+		"Class": s.GetCalendarData(class),
+		"Token": token,
+	}
+	if err := deleteClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

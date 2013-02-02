@@ -134,7 +134,8 @@ type Scheduler interface {
 	GetClass(id int64) *Class
 	ListClasses(activeOnly bool) []*Class
 	ListOpenClasses() []*Class
-	GetCalendarData(classes []*Class) []*ClassCalendarData
+	GetCalendarData(class *Class) *ClassCalendarData
+	ListCalendarData(classes []*Class) []*ClassCalendarData
 	DeleteClass(c *Class) error
 	GetTeacherNames(classes []*Class) map[int64]string
 	GetTeacher(class *Class) *UserAccount
@@ -216,7 +217,20 @@ func (s *scheduler) ListOpenClasses() []*Class {
 	return openClasses
 }
 
-func (s *scheduler) GetCalendarData(classes []*Class) []*ClassCalendarData {
+func (s *scheduler) GetCalendarData(class *Class) *ClassCalendarData {
+	teacher := &Teacher{}
+	if err := datastore.Get(s, class.Teacher, teacher); err != nil {
+		s.Errorf("Error looking up teacher for class %d: %s", class.ID, err)
+		return nil
+	}
+	return &ClassCalendarData{
+		Class:   class,
+		EndTime: class.StartTime.Add(class.Length),
+		Teacher: teacher,
+	}
+}
+
+func (s *scheduler) ListCalendarData(classes []*Class) []*ClassCalendarData {
 	teacherKeys := make([]*datastore.Key, len(classes))
 	teachers := make([]*Teacher, len(classes))
 	for i, class := range classes {

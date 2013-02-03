@@ -30,7 +30,7 @@ var (
 	ErrClassExists       = errors.New("Class already exists")
 	ErrClassNotEmpty     = errors.New("Class is not empty")
 	ErrAlreadyRegistered = errors.New("Student is already registered for class")
-	ErrInvalidDropInDate = errors.New("Date is not in class's session")
+	ErrInvalidDropInDate = errors.New("Invalid drop in date")
 )
 
 type Class struct {
@@ -119,7 +119,7 @@ func (c *Class) GetEndingTime(date time.Time) time.Time {
 }
 
 func (c *Class) ValidDate(date time.Time) bool {
-	if c.DayOfWeek != date.Weekday().String() {
+	if c.Weekday != date.Weekday() {
 		return false
 	}
 	if c.DropInOnly {
@@ -593,6 +593,16 @@ type registeredClassList []*RegisteredClass
 func (l registeredClassList) Len() int      { return len(l) }
 func (l registeredClassList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 func (l registeredClassList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if !a.Registration.DropIn && b.Registration.DropIn {
+		return true
+	}
+	if a.Registration.DropIn && !b.Registration.DropIn {
+		return false
+	}
+	if a.Registration.DropIn && b.Registration.DropIn {
+		return a.Registration.Date.Before(b.Registration.Date)
+	}
 	return l[i].Class.Before(l[j].Class)
 }
 

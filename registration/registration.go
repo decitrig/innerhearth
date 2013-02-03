@@ -45,7 +45,8 @@ var (
 		"dayNumber": dayNumber,
 	}).ParseFiles("templates/base.html", "templates/registration/dropin.html"))
 
-	classFullPage = template.Must(template.ParseFiles("templates/base.html", "templates/registration/class-full.html"))
+	classFullPage         = template.Must(template.ParseFiles("templates/base.html", "templates/registration/class-full.html"))
+	alreadyRegisteredPage = template.Must(template.ParseFiles("templates/base.html", "templates/registration/already-registered.html"))
 )
 
 var days = map[string]int{
@@ -184,6 +185,7 @@ func init() {
 	http.Handle("/registration/dropin", handler(xsrfProtected(dropin)))
 
 	webapp.HandleFunc("/registration/session", sessionRegistration)
+	webapp.HandleFunc("/registration/oneday", oneDayRegistration)
 }
 
 func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {
@@ -448,13 +450,6 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
-func classFull(w http.ResponseWriter, r *http.Request, class string) *appError {
-	if err := classFullPage.Execute(w, class); err != nil {
-		return &appError{err, "An error occurred", http.StatusInternalServerError}
-	}
-	return nil
-}
-
 func newRegistration(w http.ResponseWriter, r *http.Request) *appError {
 	u := userVariable.Get(r).(*requestUser)
 	c := appengine.NewContext(r)
@@ -585,6 +580,20 @@ func dropin(w http.ResponseWriter, r *http.Request) *appError {
 	return nil
 }
 
+func classFull(class *model.Class, w http.ResponseWriter, r *http.Request) *webapp.Error {
+	if err := classFullPage.Execute(w, class); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func alreadyRegistered(class *model.Class, w http.ResponseWriter, r *http.Request) *webapp.Error {
+	if err := alreadyRegisteredPage.Execute(w, class); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
 func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if r.Method != "POST" {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -602,14 +611,51 @@ func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	roster := model.NewRoster(c, class)
 	u := webapp.GetCurrentUser(r)
-	if _, err := roster.AddStudent(u.AccountID); err != nil {
-		if err != model.ErrClassFull {
-			return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
-		} else {
-			if err2 := classFullPage.Execute(w, class); err2 != nil {
-				return webapp.InternalError(err2)
-			}
-		}
+	_, err = roster.AddStudent(u.AccountID)
+	switch {
+	case err == model.ErrClassFull:
+		return classFull(class, w, r)
+
+	case err == model.ErrAlreadyRegistered:
+		return alreadyRegistered(class, w, r)
+
+	case err != nil:
+		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+func oneDayRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	if r.Method != "POST" {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	}
+	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't parse class id %s: %s", r.FormValue("class"), err))
+	}
+	date, err := time.Parse("2006-01-02", r.FormValue("date"))
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't parse date %s: %s", r.FormValue("date"), err))
+	}
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
+	}
+	roster := model.NewRoster(c, class)
+	u := webapp.GetCurrentUser(r)
+	_, err = roster.AddDropIn(u.AccountID, date)
+	switch {
+	case err == model.ErrClassFull:
+		return classFull(class, w, r)
+
+	case err == model.ErrAlreadyRegistered:
+		return alreadyRegistered(class, w, r)
+
+	case err != nil:
+		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	return nil

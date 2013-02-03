@@ -584,7 +584,7 @@ func (r *registrar) ListRegistrations() []*Registration {
 
 type RegisteredClass struct {
 	*Class
-	Teacher *UserAccount
+	Teacher *Teacher
 	*Registration
 }
 
@@ -618,10 +618,10 @@ func (r *registrar) ListRegisteredClasses(regs []*Registration) []*RegisteredCla
 		return nil
 	}
 	teacherKeys := make([]*datastore.Key, len(classes))
-	teachers := make([]*UserAccount, len(classes))
+	teachers := make([]*Teacher, len(classes))
 	for i, class := range classes {
 		teacherKeys[i] = class.Teacher
-		teachers[i] = &UserAccount{}
+		teachers[i] = &Teacher{}
 	}
 	if err := datastore.GetMulti(r, teacherKeys, teachers); err != nil {
 		r.Errorf("Error looking up teachers: %s", err)

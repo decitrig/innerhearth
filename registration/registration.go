@@ -35,16 +35,17 @@ import (
 var (
 	registrationForm    = template.Must(template.ParseFiles("registration/form.html"))
 	newRegistrationPage = template.Must(template.ParseFiles("registration/registration-new.html"))
-	classFullPage       = template.Must(template.ParseFiles("registration/full-class.html"))
 	registrationConfirm = template.Must(template.ParseFiles("registration/registration-confirm.html"))
 	teacherPage         = template.Must(template.ParseFiles("registration/teacher.html"))
 	teacherRosterPage   = template.Must(template.New("roster.html").
 				Funcs(template.FuncMap{"dayNumber": dayNumber}).
 				ParseFiles("registration/roster.html"))
 	teacherRegisterPage = template.Must(template.ParseFiles("registration/teacher-register.html"))
-	dropinPage          = template.Must(template.New("base.html").
-				Funcs(template.FuncMap{"dayNumber": dayNumber}).
-				ParseFiles("templates/base.html", "templates/registration/dropin.html"))
+	dropinPage          = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"dayNumber": dayNumber,
+	}).ParseFiles("templates/base.html", "templates/registration/dropin.html"))
+
+	classFullPage = template.Must(template.ParseFiles("templates/base.html", "templates/registration/class-full.html"))
 )
 
 var days = map[string]int{
@@ -182,7 +183,7 @@ func init() {
 	http.Handle("/registration/teacher/register", handler(teachersOnly(teacherRegister)))
 	http.Handle("/registration/dropin", handler(xsrfProtected(dropin)))
 
-	webapp.Handle("/registration/session", webapp.PostOnly(webapp.HandlerFunc(sessionRegistration)))
+	webapp.HandleFunc("/registration/session", sessionRegistration)
 }
 
 func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {
@@ -595,5 +596,31 @@ func dropin(w http.ResponseWriter, r *http.Request) *appError {
 }
 
 func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	if r.Method != "POST" {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return nil
+	}
+	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't parse class id %s: %s", r.FormValue("class"), err))
+	}
+	c := appengine.NewContext(r)
+	scheduler := model.NewScheduler(c)
+	class := scheduler.GetClass(classID)
+	if class == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
+	}
+	roster := model.NewRoster(c, class)
+	u := webapp.GetCurrentUser(r)
+	if _, err := roster.AddStudent(u.AccountID); err != nil {
+		if err != model.ErrClassFull {
+			return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
+		} else {
+			if err2 := classFullPage.Execute(w, class); err2 != nil {
+				return webapp.InternalError(err2)
+			}
+		}
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 	return nil
 }

@@ -42,10 +42,10 @@ var (
 
 func init() {
 	http.Handle("/", webapp.Router)
-	webapp.AppHandleFunc("/", index)
-	webapp.AppHandleFunc("/login", login)
-	webapp.AppHandleFunc("/_ah/login_required", login)
-	webapp.AppHandleFunc("/class", class)
+	webapp.HandleFunc("/", index)
+	webapp.HandleFunc("/login", login)
+	webapp.HandleFunc("/_ah/login_required", login)
+	webapp.HandleFunc("/class", class)
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {

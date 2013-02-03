@@ -32,8 +32,8 @@ var (
 )
 
 func init() {
-	webapp.AppHandleFunc("/admin", index)
-	webapp.AppHandleFunc("/admin/add-staff", addStaff)
+	webapp.HandleFunc("/admin", index)
+	webapp.HandleFunc("/admin/add-staff", addStaff)
 }
 
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {

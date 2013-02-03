@@ -87,13 +87,13 @@ func GetCurrentUser(r *http.Request) *model.UserAccount {
 	return nil
 }
 
-type AppHandler interface {
+type Handler interface {
 	Serve(w http.ResponseWriter, r *http.Request) *Error
 }
 
-type AppHandlerFunc func(w http.ResponseWriter, r *http.Request) *Error
+type HandlerFunc func(w http.ResponseWriter, r *http.Request) *Error
 
-func (fn AppHandlerFunc) Serve(w http.ResponseWriter, r *http.Request) *Error {
+func (fn HandlerFunc) Serve(w http.ResponseWriter, r *http.Request) *Error {
 	return fn(w, r)
 }
 
@@ -101,7 +101,7 @@ var (
 	Router = mux.NewRouter()
 )
 
-func AppHandle(path string, h AppHandler) {
+func Handle(path string, h Handler) {
 	Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Serve(w, r); err != nil {
 			c := appengine.NewContext(r)
@@ -111,12 +111,12 @@ func AppHandle(path string, h AppHandler) {
 	})
 }
 
-func AppHandleFunc(path string, f AppHandlerFunc) {
-	AppHandle(path, AppHandler(f))
+func HandleFunc(path string, f HandlerFunc) {
+	Handle(path, Handler(f))
 }
 
-func PostOnly(handler AppHandler) AppHandler {
-	return AppHandlerFunc(func(w http.ResponseWriter, r *http.Request) *Error {
+func PostOnly(handler Handler) Handler {
+	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) *Error {
 		if r.Method != "POST" {
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return nil

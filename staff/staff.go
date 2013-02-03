@@ -40,7 +40,7 @@ var (
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
 )
 
-func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
+func staffOnly(handler webapp.Handler) webapp.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		u := webapp.GetCurrentUser(r)
 		if u == nil {
@@ -55,12 +55,12 @@ func staffOnly(handler webapp.AppHandler) webapp.AppHandlerFunc {
 	}
 }
 
-func handle(path string, handler webapp.AppHandler) {
-	webapp.AppHandleFunc(path, staffOnly(handler))
+func handle(path string, handler webapp.Handler) {
+	webapp.HandleFunc(path, staffOnly(handler))
 }
 
-func handleFunc(path string, fn webapp.AppHandlerFunc) {
-	webapp.AppHandleFunc(path, staffOnly(fn))
+func handleFunc(path string, fn webapp.HandlerFunc) {
+	webapp.HandleFunc(path, staffOnly(fn))
 }
 
 func init() {

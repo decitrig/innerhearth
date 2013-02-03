@@ -76,7 +76,7 @@ func (fn adminHandler) Serve(w http.ResponseWriter, r *http.Request) *Error {
 }
 
 func handle(path string, h adminHandler) {
-	AppHandle("/admin"+path, h)
+	Handle("/admin"+path, h)
 }
 
 func regsWithNoDate(c appengine.Context) []*datastore.Key {

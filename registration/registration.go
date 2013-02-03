@@ -182,7 +182,7 @@ func init() {
 	http.Handle("/registration/teacher/register", handler(teachersOnly(teacherRegister)))
 	http.Handle("/registration/dropin", handler(xsrfProtected(dropin)))
 
-	webapp.AppHandle("/registration/session", webapp.PostOnly(webapp.AppHandlerFunc(sessionRegistration)))
+	webapp.Handle("/registration/session", webapp.PostOnly(webapp.HandlerFunc(sessionRegistration)))
 }
 
 func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {

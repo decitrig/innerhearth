@@ -3,10 +3,13 @@
   <h1>{{.Class.Title}}</h1>
   <p>{{.Class.Weekday}}s with {{.Class.Teacher.FirstName}} at {{.Class.StartTime.Format "3:04pm"}}</p>
   <p>{{.Class.Description}}</p>
-  {{if not .User}}
+  {{if not .User }}
   <p><a href="/login">Log in</a> to register.</p>
   {{else}}
+
+  {{if not .Registration}}
   <h2>Register</h2>
+
   {{if not .Class.DropInOnly}}
   <h3>Session Registration</h3>
   <p>This class meets every week from {{.Class.BeginDate.Format "1/2"}} through {{.Class.EndDate.Format "1/2"}}.
@@ -30,6 +33,7 @@
     <button>Register For Entire Session</button>
   </form>
   {{end}}
+
   <h3>Single-Day Registration</h3>
   <form method="post" action="/registration/oneday">
     {{template "XSRFTokenInput" .Token}}
@@ -38,6 +42,9 @@
     <input type="date" name="date" id="date" required="required" />
     <button>Register For One Day</button>
   </form>
+  {{else}}
+  <p>You are registered for this class.</p>
+  {{end}}
   {{end}}
 </div>
 {{end}}

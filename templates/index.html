@@ -3,7 +3,7 @@
   <li class="nav-link"><a href="#classes">Our Classes</a>
   <li class="nav-link"><a href="#teachers">Our Teachers</a>
   <li class="nav-link"><a href="#pricing">Pricing Info</a>
-    {{if not .LoggedIn}}
+    {{if not .User}}
   <li class="nav-link"><a href="/login">Log In</a>
     {{else}}
     {{if .Staff}}<li class="nav-link nav-link-special"><a href="/staff">Staff Portal</a>{{end}}
@@ -37,13 +37,32 @@
 	have straps, blocks, blankets and bolsters for you to use.
     </div>
 </div>
+{{with .Registrations}}
+<div class="section">
+  <h1>Your Registrations</h1>
+  <ul>
+  {{range .}}
+  <li>
+    {{.Title}} with {{.Teacher.FirstName}} on
+    {{if .DropInOnly}}
+    {{.Registration.Date.Format "1/2"}}
+    {{else}}
+    {{.Weekday}}s
+    {{end}}
+    at {{.StartTime.Format "3:04pm"}}.
+  </li>
+  {{end}}
+  </ul>
+</div>
+{{end}}
 <div id="classes" class="section">
   <h1>Our Classes</h1>
+  <p>Click on a class's name for details & registration.</p>
   <table class="class-table">
     {{range $day, $classes := .Classes}}
     {{with $classes}}
-    <tr>
-      <th colspan="4" class="weekday">{{indexAsWeekday $day}}</th>
+    <tr class="weekday">
+      <th colspan="4">{{indexAsWeekday $day}}</th>
     </tr>
     {{range .}}
     <tr>
@@ -55,5 +74,5 @@
     {{end}}
     {{end}}
   </table>
-  </div>
+</div>
 {{end}}

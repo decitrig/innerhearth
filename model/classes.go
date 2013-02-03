@@ -57,6 +57,17 @@ type Class struct {
 	DayOfWeek     string
 }
 
+func (c *Class) Before(d *Class) bool {
+	switch {
+	case c.Weekday != d.Weekday:
+		return c.Weekday < d.Weekday
+
+	case c.StartTime != d.StartTime:
+		return c.StartTime.Before(d.StartTime)
+	}
+	return false
+}
+
 type ClassCalendarData struct {
 	*Class
 	*Teacher
@@ -68,16 +79,8 @@ type classCalendarDataList []*ClassCalendarData
 
 func (l classCalendarDataList) Len() int      { return len(l) }
 func (l classCalendarDataList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
-
 func (l classCalendarDataList) Less(i, j int) bool {
-	a, b := l[i], l[j]
-	if a.Weekday != b.Weekday {
-		return a.Weekday < b.Weekday
-	}
-	if a.StartTime != b.StartTime {
-		return a.StartTime.Before(b.StartTime)
-	}
-	return false
+	return l[i].Class.Before(l[j].Class)
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the
@@ -549,54 +552,80 @@ func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, err
 
 type Registrar interface {
 	ListRegistrations() []*Registration
-	ListRegisteredClasses([]*Registration) []*Class
+	ListRegisteredClasses([]*Registration) []*RegisteredClass
 }
 
 type registrar struct {
 	appengine.Context
-	studentID string
+	user *UserAccount
 }
 
-func NewRegistrar(c appengine.Context, studentID string) Registrar {
-	return &registrar{c, studentID}
+func NewRegistrar(c appengine.Context, user *UserAccount) Registrar {
+	return &registrar{c, user}
 }
 
 func (r *registrar) ListRegistrations() []*Registration {
 	rs := []*Registration{}
 	q := datastore.NewQuery("Registration").
-		Filter("StudentID =", r.studentID).
+		Filter("StudentID =", r.user.AccountID).
 		Filter("Date >=", dateOnly(time.Now()))
 	if _, err := q.GetAll(r, &rs); err != nil {
 		return nil
 	}
-	account, err := GetAccountByID(r, r.studentID)
-	if err != nil {
-		r.Errorf("Error looking up paper registrations for %s: %s", r.studentID, err)
-		return nil
-	}
 	papers := []*Registration{}
 	if _, err := datastore.NewQuery("Registration").
-		Filter("StudentID = ", "PAPERREGISTRATION|"+account.Email).
+		Filter("StudentID = ", "PAPERREGISTRATION|"+r.user.Email).
 		GetAll(r, &papers); err != nil {
-		r.Errorf("Error getting paper registrations for %s: %s", account.Email, err)
+		r.Errorf("Error getting paper registrations for %s: %s", r.user.Email, err)
 		return nil
 	}
 	return append(rs, papers...)
 }
 
-func (r *registrar) ListRegisteredClasses(regs []*Registration) []*Class {
+type RegisteredClass struct {
+	*Class
+	Teacher *UserAccount
+	*Registration
+}
+
+type registeredClassList []*RegisteredClass
+
+func (l registeredClassList) Len() int      { return len(l) }
+func (l registeredClassList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l registeredClassList) Less(i, j int) bool {
+	return l[i].Class.Before(l[j].Class)
+}
+
+func (r *registrar) ListRegisteredClasses(regs []*Registration) []*RegisteredClass {
 	classKeys := make([]*datastore.Key, len(regs))
-	classes := make([]*Class, len(classKeys))
+	classes := make([]*Class, len(regs))
 	for i, reg := range regs {
 		classKeys[i] = datastore.NewKey(r, "Class", "", reg.ClassID, nil)
 		classes[i] = &Class{}
 	}
 	if err := datastore.GetMulti(r, classKeys, classes); err != nil {
-		r.Errorf("Error getting registered classes for %s: %s", r.studentID, err)
+		r.Errorf("Error getting registered classes for %s: %s", r.user.AccountID, err)
 		return nil
 	}
-	for i, _ := range classes {
-		classes[i].ID = classKeys[i].IntID()
+	teacherKeys := make([]*datastore.Key, len(classes))
+	teachers := make([]*UserAccount, len(classes))
+	for i, class := range classes {
+		teacherKeys[i] = class.Teacher
+		teachers[i] = &UserAccount{}
 	}
-	return classes
+	if err := datastore.GetMulti(r, teacherKeys, teachers); err != nil {
+		r.Errorf("Error looking up teachers: %s", err)
+		return nil
+	}
+	registered := make([]*RegisteredClass, len(regs))
+	for i, _ := range registered {
+		classes[i].ID = classKeys[i].IntID()
+		registered[i] = &RegisteredClass{
+			Class:        classes[i],
+			Registration: regs[i],
+			Teacher:      teachers[i],
+		}
+	}
+	sort.Sort(registeredClassList(registered))
+	return registered
 }

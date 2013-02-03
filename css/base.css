@@ -9,9 +9,13 @@ body {
     padding: 1em;
 }
 
-.class-table .weekday {
+.class-table .weekday:nth-of-type(1) th {
+    padding-top: 0;
+}
+
+.class-table .weekday th {
     text-align: left;
-    padding-top: .5em;
+    padding-top: 1em;
 }
 
 .class-table td {

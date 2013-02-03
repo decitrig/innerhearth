@@ -74,8 +74,9 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		}
 		data["Staff"] = model.GetStaff(c, u) != nil
 		data["Admin"] = user.IsAdmin(c)
-	} else {
-		data["LoggedIn"] = false
+
+		registrar := model.NewRegistrar(c, u)
+		data["Registrations"] = registrar.ListRegisteredClasses(registrar.ListRegistrations())
 	}
 	if err := indexPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -142,10 +143,15 @@ func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if class == nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
 	}
+	user := webapp.GetCurrentUser(r)
 	data := map[string]interface{}{
 		"Class": scheduler.GetCalendarData(class),
-		"User":  webapp.GetCurrentUser(r),
+		"User":  user,
 		"Token": webapp.GetXSRFToken(r),
+	}
+	if user != nil {
+		roster := model.NewRoster(c, class)
+		data["Registration"] = roster.LookupRegistration(user.AccountID)
 	}
 	if err := classPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)

@@ -428,16 +428,7 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListOpenClasses()
 	teachers := scheduler.GetTeacherNames(classes)
-	registrar := model.NewRegistrar(c, u.AccountID)
-	registrations := registrar.ListRegistrations()
-	registered := registrar.ListRegisteredClasses(registrations)
-	regsWithClasses := make([]*regAndClass, len(registrations))
-	for i, reg := range registrations {
-		regsWithClasses[i] = &regAndClass{reg, registered[i]}
-	}
-	classes = filterRegisteredClasses(classes, registered)
 	sort.Sort(byDayThenTime{classes})
-	sort.Sort(regsByDayThenTime{regsWithClasses})
 	logout, err := user.LogoutURL(c, "/registration")
 	if err != nil {
 		return &appError{err, "An error occurred", http.StatusInternalServerError}
@@ -448,7 +439,6 @@ func registration(w http.ResponseWriter, r *http.Request) *appError {
 		"XSRFToken":      token.Token,
 		"LogoutURL":      logout,
 		"Account":        u.UserAccount,
-		"Registrations":  regsWithClasses,
 		"IsAdmin":        u.Role.IsStaff(),
 		"Teachers":       teachers,
 	}

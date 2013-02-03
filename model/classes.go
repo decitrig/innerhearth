@@ -60,7 +60,8 @@ type Class struct {
 type ClassCalendarData struct {
 	*Class
 	*Teacher
-	EndTime time.Time
+	Description string
+	EndTime     time.Time
 }
 
 type classCalendarDataList []*ClassCalendarData
@@ -224,9 +225,10 @@ func (s *scheduler) GetCalendarData(class *Class) *ClassCalendarData {
 		return nil
 	}
 	return &ClassCalendarData{
-		Class:   class,
-		EndTime: class.StartTime.Add(class.Length),
-		Teacher: teacher,
+		Class:       class,
+		EndTime:     class.StartTime.Add(class.Length),
+		Teacher:     teacher,
+		Description: string(class.LongDescription),
 	}
 }
 
@@ -244,9 +246,10 @@ func (s *scheduler) ListCalendarData(classes []*Class) []*ClassCalendarData {
 	data := make([]*ClassCalendarData, len(classes))
 	for i, class := range classes {
 		data[i] = &ClassCalendarData{
-			Class:   class,
-			EndTime: class.StartTime.Add(class.Length),
-			Teacher: teachers[i],
+			Class:       class,
+			EndTime:     class.StartTime.Add(class.Length),
+			Teacher:     teachers[i],
+			Description: string(class.LongDescription),
 		}
 	}
 	sort.Sort(classCalendarDataList(data))

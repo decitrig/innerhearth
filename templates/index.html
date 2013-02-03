@@ -39,8 +39,21 @@
 </div>
 <div id="classes" class="section">
   <h1>Our Classes</h1>
-  {{range .Classes}}
-  {{.Title}}
-  {{end}}
+  <table class="class-table">
+    {{range $day, $classes := .Classes}}
+    {{with $classes}}
+    <tr>
+      <th colspan="4" class="weekday">{{indexAsWeekday $day}}</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><a href="/class?id={{.ID}}">{{.Title}}</a></td>
+      <td>{{.Teacher.FirstName}}</td>
+      <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
+    </tr>
+    {{end}}
+    {{end}}
+    {{end}}
+  </table>
   </div>
 {{end}}

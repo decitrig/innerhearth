@@ -29,6 +29,7 @@ import (
 	"appengine/user"
 
 	"github.com/decitrig/innerhearth/model"
+	"github.com/decitrig/innerhearth/webapp"
 )
 
 var (
@@ -180,6 +181,8 @@ func init() {
 	http.Handle("/registration/teacher/roster", handler(teachersOnly(teacherRoster)))
 	http.Handle("/registration/teacher/register", handler(teachersOnly(teacherRegister)))
 	http.Handle("/registration/dropin", handler(xsrfProtected(dropin)))
+
+	webapp.AppHandle("/registration/session", webapp.PostOnly(webapp.AppHandlerFunc(sessionRegistration)))
 }
 
 func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class {
@@ -588,5 +591,9 @@ func dropin(w http.ResponseWriter, r *http.Request) *appError {
 	}); err != nil {
 		return internalError("Error executing template: %s", err)
 	}
+	return nil
+}
+
+func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	return nil
 }

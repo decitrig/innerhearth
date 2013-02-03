@@ -115,6 +115,16 @@ func AppHandleFunc(path string, f AppHandlerFunc) {
 	AppHandle(path, AppHandler(f))
 }
 
+func PostOnly(handler AppHandler) AppHandler {
+	return AppHandlerFunc(func(w http.ResponseWriter, r *http.Request) *Error {
+		if r.Method != "POST" {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return nil
+		}
+		return handler.Serve(w, r)
+	})
+}
+
 // PathOrRoot parses a string into a URL and returns the path component. If the URL cannot be
 // parsed, or if the path is empty, returns the root path ("/").
 // 

@@ -112,9 +112,14 @@ type UserAccount struct {
 }
 
 type Teacher struct {
+	AccountID string `datastore: "-"`
 	Email     string
 	FirstName string
 	LastName  string
+}
+
+func (t *Teacher) key(c appengine.Context) *datastore.Key {
+	return datastore.NewKey(c, "Teacher", t.AccountID, 0, nil)
 }
 
 func AddNewTeacher(c appengine.Context, account *UserAccount) *Teacher {
@@ -128,6 +133,7 @@ func AddNewTeacher(c appengine.Context, account *UserAccount) *Teacher {
 		c.Errorf("Error writing teacher: %s", err)
 		return nil
 	}
+	teacher.AccountID = account.AccountID
 	return teacher
 }
 
@@ -140,6 +146,7 @@ func GetTeacher(c appengine.Context, account *UserAccount) *Teacher {
 		}
 		return nil
 	}
+	teacher.AccountID = account.AccountID
 	return teacher
 }
 
@@ -171,9 +178,13 @@ func (l teacherList) Less(i, j int) bool {
 func ListTeachers(c appengine.Context) []*Teacher {
 	q := datastore.NewQuery("Teacher")
 	teachers := []*Teacher{}
-	if _, err := q.GetAll(c, &teachers); err != nil {
+	keys, err := q.GetAll(c, &teachers)
+	if err != nil {
 		c.Errorf("Error looking up teachers: %s", err)
 		return nil
+	}
+	for i, key := range keys {
+		teachers[i].AccountID = key.StringID()
 	}
 	sort.Sort(teacherList(teachers))
 	return teachers

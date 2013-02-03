@@ -143,7 +143,7 @@ type Scheduler interface {
 	DeleteClass(c *Class) error
 	GetTeacherNames(classes []*Class) map[int64]string
 	GetTeacher(class *Class) *UserAccount
-	GetClassesForTeacher(teacher *UserAccount) []*Class
+	ListClassesForTeacher(teacher *Teacher) []*Class
 	WriteClass(class *Class) error
 	GetTeachers(classes []*Class) []*Teacher
 }
@@ -259,7 +259,7 @@ func (s *scheduler) ListCalendarData(classes []*Class) []*ClassCalendarData {
 	return data
 }
 
-func (s *scheduler) GetClassesForTeacher(t *UserAccount) []*Class {
+func (s *scheduler) ListClassesForTeacher(t *Teacher) []*Class {
 	q := datastore.NewQuery("Class").
 		Filter("Teacher =", t.key(s))
 	classes := []*Class{}
@@ -367,9 +367,14 @@ func (r *Registration) key(c appengine.Context) *datastore.Key {
 type Roster interface {
 	LookupRegistration(studentID string) *Registration
 	ListRegistrations() []*Registration
-	GetStudents(registrations []*Registration) []*UserAccount
+	GetStudents(registrations []*Registration) []*Student
 	AddStudent(studentID string) (*Registration, error)
 	AddDropIn(studentID string, date time.Time) (*Registration, error)
+}
+
+type Student struct {
+	*Registration
+	*UserAccount
 }
 
 type roster struct {
@@ -393,16 +398,23 @@ func (r *roster) ListRegistrations() []*Registration {
 	return rs
 }
 
-func (r *roster) GetStudents(rs []*Registration) []*UserAccount {
+func (r *roster) GetStudents(rs []*Registration) []*Student {
 	keys := make([]*datastore.Key, len(rs))
-	students := make([]*UserAccount, len(rs))
+	accounts := make([]*UserAccount, len(rs))
 	for idx, reg := range rs {
 		keys[idx] = datastore.NewKey(r, "UserAccount", reg.StudentID, 0, nil)
-		students[idx] = &UserAccount{}
+		accounts[idx] = &UserAccount{}
 	}
-	if err := datastore.GetMulti(r, keys, students); err != nil {
+	if err := datastore.GetMulti(r, keys, accounts); err != nil {
 		r.Errorf("Error looking up students from registrations: %s", err)
 		return nil
+	}
+	students := make([]*Student, len(rs))
+	for i, reg := range rs {
+		students[i] = &Student{
+			Registration: reg,
+			UserAccount:  accounts[i],
+		}
 	}
 	return students
 }

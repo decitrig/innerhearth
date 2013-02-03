@@ -73,6 +73,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			data["LogoutURL"] = url
 		}
 		data["Staff"] = model.GetStaff(c, u) != nil
+		data["Teacher"] = model.GetTeacher(c, u) != nil
 		data["Admin"] = user.IsAdmin(c)
 
 		registrar := model.NewRegistrar(c, u)

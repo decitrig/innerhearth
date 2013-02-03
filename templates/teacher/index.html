@@ -1,0 +1,35 @@
+{{define "Navbar"}}
+<ul class="nav-links">
+  <li class="nav-link"><a href="/">Home</a></li>
+</ul>
+{{end}}
+{{define "body"}}
+<div class="section">
+<h1>Your Classes</h1>
+<table class="class-table">
+  {{range $day, $classes := .Classes}}
+  {{with $classes}}
+  <tr class="weekday">
+    <th colspan="4">{{indexAsWeekday $day}}</th>
+  </tr>
+  {{range .}}
+  <tr>
+    <td>{{.Title}}</td>
+    <td>{{.StartTime.Format "3:04pm"}}</td>
+    <td>
+      {{if not .DropInOnly}}
+      {{.BeginDate.Format "1/2"}} &ndash; {{.EndDate.Format "1/2"}}
+      {{else}}
+      <i>Drop-in Only</i>
+      {{end}}
+    </td>
+    <td>
+      <a href="/teacher/roster?class={{.ID}}">roster</a>
+    </td>
+  </tr>
+  {{end}}
+  {{end}}
+  {{end}}
+</table>
+</div>
+{{end}}

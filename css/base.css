@@ -68,7 +68,8 @@ fieldset {
     margin-right: 1em;
 }
 
-.nav-link-special {
+.nav-link-special a {
+    color: #400601;
 }
 
 .section {

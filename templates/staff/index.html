@@ -27,8 +27,8 @@
 <table class="class-table">
   {{range $day, $classes := .Classes}}
   {{with $classes}}
-  <tr>
-    <th colspan="4" class="weekday">{{indexAsWeekday $day}}</th>
+  <tr class="weekday">
+    <th colspan="4">{{indexAsWeekday $day}}</th>
   </tr>
   {{range .}}
   <tr>

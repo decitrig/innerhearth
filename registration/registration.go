@@ -179,8 +179,6 @@ func teachersOnly(handler handler) handler {
 func init() {
 	http.Handle("/registration", handler(xsrfProtected(registration)))
 	http.Handle("/registration/new", handler(xsrfProtected(newRegistration)))
-	http.Handle("/registration/teacher", handler(teachersOnly(teacher)))
-	http.Handle("/registration/teacher/roster", handler(teachersOnly(teacherRoster)))
 	http.Handle("/registration/teacher/register", handler(teachersOnly(teacherRegister)))
 	http.Handle("/registration/dropin", handler(xsrfProtected(dropin)))
 
@@ -203,19 +201,6 @@ func filterRegisteredClasses(classes, registered []*model.Class) []*model.Class 
 		}
 	}
 	return filtered
-}
-
-func teacher(w http.ResponseWriter, r *http.Request) *appError {
-	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	u := getRequestUser(r)
-	classes := scheduler.GetClassesForTeacher(u.UserAccount)
-	if err := teacherPage.Execute(w, map[string]interface{}{
-		"Classes": classes,
-	}); err != nil {
-		return &appError{err, "Not implemented", http.StatusNotFound}
-	}
-	return nil
 }
 
 type registrations []*model.Registration
@@ -241,41 +226,6 @@ func (s ByDate) Less(i, j int) bool {
 type regAndStudent struct {
 	*model.Registration
 	*model.UserAccount
-}
-
-func teacherRoster(w http.ResponseWriter, r *http.Request) *appError {
-	fields, err := getRequiredFields(r, "class")
-	if err != nil {
-		return &appError{err, "Must specify a class", http.StatusBadRequest}
-	}
-	classID := mustParseInt(fields["class"], 64)
-	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	class := scheduler.GetClass(classID)
-	if class == nil {
-		return &appError{
-			fmt.Errorf("Couldn't find class %d", classID),
-			"Error looking up class",
-			http.StatusInternalServerError,
-		}
-	}
-	token := tokenVariable.Get(r).(*model.AdminXSRFToken)
-	roster := model.NewRoster(c, class)
-	rs := roster.ListRegistrations()
-	sort.Sort(ByDate{rs})
-	students := roster.GetStudents(rs)
-	regsAndStudents := make([]*regAndStudent, len(rs))
-	for i, _ := range regsAndStudents {
-		regsAndStudents[i] = &regAndStudent{rs[i], students[i]}
-	}
-	if err := teacherRosterPage.Execute(w, map[string]interface{}{
-		"Class":         class,
-		"Registrations": regsAndStudents,
-		"XSRFToken":     token.Token,
-	}); err != nil {
-		return &appError{err, "An error ocurred", http.StatusInternalServerError}
-	}
-	return nil
 }
 
 func teacherRegister(w http.ResponseWriter, r *http.Request) *appError {

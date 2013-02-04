@@ -142,6 +142,7 @@ func roster(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	data := map[string]interface{}{
 		"Class":         getClass(r),
 		"Registrations": roster.GetStudents(regs),
+		"Token":         webapp.GetXSRFToken(r),
 	}
 	if err := rosterPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)

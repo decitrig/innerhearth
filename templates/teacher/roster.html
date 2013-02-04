@@ -28,8 +28,8 @@
 {{end}}
 </table>
 <h2>Register a New Student</h2>
-<form method="post" action="/registration/teacher/register">
-	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+<form method="post" action="/registration/paper">
+  {{template "XSRFTokenInput" .Token}}
 	<input type="hidden" name="class" value="{{.Class.ID}}" />
 	<ul class="field-list">
 		<li class="field-item">

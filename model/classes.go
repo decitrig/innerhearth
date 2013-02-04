@@ -423,7 +423,28 @@ func (r *roster) LookupRegistration(studentID string) *Registration {
 	key := datastore.NewKey(r, "Registration", studentID, 0, r.class.key(r))
 	reg := &Registration{}
 	if err := datastore.Get(r, key, reg); err != nil {
-		r.Errorf("Error looking up registration for student %s in class %d: %s", studentID, r.class.ID, err)
+		if err != datastore.ErrNoSuchEntity {
+			r.Errorf("Error looking up registration for student %s in class %d: %s", studentID, r.class.ID, err)
+			return nil
+		}
+	}
+	if reg != nil {
+		return reg
+	}
+
+	// Look for a paper registration.
+	account, err := GetAccountByID(r, studentID)
+	if err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			r.Errorf("Error looking up account %s: %s", studentID, err)
+		}
+		return nil
+	}
+	key = datastore.NewKey(r, "Registration", "PAPERREGISTRATION|"+account.Email, 0, r.class.key(r))
+	if err := datastore.Get(r, key, reg); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			r.Errorf("Error looking up paper registration for %s in class %d: %s", account.Email, r.class.ID, err)
+		}
 		return nil
 	}
 	return reg

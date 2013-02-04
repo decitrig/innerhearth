@@ -67,6 +67,10 @@ func getClass(r *http.Request) *model.Class {
 func teachersOnly(handler webapp.Handler) webapp.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		u := webapp.GetCurrentUser(r)
+		if u == nil {
+			webapp.RedirectToLogin(w, r, r.URL.Path)
+			return nil
+		}
 		c := appengine.NewContext(r)
 		teacher := model.GetTeacher(c, u)
 		if teacher == nil {

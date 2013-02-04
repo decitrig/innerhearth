@@ -29,17 +29,17 @@ import (
 )
 
 var (
-	confirmationEmail   = template.Must(template.ParseFiles("registration/confirmation-email.txt"))
-	accountConfirmEmail = template.Must(template.ParseFiles("login/account-confirm-email.txt"))
+	confirmationEmail   = template.Must(template.ParseFiles("templates/registration/confirmation-email.txt"))
+	accountConfirmEmail = template.Must(template.ParseFiles("templates/account-confirm-email.txt"))
 	noReply             = "no-reply@innerhearthyoga.appspotmail.com"
 )
 
 func init() {
-	http.HandleFunc("/task/email-confirmation", emailConfirmation)
-	http.HandleFunc("/task/email-account-confirmation", emailAccountConfirmation)
+	http.HandleFunc("/task/email-confirmation", sendRegistrationConfirmation)
+	http.HandleFunc("/task/email-account-confirmation", sendNewAccountConfirmation)
 }
 
-func emailConfirmation(w http.ResponseWriter, r *http.Request) {
+func sendRegistrationConfirmation(w http.ResponseWriter, r *http.Request) {
 	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
 	c := appengine.NewContext(r)
 	if err != nil {
@@ -86,7 +86,7 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func emailAccountConfirmation(w http.ResponseWriter, r *http.Request) {
+func sendNewAccountConfirmation(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	email := r.FormValue("email")
 	if email == "" {

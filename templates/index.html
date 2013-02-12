@@ -46,7 +46,7 @@
   <li>
     {{.Title}} with {{.Teacher.FirstName}} on
     {{if .DropInOnly}}
-    {{.Weekday}} {{.Registration.Date.Format "1/2"}}
+    {{.Weekday}} {{.Student.Date.Format "1/2"}}
     {{else}}
     {{.Weekday}}s
     {{end}}

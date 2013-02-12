@@ -101,15 +101,18 @@ func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	roster := model.NewRoster(c, class)
 	u := webapp.GetCurrentUser(r)
-	_, err = roster.AddStudent(u.AccountID)
-	switch {
-	case err == model.ErrClassFull:
+	student := model.NewSessionStudent(class, u)
+	switch err := roster.AddStudent(student); err {
+	case nil:
+		break
+
+	case model.ErrClassFull:
 		return classFull(class, w, r)
 
-	case err == model.ErrAlreadyRegistered:
+	case model.ErrAlreadyRegistered:
 		return alreadyRegistered(class, w, r)
 
-	case err != nil:
+	default:
 		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
@@ -144,15 +147,18 @@ func oneDayRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	roster := model.NewRoster(c, class)
 	u := webapp.GetCurrentUser(r)
-	_, err = roster.AddDropIn(u.AccountID, date)
-	switch {
-	case err == model.ErrClassFull:
+	student := model.NewDropInStudent(class, u, date)
+	switch err := roster.AddStudent(student); err {
+	case nil:
+		break
+
+	case model.ErrClassFull:
 		return classFull(class, w, r)
 
-	case err == model.ErrAlreadyRegistered:
+	case model.ErrAlreadyRegistered:
 		return alreadyRegistered(class, w, r)
 
-	case err != nil:
+	default:
 		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
@@ -196,10 +202,6 @@ func paperRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if p := r.FormValue("phone"); p != "" {
 			account.Phone = p
 		}
-		account.AccountID = "PAPERREGISTRATION|" + fields["email"]
-		if err := model.StoreAccount(c, nil, account); err != nil {
-			return webapp.InternalError(err)
-		}
 	}
 	roster := model.NewRoster(c, class)
 	switch t := fields["type"]; t {
@@ -208,7 +210,8 @@ func paperRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if err != nil {
 			return webapp.InternalError(err)
 		}
-		if _, err = roster.AddDropIn(account.AccountID, day); err != nil {
+		student := model.NewDropInStudent(class, account, day)
+		if err = roster.AddStudent(student); err != nil {
 			if err == model.ErrAlreadyRegistered {
 				return alreadyRegistered(class, w, r)
 			}
@@ -216,7 +219,8 @@ func paperRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		}
 
 	case "session":
-		if _, err = roster.AddStudent(account.AccountID); err != nil {
+		student := model.NewSessionStudent(class, account)
+		if err = roster.AddStudent(student); err != nil {
 			if err == model.ErrAlreadyRegistered {
 				return alreadyRegistered(class, w, r)
 			}

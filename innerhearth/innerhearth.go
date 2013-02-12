@@ -152,7 +152,7 @@ func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	if user != nil {
 		roster := model.NewRoster(c, class)
-		data["Registration"] = roster.LookupRegistration(user.AccountID)
+		data["Student"] = roster.LookupStudent(user.Email)
 	}
 	if err := classPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)

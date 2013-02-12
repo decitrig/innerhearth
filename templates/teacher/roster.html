@@ -8,14 +8,14 @@
 <h1>{{.Class.Title}}</h1>
 <p>{{.Class.Weekday}}s at {{.Class.StartTime.Format "3:04pm"}}</p>
 <h2>Current Students</h2>
-<p>{{len .Registrations}} of {{.Class.Capacity}} registrations</p>
+<p>{{len .Students}} of {{.Class.Capacity}} registrations</p>
 <table>
 	<tr>
 		<th colspan="2">Name</th>
 		<th>Email</th>
 		<th>Phone</th>
 		<th>Drop In Date</th>
-		{{range .Registrations}}
+		{{range .Students}}
 	<tr>
 		<td>{{.FirstName}}</td>
 		<td>{{.LastName}}</td>

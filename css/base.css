@@ -72,6 +72,11 @@ fieldset {
     color: #400601;
 }
 
+.registration-list {
+    list-style-type: none;
+    padding: 0;
+}
+
 .section {
     background-color: #fffbc7;
     padding: .5em 2em;

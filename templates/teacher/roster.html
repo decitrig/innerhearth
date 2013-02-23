@@ -49,7 +49,8 @@
 	{{end}}
 	<h3>Register for single day</h3>
 	<div id="datepicker"></div>
-	<input type="date" name="date" id="date" readonly="readonly"/>
+	<label class="field-label" for="date">Date (MM/DD/YYYY):</label>
+	<input type="text" name="date" id="date" readonly="readonly"/>
 	<button name="type" value="dropin">Register</button>
 </form>
 {{end}}
@@ -61,13 +62,10 @@
 	show = {{weekdayAsIndex .Class.Weekday}} == date.getDay()
 	return [show, ""]
 	},
-	dateFormat: "yy-mm-dd",
+	dateFormat: "mm/dd/yy",
 	onSelect: function(date, picker) {
 	$("#date").val(date)
 	}
 	})
-	date = $("#datepicker").datepicker('getDate')
-	date = $.datepicker.formatDate('yy-mm-dd', date)
-	$("#date").val(date)
 </script>
 {{end}}

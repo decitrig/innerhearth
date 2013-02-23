@@ -34,7 +34,7 @@
 				  <option value="6">Saturday</option>
 				</select>
 			<li class="field-item"><label class="field-label" for="starttime">Start time (HH:MMam):</label>
-				<input type="time" name="starttime" required="required" id="starttime" />
+				<input type="text" name="starttime" required="required" id="starttime" />
 			<li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
 				<input type="number" min="0" max="999" required="required" id="length" name="length" />
 		</ul>
@@ -46,13 +46,31 @@
 	<fieldset>
 		<h2>Session Class</h2>
 		<ul class="field-list">
-			<li class="field-item"><label class="field-label" for="startdate">Start Date (MM/DD/YYYY):</label>
-				<input type="date" name="startdate" id="startdate" />
-			<li class="field-item"><label class="field-label" for="enddate">End Date (MM/DD/YYYY):</label>
-				<input type="date" name="enddate" id="enddate" />
+			<li class="field-item">
+			  <div id="start-date-picker"></div>
+			  <label class="field-label" for="startdate">Start Date (MM/DD/YYYY):</label>
+			  <input type="text" name="startdate" id="startdate" />
+			<li class="field-item">
+			  <div id="end-date-picker"></div>
+			  <label class="field-label" for="enddate">End Date (MM/DD/YYYY):</label>
+			  <input type="text" name="enddate" id="enddate" />
 		</ul>
 		<button name="type" value="session">Add Session Class</button>
 	</fieldset>
 </form>
 </div>
+{{end}}
+{{define "script"}}
+<script>
+  $("#start-date-picker").datepicker({
+  dateFormat: "mm/dd/yy",
+  onSelect: function(date, picker) {
+  $("#startdate").val(date);
+  }});
+  $("#end-date-picker").datepicker({
+  dateFormat: "mm/dd/yy",
+  onSelect: function(date, picker) {
+  $("#enddate").val(date);
+  }});
+</script>
 {{end}}

@@ -431,8 +431,8 @@ func (r *roster) LookupStudent(email string) *Student {
 	if err := datastore.Get(r, key, student); err != nil {
 		if err != datastore.ErrNoSuchEntity {
 			r.Errorf("Error looking up student %s in class %d: %s", email, r.class.ID, err)
-			return nil
 		}
+		return nil;
 	}
 	return student
 }

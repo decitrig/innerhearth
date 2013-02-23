@@ -34,6 +34,11 @@ var (
 	alreadyRegisteredPage = template.Must(template.ParseFiles("templates/base.html", "templates/registration/already-registered.html"))
 )
 
+const (
+	dateFormat = "01/02/2006"
+	timeFormat = "3:04pm"
+)
+
 func classTeacherOrStaffOnly(handler webapp.Handler) webapp.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		u := webapp.GetCurrentUser(r)
@@ -116,7 +121,7 @@ func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
-		"account": {u.AccountID},
+		"email": {u.Email},
 		"class":   {fmt.Sprintf("%d", class.ID)},
 	})
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
@@ -135,7 +140,7 @@ func oneDayRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't parse class id %s: %s", r.FormValue("class"), err))
 	}
-	date, err := time.Parse("2006-01-02", r.FormValue("date"))
+	date, err := time.Parse(dateFormat, r.FormValue("date"))
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't parse date %s: %s", r.FormValue("date"), err))
 	}
@@ -162,7 +167,7 @@ func oneDayRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
-		"account": {u.AccountID},
+		"email": {u.Email},
 		"class":   {fmt.Sprintf("%d", class.ID)},
 	})
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
@@ -206,7 +211,7 @@ func paperRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	roster := model.NewRoster(c, class)
 	switch t := fields["type"]; t {
 	case "dropin":
-		day, err := time.Parse("2006-01-02", r.FormValue("date"))
+		day, err := time.Parse(dateFormat, r.FormValue("date"))
 		if err != nil {
 			return webapp.InternalError(err)
 		}

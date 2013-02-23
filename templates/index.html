@@ -41,11 +41,11 @@
 {{with .Registrations}}
 <div class="section">
   <h1>Your Registrations</h1>
-  <ul>
+  <ul class="registration-list">
   {{range .}}
   <li>
     {{.Title}} with {{.Teacher.FirstName}} on
-    {{if .DropInOnly}}
+    {{if .DropIn}}
     {{.Weekday}} {{.Student.Date.Format "1/2"}}
     {{else}}
     {{.Weekday}}s

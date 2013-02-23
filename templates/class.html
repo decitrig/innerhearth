@@ -39,7 +39,8 @@
     {{template "XSRFTokenInput" .Token}}
     <input type="hidden" name="class" value="{{.Class.ID}}" />
     <div id="datepicker"></div>
-    <input type="date" name="date" id="date" required="required" />
+    <label class="field-label" for="date">Date (MM/DD/YYYY):</label>
+    <input type="text" name="date" id="date" required="required" />
     <button>Register For One Day</button>
   </form>
   {{else}}
@@ -55,7 +56,7 @@
   show = {{weekdayAsIndex .Class.Weekday}} == date.getDay();
   return [show, ""];
   },
-  dateFormat: "yy-mm-dd",
+  dateFormat: "mm/dd/yy",
   onSelect: function(date, picker) {
   $("#date").val(date);
   }

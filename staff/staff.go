@@ -40,6 +40,11 @@ var (
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
 )
 
+const (
+	dateFormat = "01/02/2006"
+	timeFormat = "3:04pm"
+)
+
 func staffOnly(handler webapp.Handler) webapp.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		u := webapp.GetCurrentUser(r)
@@ -161,7 +166,7 @@ func parseSessionClass(r *http.Request) (*model.Class, error) {
 	} else {
 		class.Weekday = time.Weekday(dayNum)
 	}
-	if class.StartTime, err = time.Parse("15:04", fields["starttime"]); err != nil {
+	if class.StartTime, err = time.Parse(timeFormat, fields["starttime"]); err != nil {
 		return nil, fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err)
 	}
 	if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
@@ -169,10 +174,10 @@ func parseSessionClass(r *http.Request) (*model.Class, error) {
 	} else {
 		class.Length = time.Duration(lengthMinutes) * time.Minute
 	}
-	if class.BeginDate, err = time.Parse("2006-01-02", fields["startdate"]); err != nil {
+	if class.BeginDate, err = time.Parse(dateFormat, fields["startdate"]); err != nil {
 		return nil, fmt.Errorf("Error parsing start date %s: %s", fields["startdate"], err)
 	}
-	if class.EndDate, err = time.Parse("2006-01-02", fields["enddate"]); err != nil {
+	if class.EndDate, err = time.Parse(dateFormat, fields["enddate"]); err != nil {
 		return nil, fmt.Errorf("Error parsing end date %s: %s", fields["enddate"], err)
 	}
 	class.DropInOnly = false
@@ -199,7 +204,7 @@ func parseDropInOnlyClass(r *http.Request) (*model.Class, error) {
 	} else {
 		class.Weekday = time.Weekday(dayNum)
 	}
-	if class.StartTime, err = time.Parse("15:04", fields["starttime"]); err != nil {
+	if class.StartTime, err = time.Parse(timeFormat, fields["starttime"]); err != nil {
 		return nil, fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err)
 	}
 	if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
@@ -320,7 +325,7 @@ func rescheduleClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		} else {
 			class.Weekday = time.Weekday(dayNum)
 		}
-		if class.StartTime, err = time.Parse("15:04", fields["starttime"]); err != nil {
+		if class.StartTime, err = time.Parse(timeFormat, fields["starttime"]); err != nil {
 			return webapp.InternalError(fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err))
 		}
 		if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
@@ -334,10 +339,10 @@ func rescheduleClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			if err != nil {
 				return webapp.InternalError(err)
 			}
-			if class.BeginDate, err = time.Parse("2006-01-02", dates["startdate"]); err != nil {
+			if class.BeginDate, err = time.Parse(dateFormat, dates["startdate"]); err != nil {
 				return webapp.InternalError(fmt.Errorf("Error parsing start date %s: %s", dates["startdate"], err))
 			}
-			if class.EndDate, err = time.Parse("2006-01-02", dates["enddate"]); err != nil {
+			if class.EndDate, err = time.Parse(dateFormat, dates["enddate"]); err != nil {
 				return webapp.InternalError(fmt.Errorf("Error parsing end date %s: %s", dates["enddate"], err))
 			}
 		}

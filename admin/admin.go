@@ -49,13 +49,13 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 
 func addStaff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
-	account := model.GetAccountByEmail(c, r.FormValue("email"))
-	if account == nil {
-		return webapp.InternalError(fmt.Errorf("Couldn't find user for email %s", r.FormValue("email")))
-	}
 	token := webapp.GetXSRFToken(r)
 	if token == nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't get XSRF token"))
+	}
+	account := model.GetAccountByEmail(c, r.FormValue("email"))
+	if account == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find user for email %s", r.FormValue("email")))
 	}
 	if r.Method == "POST" {
 		if !token.Validate(r.FormValue("xsrf_token")) {

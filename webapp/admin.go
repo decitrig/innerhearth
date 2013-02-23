@@ -37,7 +37,7 @@ var (
 type adminUser struct {
 	*model.UserAccount
 	LogoutURL string
-	Token     *model.AdminXSRFToken
+	Token     *model.XSRFToken
 }
 
 func newAdminUser(r *http.Request) *adminUser {

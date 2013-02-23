@@ -29,12 +29,12 @@ import (
 	"appengine/memcache"
 )
 
-type AdminXSRFToken struct {
+type XSRFToken struct {
 	Token      string
 	Expiration time.Time
 }
 
-func (t *AdminXSRFToken) Validate(provided string) bool {
+func (t *XSRFToken) Validate(provided string) bool {
 	if t == nil {
 		return false
 	}
@@ -45,7 +45,7 @@ func (t *AdminXSRFToken) Validate(provided string) bool {
 }
 
 func marshalToken(token interface{}) ([]byte, error) {
-	t, ok := token.(*AdminXSRFToken)
+	t, ok := token.(*XSRFToken)
 	if !ok {
 		return nil, fmt.Errorf("Cannot marshal %T as an admin token", token)
 	}
@@ -53,7 +53,7 @@ func marshalToken(token interface{}) ([]byte, error) {
 }
 
 func unmarshalToken(value []byte, token interface{}) error {
-	t, ok := token.(*AdminXSRFToken)
+	t, ok := token.(*XSRFToken)
 	if !ok {
 		return fmt.Errorf("Cannot unmarshal token to %T", token)
 	}
@@ -77,17 +77,17 @@ func xsrfTokenKey(id string) string {
 	return "adminxsrftoken|" + id
 }
 
-func lookupCachedToken(c appengine.Context, id string) *AdminXSRFToken {
-	token := &AdminXSRFToken{}
+func lookupCachedToken(c appengine.Context, id string) *XSRFToken {
+	token := &XSRFToken{}
 	if _, err := tokenCodec.Get(c, xsrfTokenKey(id), token); err != nil {
 		return nil
 	}
 	return token
 }
 
-func lookupStoredToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
-	key := datastore.NewKey(c, "AdminXSRFToken", id, 0, nil)
-	token := &AdminXSRFToken{}
+func lookupStoredToken(c appengine.Context, id string) (*XSRFToken, error) {
+	key := datastore.NewKey(c, "XSRFToken", id, 0, nil)
+	token := &XSRFToken{}
 	if err := datastore.Get(c, key, token); err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func lookupStoredToken(c appengine.Context, id string) (*AdminXSRFToken, error) 
 	return token, nil
 }
 
-func GetXSRFToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
+func GetXSRFToken(c appengine.Context, id string) (*XSRFToken, error) {
 	token := lookupCachedToken(c, id)
 	var err error
 	if token == nil {
@@ -118,7 +118,7 @@ func token(id string) string {
 	return strings.Trim(base64.URLEncoding.EncodeToString(hash.Sum(nil)), "=")
 }
 
-func cacheToken(c appengine.Context, id string, token *AdminXSRFToken) {
+func cacheToken(c appengine.Context, id string, token *XSRFToken) {
 	item := &memcache.Item{
 		Key:    xsrfTokenKey(id),
 		Object: token,
@@ -128,16 +128,16 @@ func cacheToken(c appengine.Context, id string, token *AdminXSRFToken) {
 	}
 }
 
-func storeToken(c appengine.Context, id string, token *AdminXSRFToken) error {
-	key := datastore.NewKey(c, "AdminXSRFToken", id, 0, nil)
+func storeToken(c appengine.Context, id string, token *XSRFToken) error {
+	key := datastore.NewKey(c, "XSRFToken", id, 0, nil)
 	if _, err := datastore.Put(c, key, token); err != nil {
 		return err
 	}
 	return nil
 }
 
-func MakeXSRFToken(c appengine.Context, id string) (*AdminXSRFToken, error) {
-	token := &AdminXSRFToken{
+func MakeXSRFToken(c appengine.Context, id string) (*XSRFToken, error) {
+	token := &XSRFToken{
 		Token:      token(id),
 		Expiration: time.Now().AddDate(0, 0, 1),
 	}

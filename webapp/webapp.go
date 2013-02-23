@@ -50,10 +50,10 @@ const (
 	currentUserKey
 )
 
-func GetXSRFToken(r *http.Request) *model.AdminXSRFToken {
+func GetXSRFToken(r *http.Request) *model.XSRFToken {
 	token := context.Get(r, xsrfTokenKey)
 	if token != nil {
-		return token.(*model.AdminXSRFToken)
+		return token.(*model.XSRFToken)
 	}
 	u := GetCurrentUser(r)
 	c := appengine.NewContext(r)
@@ -70,7 +70,7 @@ func GetXSRFToken(r *http.Request) *model.AdminXSRFToken {
 	return nil
 }
 
-func SetXSRFToken(r *http.Request, t *model.AdminXSRFToken) {
+func SetXSRFToken(r *http.Request, t *model.XSRFToken) {
 	context.Set(r, xsrfTokenKey, t)
 }
 

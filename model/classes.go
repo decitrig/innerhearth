@@ -432,7 +432,13 @@ func (r *roster) LookupStudent(email string) *Student {
 		if err != datastore.ErrNoSuchEntity {
 			r.Errorf("Error looking up student %s in class %d: %s", email, r.class.ID, err)
 		}
-		return nil;
+		return nil
+	}
+	if student.DropIn {
+		now := dateOnly(time.Now())
+		if student.Date.Before(now) {
+			return nil
+		}
 	}
 	return student
 }
@@ -457,7 +463,13 @@ func (r *roster) AddStudent(student *Student) error {
 			if err != nil {
 				return fmt.Errorf("Error looking up student %s: %s", student.Email, err)
 			}
-			return ErrAlreadyRegistered
+			if !old.DropIn {
+				return ErrAlreadyRegistered
+			}
+			now := dateOnly(time.Now())
+			if !old.Date.Before(now) {
+				return ErrAlreadyRegistered
+			}
 		}
 
 		class := &Class{}

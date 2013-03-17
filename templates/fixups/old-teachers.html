@@ -1,0 +1,25 @@
+{{define "body"}}
+<div class="section">
+  <h1>New Teachers</h1>
+  <ul>
+    {{range .NewTeachers}}
+    <li>{{.Email}}
+      {{end}}
+  </ul>
+  <h1>Old Teachers</h1>
+  <ul>
+    {{range .OldTeachers}}
+    <li>
+      	{{.Email}}
+      <form method="POST">
+	<input type="hidden" value="{{.Email}}" name="email">
+	<button>Create Teacher</button>
+      </form>
+      <form method="GET" action="/task/fixup/old-teacher-classes">
+	<input type="hidden" value="{{.Email}}" name="email">
+	<button>Fix Classes</button>
+      </form>
+    {{end}}
+  </ul>
+</div>
+{{end}}

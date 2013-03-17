@@ -15,6 +15,11 @@ indexes:
   - name: Active
   - name: SpacesLeft
 
+- kind: Class
+  properties:
+  - name: DropInOnly
+  - name: EndDate
+
 - kind: Registration
   properties:
   - name: StudentID

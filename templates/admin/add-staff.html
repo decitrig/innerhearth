@@ -1,0 +1,9 @@
+{{define "body"}}
+<div class="section">
+  <form method="post">
+    {{template "XSRFTokenInput" .Token}}
+    <p>Add "{{.User.Email}}" as a staff member?</p>
+    <button>Add Staff</button>
+  </form>
+</div>
+{{end}}

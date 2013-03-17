@@ -9,18 +9,72 @@ body {
     padding: 1em;
 }
 
-ul.login-providers {
+.class-table .weekday:nth-of-type(1) th {
+    padding-top: 0;
+}
+
+.class-table .weekday th {
+    text-align: left;
+    padding-top: 1em;
+}
+
+.class-table td {
+    padding-right: 1.5em;
+}
+
+.field-item {
+    margin-bottom: 1em;
+}
+
+.field-label {
+    display: block;
+}
+
+.field-label-required {
+    font-weight: bold;
+}
+
+.field-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+fieldset {
+    border: 0;
+}
+
+.login-providers {
   list-style-type: none;  
   padding: 0;
 }
 
-li.login-provider {
+.login-provider {
     padding: 1em;
     background: white;
     display: inline-block;
     margin-right: 1em;
     box-shadow: 1px 1px 2px black;
     border: 1px solid black;
+}
+
+.nav-links {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-link {
+    display: inline-block;
+    margin-right: 1em;
+}
+
+.nav-link-special a {
+    color: #400601;
+}
+
+.registration-list {
+    list-style-type: none;
+    padding: 0;
 }
 
 .section {

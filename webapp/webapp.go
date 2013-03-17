@@ -1,5 +1,4 @@
-/*
- *  Copyright 2013 Ryan W Sims (rwsims@gmail.com)
+/*  Copyright 2013 Ryan W Sims (rwsims@gmail.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,15 +12,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package webapp
 
 import (
-	"html/template"
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"appengine"
-	"appengine/user"
 	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
 
 	"github.com/decitrig/innerhearth/model"
 )
@@ -49,107 +50,111 @@ const (
 	currentUserKey
 )
 
-func GetXSRFToken(r *http.Request) *model.AdminXSRFToken {
-	return context.Get(r, xsrfTokenKey).(*model.AdminXSRFToken)
+func GetXSRFToken(r *http.Request) *model.XSRFToken {
+	token := context.Get(r, xsrfTokenKey)
+	if token != nil {
+		return token.(*model.XSRFToken)
+	}
+	u := GetCurrentUser(r)
+	c := appengine.NewContext(r)
+	if u == nil {
+		c.Errorf("Couldn't get XSRF token: no logged-in user")
+		return nil
+	}
+	if t, err := model.GetXSRFToken(c, u.AccountID); err != nil {
+		c.Errorf("Error getting XSRF token: %s", err)
+		return nil
+	} else {
+		return t
+	}
+	return nil
 }
 
-func SetXSRFToken(r *http.Request, t *model.AdminXSRFToken) {
+func SetXSRFToken(r *http.Request, t *model.XSRFToken) {
 	context.Set(r, xsrfTokenKey, t)
 }
 
 func GetCurrentUser(r *http.Request) *model.UserAccount {
-	return context.Get(r, currentUserKey).(*model.UserAccount)
+	u := context.Get(r, currentUserKey)
+	if u == nil {
+		c := appengine.NewContext(r)
+		u = model.MaybeGetCurrentUser(c)
+		context.Set(r, currentUserKey, u)
+	}
+	if u != nil {
+		return u.(*model.UserAccount)
+	}
+	return nil
 }
 
-func SetCurrentUser(r *http.Request, u *model.UserAccount) {
-	context.Set(r, currentUserKey, u)
-}
-
-type AppHandler interface {
+type Handler interface {
 	Serve(w http.ResponseWriter, r *http.Request) *Error
 }
 
-type AppHandlerFunc func(w http.ResponseWriter, r *http.Request) *Error
+type HandlerFunc func(w http.ResponseWriter, r *http.Request) *Error
 
-func (fn AppHandlerFunc) Serve(w http.ResponseWriter, r *http.Request) *Error {
+func (fn HandlerFunc) Serve(w http.ResponseWriter, r *http.Request) *Error {
 	return fn(w, r)
 }
 
-func AppHandle(path string, h AppHandler) {
-	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		c := appengine.NewContext(r)
-		u := model.MaybeGetCurrentUser(c)
-		SetCurrentUser(r, u)
+var (
+	Router = mux.NewRouter()
+)
+
+func Handle(path string, h Handler) {
+	Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Serve(w, r); err != nil {
+			c := appengine.NewContext(r)
 			c.Errorf("%s", err)
 			http.Error(w, err.Message, err.Code)
 		}
 	})
 }
 
-func AppHandleFunc(path string, f AppHandlerFunc) {
-	AppHandle(path, AppHandler(f))
+func HandleFunc(path string, f HandlerFunc) {
+	Handle(path, Handler(f))
 }
 
-func init() {
-	AppHandleFunc("/", index)
-	AppHandleFunc("/temp-login", login)
-}
-
-var (
-	indexPage = template.Must(template.ParseFiles("templates/base.html", "templates/index.html"))
-	loginPage = template.Must(template.ParseFiles("templates/base.html", "templates/login.html"))
-)
-
-func index(w http.ResponseWriter, r *http.Request) *Error {
-	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListClasses(true)
-	if err := indexPage.Execute(w, map[string]interface{}{
-		"Classes": classes,
-	}); err != nil {
-		return InternalError(err)
-	}
-	return nil
-}
-
-type directProvider struct {
-	Name       string
-	Identifier string
-}
-
-type directProviderLink struct {
-	Name string
-	URL  string
-}
-
-var (
-	directProviders = []directProvider{
-		{"Google", "https://www.google.com/accounts/o8/id"},
-		{"Yahoo", "yahoo.com"},
-		{"AOL", "aol.com"},
-		{"MyOpenID", "myopenid.com"},
-	}
-)
-
-func login(w http.ResponseWriter, r *http.Request) *Error {
-	c := appengine.NewContext(r)
-	directProviderLinks := []*directProviderLink{}
-	for _, provider := range directProviders {
-		url, err := user.LoginURLFederated(c, "/login/account?continue=/", provider.Identifier)
-		if err != nil {
-			c.Errorf("Error creating URL for %s: %s", provider.Name, err)
-			continue
+func PostOnly(handler Handler) Handler {
+	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) *Error {
+		if r.Method != "POST" {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return nil
 		}
-		directProviderLinks = append(directProviderLinks, &directProviderLink{
-			Name: provider.Name,
-			URL:  url,
-		})
+		return handler.Serve(w, r)
+	})
+}
+
+// PathOrRoot parses a string into a URL and returns the path component. If the URL cannot be
+// parsed, or if the path is empty, returns the root path ("/").
+// 
+// TODO(rwsims): This should probably allow the query string through as well.
+func PathOrRoot(urlString string) string {
+	u, err := url.Parse(urlString)
+	if err != nil || u.Path == "" {
+		return "/"
 	}
-	if err := loginPage.Execute(w, map[string]interface{}{
-		"DirectProviders": directProviderLinks,
-	}); err != nil {
-		return InternalError(err)
+	return u.Path
+}
+
+// ParseRequiredValues checks for a form value in r for each key in keys and returns a map from key
+// to it's first value. If a value is not found for a key, returns an error.
+func ParseRequiredValues(r *http.Request, keys ...string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, key := range keys {
+		if v := r.FormValue(key); v == "" {
+			return nil, fmt.Errorf("Missing value for %s", key)
+		} else {
+			out[key] = v
+		}
 	}
-	return nil
+	return out, nil
+}
+
+func RedirectToLogin(w http.ResponseWriter, r *http.Request, urlString string) {
+	u, _ := url.Parse("/login")
+	q := u.Query()
+	q.Set("continue", urlString)
+	u.RawQuery = q.Encode()
+	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }

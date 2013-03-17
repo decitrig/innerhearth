@@ -1,3 +1,18 @@
+{{define "Navbar"}}
+<ul class="nav-links">
+  <li class="nav-link"><a href="#classes">Our Classes</a>
+  <li class="nav-link"><a href="#teachers">Our Teachers</a>
+  <li class="nav-link"><a href="#pricing">Pricing Info</a>
+    {{if not .User}}
+  <li class="nav-link"><a href="/login">Log In</a>
+    {{else}}
+    {{if .Teacher}}<li class="nav-link nav-link-special"><a href="/teacher">Teacher Portal</a>{{end}}
+    {{if .Staff}}<li class="nav-link nav-link-special"><a href="/staff">Staff Portal</a>{{end}}
+    {{if .Admin}}<li class="nav-link nav-link-special"><a href="/admin">Admin</a>{{end}}
+  <li class="nav-link"><a href="{{.LogoutURL}}">Log Out</a>
+    {{end}}
+</ul>
+{{end}}
 {{define "body"}}
 <div id="mission" class="section">
   <h1>About Us</h1>
@@ -7,11 +22,6 @@
     outfit, the best attitude, or the perfect pose. Inner Hearth's yoga is for every body!
   <p>Our teachers help students recognize their bodies' potential through precise and compassionate
     instruction, supplying the anatomical context students need.
-    <ul class="nav-menu">
-      <li><a href="#classes">Our Classes</a>
-      <li><a href="#teachers">Our Teachers</a>
-      <li><a href="#pricing">Pricing Info</a>
-    </ul>
     <div>
       <h3>Plan Your Visit</h3>
       <p>Our classroom opens 15 minutes before class begins. We're on the second floor at
@@ -28,10 +38,42 @@
 	have straps, blocks, blankets and bolsters for you to use.
     </div>
 </div>
+{{with .Registrations}}
+<div class="section">
+  <h1>Your Registrations</h1>
+  <ul class="registration-list">
+  {{range .}}
+  <li>
+    {{.Title}} with {{.Teacher.FirstName}} on
+    {{if .DropIn}}
+    {{.Weekday}} {{.Student.Date.Format "1/2"}}
+    {{else}}
+    {{.Weekday}}s
+    {{end}}
+    at {{.StartTime.Format "3:04pm"}}.
+  </li>
+  {{end}}
+  </ul>
+</div>
+{{end}}
 <div id="classes" class="section">
   <h1>Our Classes</h1>
-  {{range .Classes}}
-  {{.Title}}
-  {{end}}
-  </div>
+  <p>Click on a class's name for details & registration.</p>
+  <table class="class-table">
+    {{range $day, $classes := .Classes}}
+    {{with $classes}}
+    <tr class="weekday">
+      <th colspan="4">{{indexAsWeekday $day}}</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><a href="/class?id={{.ID}}">{{.Title}}</a></td>
+      <td>{{.Teacher.FirstName}}</td>
+      <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
+    </tr>
+    {{end}}
+    {{end}}
+    {{end}}
+  </table>
+</div>
 {{end}}

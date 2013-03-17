@@ -13,11 +13,7 @@ Inner Hearth Yoga
     <table style="width: 100%; text-align: center;">
         <tr>
             <td>
-                <img src="images/large_logo.png" alt="Inner Hearth Yoga"/>
-            </td>
-
-            <td style="vertical-align: top">
-                <h1 id="title" class="header-section">Inner Hearth Yoga</h1>
+                <img src="/images/large_logo.png" alt="Inner Hearth Yoga"/>
                 <p id="motto">Light your Practice on Fire</p>
             </td>
 
@@ -32,6 +28,8 @@ Inner Hearth Yoga
         <!-- TODO(rwsims): Social icons -->
     </tr>
 </table>
+{{define "Navbar"}}{{end}}
+{{template "Navbar" .}}
 </div>
 {{define "XSRFTokenInput"}}
 <input type="hidden" name="xsrf_token" value="{{.Token}}" />

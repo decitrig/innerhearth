@@ -1,5 +1,4 @@
-/*
- *  Copyright 2013 Ryan W Sims (rwsims@gmail.com)
+/*  Copyright 2013 Ryan W Sims (rwsims@gmail.com)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,6 +12,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package webapp
 
 import (
@@ -37,7 +37,7 @@ var (
 type adminUser struct {
 	*model.UserAccount
 	LogoutURL string
-	Token     *model.AdminXSRFToken
+	Token     *model.XSRFToken
 }
 
 func newAdminUser(r *http.Request) *adminUser {
@@ -76,12 +76,7 @@ func (fn adminHandler) Serve(w http.ResponseWriter, r *http.Request) *Error {
 }
 
 func handle(path string, h adminHandler) {
-	AppHandle("/admin"+path, h)
-}
-
-func init() {
-	handle("", admin)
-	handle("/fixup/no-end-date", fixupNoEndDate)
+	Handle("/admin"+path, h)
 }
 
 func regsWithNoDate(c appengine.Context) []*datastore.Key {

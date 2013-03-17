@@ -1,0 +1,14 @@
+{{define "body"}}
+<div class="section">
+  {{.Teacher.Email}}
+  <ul>
+    {{range .Classes}}
+    <li> {{.Title}}
+    {{end}}
+  </ul>
+  <form method="POST">
+    <input type="hidden" value="{{.Teacher.Email}}" name="email" />
+    <button>Fix</button>
+  </form>
+</div>
+{{end}}

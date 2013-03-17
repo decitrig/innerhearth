@@ -13,11 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package model
 
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"appengine"
@@ -104,8 +106,150 @@ type UserAccount struct {
 	ConfirmationCode string    `datastore: ",noindex"`
 	Confirmed        time.Time `datastore: ",noindex"`
 
+	// DEPRECATED.
 	Role     UserRole
 	CanTeach bool
+}
+
+type Teacher struct {
+	AccountID string `datastore: "-"`
+	Email     string
+	FirstName string
+	LastName  string
+}
+
+func (t *Teacher) key(c appengine.Context) *datastore.Key {
+	return datastore.NewKey(c, "Teacher", t.AccountID, 0, nil)
+}
+
+func AddNewTeacher(c appengine.Context, account *UserAccount) *Teacher {
+	teacher := &Teacher{
+		Email:     account.Email,
+		FirstName: account.FirstName,
+		LastName:  account.LastName,
+	}
+	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
+	if _, err := datastore.Put(c, key, teacher); err != nil {
+		c.Errorf("Error writing teacher: %s", err)
+		return nil
+	}
+	teacher.AccountID = account.AccountID
+	return teacher
+}
+
+func GetTeacher(c appengine.Context, account *UserAccount) *Teacher {
+	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
+	teacher := &Teacher{}
+	if err := datastore.Get(c, key, teacher); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			c.Errorf("Error looking up teacher for %s: %s", account.Email, err)
+		}
+		return nil
+	}
+	teacher.AccountID = account.AccountID
+	return teacher
+}
+
+func MakeTeacherKey(c appengine.Context, account *UserAccount) *datastore.Key {
+	key := datastore.NewKey(c, "Teacher", account.AccountID, 0, nil)
+	return key
+}
+
+type teacherList []*Teacher
+
+func (l teacherList) Len() int      { return len(l) }
+func (l teacherList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+func (l teacherList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if a.LastName != b.LastName {
+		return a.LastName < b.LastName
+	}
+	if a.FirstName != b.FirstName {
+		return a.FirstName < b.FirstName
+	}
+	if a.Email != b.Email {
+		return a.Email < b.Email
+	}
+	return false
+
+}
+
+func ListTeachers(c appengine.Context) []*Teacher {
+	q := datastore.NewQuery("Teacher")
+	teachers := []*Teacher{}
+	keys, err := q.GetAll(c, &teachers)
+	if err != nil {
+		c.Errorf("Error looking up teachers: %s", err)
+		return nil
+	}
+	for i, key := range keys {
+		teachers[i].AccountID = key.StringID()
+	}
+	sort.Sort(teacherList(teachers))
+	return teachers
+}
+
+type Staff struct {
+	FirstName string
+	LastName  string
+	Email     string
+}
+
+func AddNewStaff(c appengine.Context, account *UserAccount) *Staff {
+	staff := &Staff{
+		FirstName: account.FirstName,
+		LastName:  account.LastName,
+		Email:     account.Email,
+	}
+	key := datastore.NewKey(c, "Staff", account.AccountID, 0, nil)
+	if _, err := datastore.Put(c, key, staff); err != nil {
+		c.Errorf("Error writing new Staff: %s", err)
+		return nil
+	}
+	return staff
+}
+
+func GetStaff(c appengine.Context, account *UserAccount) *Staff {
+	key := datastore.NewKey(c, "Staff", account.AccountID, 0, nil)
+	staff := &Staff{}
+	if err := datastore.Get(c, key, staff); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			c.Errorf("Error looking up staff entity for %s: %s", account.Email, err)
+		}
+		return nil
+	}
+	return staff
+}
+
+type staffList []*Staff
+
+func (l staffList) Len() int      { return len(l) }
+func (l staffList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+func (l staffList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if a.LastName != b.LastName {
+		return a.LastName < b.LastName
+	}
+	if a.FirstName != b.FirstName {
+		return a.FirstName < b.FirstName
+	}
+	if a.Email != b.Email {
+		return a.Email < b.Email
+	}
+	return false
+}
+
+func ListStaff(c appengine.Context) []*Staff {
+	q := datastore.NewQuery("Staff")
+	staff := []*Staff{}
+	if _, err := q.GetAll(c, &staff); err != nil {
+		c.Errorf("Error listing staff: %s", err)
+		return nil
+	}
+	sort.Sort(staffList(staff))
+	return staff
 }
 
 func (a *UserAccount) SetRole(role UserRole) {
@@ -193,18 +337,6 @@ func ListRoleAccounts(c appengine.Context, role UserRole) []*UserAccount {
 	_, err := q.GetAll(c, &accounts)
 	if err != nil {
 		c.Errorf("Error getting %s accounts: %s", role, err)
-		return nil
-	}
-	return accounts
-}
-
-func ListTeachers(c appengine.Context) []*UserAccount {
-	q := datastore.NewQuery("UserAccount").
-		Filter("CanTeach =", true)
-	accounts := []*UserAccount{}
-	_, err := q.GetAll(c, &accounts)
-	if err != nil {
-		c.Errorf("Error listing teachers: %s", err)
 		return nil
 	}
 	return accounts

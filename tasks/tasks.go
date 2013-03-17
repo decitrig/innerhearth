@@ -29,17 +29,17 @@ import (
 )
 
 var (
-	confirmationEmail   = template.Must(template.ParseFiles("registration/confirmation-email.txt"))
-	accountConfirmEmail = template.Must(template.ParseFiles("login/account-confirm-email.txt"))
+	confirmationEmail   = template.Must(template.ParseFiles("templates/registration/confirmation-email.txt"))
+	accountConfirmEmail = template.Must(template.ParseFiles("templates/account-confirm-email.txt"))
 	noReply             = "no-reply@innerhearthyoga.appspotmail.com"
 )
 
 func init() {
-	http.HandleFunc("/task/email-confirmation", emailConfirmation)
-	http.HandleFunc("/task/email-account-confirmation", emailAccountConfirmation)
+	http.HandleFunc("/task/email-confirmation", sendRegistrationConfirmation)
+	http.HandleFunc("/task/email-account-confirmation", sendNewAccountConfirmation)
 }
 
-func emailConfirmation(w http.ResponseWriter, r *http.Request) {
+func sendRegistrationConfirmation(w http.ResponseWriter, r *http.Request) {
 	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
 	c := appengine.NewContext(r)
 	if err != nil {
@@ -54,39 +54,33 @@ func emailConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 	teacher := scheduler.GetTeacher(class)
 	roster := model.NewRoster(c, class)
-	reg := roster.LookupRegistration(r.FormValue("account"))
-	if reg == nil {
-		c.Errorf("Couldn't find registration of %s in %s", r.FormValue("account"), r.FormValue("class"))
+	student := roster.LookupStudent(r.FormValue("email"))
+	if student == nil {
+		c.Errorf("Couldn't find student %s in %d", r.FormValue("email"), class.ID)
 		http.Error(w, "Missing registration", http.StatusInternalServerError)
-		return
-	}
-	account, err := model.GetAccountByID(c, r.FormValue("account"))
-	if err != nil {
-		c.Errorf("Couldn't find account %s: %s", r.FormValue("account"), err)
-		http.Error(w, "Missing account", http.StatusInternalServerError)
 		return
 	}
 	buf := &bytes.Buffer{}
 	if err := confirmationEmail.Execute(buf, map[string]interface{}{
 		"Class":   class,
-		"Email":   account.Email,
+		"Email":   student.Email,
 		"Teacher": teacher,
 	}); err != nil {
-		c.Criticalf("Couldn't create email to '%s': %s", account.Email, err)
+		c.Criticalf("Couldn't create email to '%s': %s", student.Email, err)
 		return
 	}
 	msg := &mail.Message{
 		Sender:  noReply,
-		To:      []string{account.Email},
+		To:      []string{student.Email},
 		Subject: fmt.Sprintf("Registration for %s at Inner Hearth Yoga", class.Title),
 		Body:    buf.String(),
 	}
 	if err := mail.Send(c, msg); err != nil {
-		c.Criticalf("Couldn't send email to '%s': %s", account.Email, err)
+		c.Criticalf("Couldn't send email to '%s': %s", student.Email, err)
 	}
 }
 
-func emailAccountConfirmation(w http.ResponseWriter, r *http.Request) {
+func sendNewAccountConfirmation(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	email := r.FormValue("email")
 	if email == "" {

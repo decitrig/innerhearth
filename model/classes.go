@@ -18,6 +18,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"appengine"
@@ -29,18 +30,18 @@ var (
 	ErrClassExists       = errors.New("Class already exists")
 	ErrClassNotEmpty     = errors.New("Class is not empty")
 	ErrAlreadyRegistered = errors.New("Student is already registered for class")
-	ErrInvalidDropInDate = errors.New("Date is not in class's session")
+	ErrInvalidDropInDate = errors.New("Invalid drop in date")
 )
 
 type Class struct {
-	ID          int64  `datastore: "-"`
-	Title       string `datastore: ",noindex"`
-	Description string `datastore: ",noindex"`
-	Teacher     *datastore.Key
+	ID              int64  `datastore: "-"`
+	Title           string `datastore: ",noindex"`
+	LongDescription []byte `datastore: ",noindex"`
+	Teacher         *datastore.Key
 
-	DayOfWeek     string
-	StartTime     time.Time `datastore: ",noindex"`
-	LengthMinutes int32     `datastore: ",noindex"`
+	Weekday   time.Weekday
+	StartTime time.Time     `datastore: ",noindex"`
+	Length    time.Duration `datastore: ",noindex"`
 
 	BeginDate time.Time
 	EndDate   time.Time
@@ -49,8 +50,37 @@ type Class struct {
 	Capacity   int32 `datastore: ",noindex"`
 
 	// The following fields are deprecated, but exist in legacy data.
-	SpacesLeft int32
-	Active     bool
+	SpacesLeft    int32
+	Active        bool
+	Description   string `datastore: ",noindex"`
+	LengthMinutes int32  `datastore: ",noindex"`
+	DayOfWeek     string
+}
+
+func (c *Class) Before(d *Class) bool {
+	switch {
+	case c.Weekday != d.Weekday:
+		return c.Weekday < d.Weekday
+
+	case c.StartTime != d.StartTime:
+		return c.StartTime.Before(d.StartTime)
+	}
+	return false
+}
+
+type ClassCalendarData struct {
+	*Class
+	*Teacher
+	Description string
+	EndTime     time.Time
+}
+
+type classCalendarDataList []*ClassCalendarData
+
+func (l classCalendarDataList) Len() int      { return len(l) }
+func (l classCalendarDataList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l classCalendarDataList) Less(i, j int) bool {
+	return l[i].Class.Before(l[j].Class)
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the
@@ -89,7 +119,7 @@ func (c *Class) GetEndingTime(date time.Time) time.Time {
 }
 
 func (c *Class) ValidDate(date time.Time) bool {
-	if c.DayOfWeek != date.Weekday().String() {
+	if c.Weekday != date.Weekday() {
 		return false
 	}
 	if c.DropInOnly {
@@ -106,13 +136,16 @@ func (c *Class) ValidDate(date time.Time) bool {
 type Scheduler interface {
 	AddNew(c *Class) error
 	GetClass(id int64) *Class
-	ListClasses(activeOnly bool) []*Class
+	ListActiveClasses() []*Class
+	ListAllClasses() []*Class
+	GetCalendarData(class *Class) *ClassCalendarData
+	ListCalendarData(classes []*Class) []*ClassCalendarData
 	DeleteClass(c *Class) error
-	ListOpenClasses(activeOnly bool) []*Class
 	GetTeacherNames(classes []*Class) map[int64]string
 	GetTeacher(class *Class) *UserAccount
-	GetClassesForTeacher(teacher *UserAccount) []*Class
+	ListClassesForTeacher(teacher *Teacher) []*Class
 	WriteClass(class *Class) error
+	GetTeachers(classes []*Class) []*Teacher
 }
 
 type scheduler struct {
@@ -142,46 +175,87 @@ func (s *scheduler) AddNew(c *Class) error {
 	return nil
 }
 
-func (s *scheduler) ListClasses(activeOnly bool) []*Class {
-	classes := []*Class{}
-	q := datastore.NewQuery("Class")
-	if activeOnly {
-		q = q.Filter("Active =", true)
-	}
-	keys, err := q.GetAll(s, &classes)
+func (s *scheduler) ListActiveClasses() []*Class {
+	dropins := []*Class{}
+	q := datastore.NewQuery("Class").
+		Filter("DropInOnly = ", true)
+	keys, err := q.GetAll(s, &dropins)
 	if err != nil {
-		s.Errorf("Error listing classes: %s", err)
+		s.Errorf("Error listing drop in classes: %s", err)
 		return nil
 	}
-	for idx, key := range keys {
-		classes[idx].ID = key.IntID()
+	for i, class := range dropins {
+		class.ID = keys[i].IntID()
+	}
+
+	sessions := []*Class{}
+	q = datastore.NewQuery("Class").
+		Filter("DropInOnly =", false).
+		Filter("EndDate >=", dateOnly(time.Now()))
+	keys, err = q.GetAll(s, &sessions)
+	if err != nil {
+		s.Errorf("Error listing session classes: %s", err)
+		return nil
+	}
+	for i, class := range sessions {
+		class.ID = keys[i].IntID()
+	}
+	openClasses := append(dropins, sessions...)
+	return openClasses
+}
+
+func (s *scheduler) ListAllClasses() []*Class {
+	classes := []*Class{}
+	keys, err := datastore.NewQuery("Class").GetAll(s, &classes)
+	if err != nil {
+		s.Errorf("Error listing drop in classes: %s", err)
+		return nil
+	}
+	for i, class := range classes {
+		class.ID = keys[i].IntID()
 	}
 	return classes
 }
 
-func (s *scheduler) ListOpenClasses(activeOnly bool) []*Class {
-	classes := []*Class{}
-	q := datastore.NewQuery("Class")
-	keys, err := q.GetAll(s, &classes)
-	if err != nil {
-		s.Errorf("Error listing classes: %s", err)
+func (s *scheduler) GetCalendarData(class *Class) *ClassCalendarData {
+	teacher := &Teacher{}
+	if err := datastore.Get(s, class.Teacher, teacher); err != nil {
+		s.Errorf("Error looking up teacher for class %d: %s", class.ID, err)
 		return nil
 	}
-	openClasses := []*Class{}
-	for i, class := range classes {
-		class.ID = keys[i].IntID()
-		if !class.DropInOnly {
-			today := dateOnly(time.Now())
-			if today.After(class.EndDate) {
-				continue
-			}
-		}
-		openClasses = append(openClasses, class)
+	return &ClassCalendarData{
+		Class:       class,
+		EndTime:     class.StartTime.Add(class.Length),
+		Teacher:     teacher,
+		Description: string(class.LongDescription),
 	}
-	return openClasses
 }
 
-func (s *scheduler) GetClassesForTeacher(t *UserAccount) []*Class {
+func (s *scheduler) ListCalendarData(classes []*Class) []*ClassCalendarData {
+	teacherKeys := make([]*datastore.Key, len(classes))
+	teachers := make([]*Teacher, len(classes))
+	for i, class := range classes {
+		teacherKeys[i] = class.Teacher
+		teachers[i] = &Teacher{}
+	}
+	if err := datastore.GetMulti(s, teacherKeys, teachers); err != nil {
+		s.Errorf("Error looking up class teachers: %s", err)
+		return nil
+	}
+	data := make([]*ClassCalendarData, len(classes))
+	for i, class := range classes {
+		data[i] = &ClassCalendarData{
+			Class:       class,
+			EndTime:     class.StartTime.Add(class.Length),
+			Teacher:     teachers[i],
+			Description: string(class.LongDescription),
+		}
+	}
+	sort.Sort(classCalendarDataList(data))
+	return data
+}
+
+func (s *scheduler) ListClassesForTeacher(t *Teacher) []*Class {
 	q := datastore.NewQuery("Class").
 		Filter("Teacher =", t.key(s))
 	classes := []*Class{}
@@ -256,6 +330,20 @@ func (s *scheduler) WriteClass(c *Class) error {
 	return nil
 }
 
+func (s *scheduler) GetTeachers(classes []*Class) []*Teacher {
+	keys := make([]*datastore.Key, len(classes))
+	teachers := make([]*Teacher, len(classes))
+	for i, class := range classes {
+		keys[i] = class.Teacher
+		teachers[i] = &Teacher{}
+	}
+	if err := datastore.GetMulti(s, keys, teachers); err != nil {
+		s.Errorf("Error looking up teachers: %s", err)
+		return nil
+	}
+	return teachers
+}
+
 // A Registration represents a reserved space in a class, either for the entire session or as a drop
 // in.
 type Registration struct {
@@ -272,12 +360,45 @@ func (r *Registration) key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Registration", r.StudentID, 0, classKey)
 }
 
+type Student struct {
+	ClassID int64
+	Email   string
+
+	FirstName string
+	LastName  string
+	Phone     string
+
+	Date   time.Time
+	DropIn bool
+}
+
+func NewSessionStudent(class *Class, user *UserAccount) *Student {
+	return &Student{
+		ClassID:   class.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Phone:     user.Phone,
+		DropIn:    false,
+	}
+}
+
+func NewDropInStudent(class *Class, user *UserAccount, date time.Time) *Student {
+	return &Student{
+		ClassID:   class.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Phone:     user.Phone,
+		DropIn:    true,
+		Date:      dateOnly(date),
+	}
+}
+
 type Roster interface {
-	LookupRegistration(studentID string) *Registration
-	ListRegistrations() []*Registration
-	GetStudents(registrations []*Registration) []*UserAccount
-	AddStudent(studentID string) (*Registration, error)
-	AddDropIn(studentID string, date time.Time) (*Registration, error)
+	LookupStudent(email string) *Student
+	ListStudents() []*Student
+	AddStudent(student *Student) error
 }
 
 type roster struct {
@@ -289,225 +410,169 @@ func NewRoster(c appengine.Context, class *Class) Roster {
 	return &roster{c, class}
 }
 
-func (r *roster) ListRegistrations() []*Registration {
-	q := datastore.NewQuery("Registration").
-		Ancestor(r.class.key(r)).
-		Filter("Date >=", dateOnly(time.Now()))
-	rs := []*Registration{}
-	if _, err := q.GetAll(r, &rs); err != nil {
-		r.Errorf("Error looking up registrations for class %d: %s", r.class.ID, err)
-		return nil
+func filterExpiredStudents(students []*Student) []*Student {
+	out := []*Student{}
+	now := dateOnly(time.Now())
+	for _, student := range students {
+		if !student.DropIn || !student.Date.Before(now) {
+			out = append(out, student)
+		}
 	}
-	return rs
+	return out
 }
 
-func (r *roster) GetStudents(rs []*Registration) []*UserAccount {
-	keys := make([]*datastore.Key, len(rs))
-	students := make([]*UserAccount, len(rs))
-	for idx, reg := range rs {
-		keys[idx] = datastore.NewKey(r, "UserAccount", reg.StudentID, 0, nil)
-		students[idx] = &UserAccount{}
-	}
-	if err := datastore.GetMulti(r, keys, students); err != nil {
-		r.Errorf("Error looking up students from registrations: %s", err)
+func (r *roster) LookupStudent(email string) *Student {
+	key := datastore.NewKey(r, "Student", email, 0, r.class.key(r))
+	student := &Student{}
+	if err := datastore.Get(r, key, student); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			r.Errorf("Error looking up student %s in class %d: %s", email, r.class.ID, err)
+		}
 		return nil
 	}
-	return students
+	if student.DropIn {
+		now := dateOnly(time.Now())
+		if student.Date.Before(now) {
+			return nil
+		}
+	}
+	return student
 }
 
-func (r *roster) LookupRegistration(studentID string) *Registration {
-	key := datastore.NewKey(r, "Registration", studentID, 0, r.class.key(r))
-	reg := &Registration{}
-	if err := datastore.Get(r, key, reg); err != nil {
-		r.Errorf("Error looking up registration for student %s in class %d: %s", studentID, r.class.ID, err)
+func (r *roster) ListStudents() []*Student {
+	q := datastore.NewQuery("Student").
+		Ancestor(r.class.key(r))
+	students := []*Student{}
+	if _, err := q.GetAll(r, &students); err != nil {
+		r.Errorf("Error looking up students for class %d: %s", r.class.ID, err)
 		return nil
 	}
-	return reg
+	return filterExpiredStudents(students)
 }
 
-func (r *roster) AddStudent(studentID string) (*Registration, error) {
-	reg := &Registration{
-		ClassID:   r.class.ID,
-		StudentID: studentID,
-		Date:      r.class.EndDate,
-		DropIn:    false,
-	}
+func (r *roster) AddStudent(student *Student) error {
+	classKey := datastore.NewKey(r, "Class", "", r.class.ID, nil)
+	studentKey := datastore.NewKey(r, "Student", student.Email, 0, classKey)
 	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
-		key := reg.key(ctx)
-		old := &Registration{}
-		if err := datastore.Get(ctx, key, old); err != datastore.ErrNoSuchEntity {
+		old := &Student{}
+		if err := datastore.Get(ctx, studentKey, old); err != datastore.ErrNoSuchEntity {
 			if err != nil {
-				return fmt.Errorf("Error looking up registration %+v: %s", reg, err)
+				return fmt.Errorf("Error looking up student %s: %s", student.Email, err)
 			}
-			return ErrAlreadyRegistered
-		}
-
-		classKey := datastore.NewKey(ctx, "Class", "", reg.ClassID, nil)
-		class := &Class{}
-		if err := datastore.Get(ctx, classKey, class); err != nil {
-			return fmt.Errorf("Error looking up class %d for registration %+v: %s",
-				reg.ClassID, reg, err)
-		}
-		class.ID = classKey.IntID()
-		q := datastore.NewQuery("Registration").
-			Ancestor(classKey).
-			KeysOnly().
-			Filter("Date >=", dateOnly(time.Now()))
-		regs, err := q.Count(r)
-		if err != nil {
-			return fmt.Errorf("Error counting registration: %s", err)
-		}
-		if int32(regs) >= class.Capacity {
-			return ErrClassFull
-		}
-
-		if _, err := datastore.Put(ctx, key, reg); err != nil {
-			return fmt.Errorf("Error writing registration %+v: %s", reg, err)
-		}
-		return nil
-	}, nil)
-	if err != nil {
-		return nil, err
-	}
-	return reg, nil
-}
-
-func (r *roster) getClass(ctx appengine.Context) *Class {
-	class := &Class{}
-	if err := datastore.Get(ctx, r.class.key(ctx), class); err != nil {
-		ctx.Errorf("Couldnt' find class %d: %s", r.class.ID, err)
-		return nil
-	}
-	class.ID = r.class.ID
-	return class
-}
-
-func (r *roster) DropStudent(studentID string) error {
-	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
-		reg := r.LookupRegistration(studentID)
-		if reg == nil {
-			return fmt.Errorf("Student %s not registered for class %d", studentID, r.class.ID)
-		}
-		class := r.getClass(ctx)
-		if class == nil {
-			return fmt.Errorf("No such class class %d", r.class.ID)
-		}
-		class.SpacesLeft++
-		if class.SpacesLeft > class.Capacity {
-			r.Warningf("Tried to increase space for class %d beyond capacity", class.ID)
-			class.SpacesLeft = class.Capacity
-		}
-		if _, err := datastore.Put(ctx, class.key(ctx), class); err != nil {
-			return fmt.Errorf("Error updating class %d: %s", class.ID, err)
-		}
-		if err := datastore.Delete(ctx, reg.key(ctx)); err != nil {
-			return fmt.Errorf("Error deleting registration %+v: %s", reg, err)
-		}
-		return nil
-	}, nil)
-	return err
-}
-
-func (r *roster) AddDropIn(studentID string, date time.Time) (*Registration, error) {
-	if !r.class.ValidDate(dateOnly(date)) {
-		return nil, ErrInvalidDropInDate
-	}
-	reg := &Registration{
-		ClassID:   r.class.ID,
-		StudentID: studentID,
-		Date:      dateOnly(date),
-		DropIn:    true,
-	}
-	err := datastore.RunInTransaction(r, func(ctx appengine.Context) error {
-		key := reg.key(ctx)
-		old := &Registration{}
-		if err := datastore.Get(ctx, key, old); err != datastore.ErrNoSuchEntity {
-			if err != nil {
-				return fmt.Errorf("Error looking up registration %+v: %s", reg, err)
+			if !old.DropIn {
+				return ErrAlreadyRegistered
 			}
-			if !old.Date.Before(time.Now()) {
+			now := dateOnly(time.Now())
+			if !old.Date.Before(now) {
 				return ErrAlreadyRegistered
 			}
 		}
-		classKey := datastore.NewKey(ctx, "Class", "", reg.ClassID, nil)
+
 		class := &Class{}
 		if err := datastore.Get(ctx, classKey, class); err != nil {
-			return fmt.Errorf("Error looking up class %d for registration %+v: %s",
-				reg.ClassID, reg, err)
+			return fmt.Errorf("Error looking up class %d: %s", r.class.ID, err)
 		}
 		class.ID = classKey.IntID()
-		q := datastore.NewQuery("Registration").
-			Ancestor(classKey).
-			KeysOnly().
-			Filter("Date >=", reg.Date)
-		regs, err := q.Count(r)
-		if err != nil {
+		q := datastore.NewQuery("Student").
+			Ancestor(classKey)
+		students := []*Student{}
+		if _, err := q.GetAll(r, &students); err != nil {
 			return fmt.Errorf("Error counting registration: %s", err)
 		}
-		if int32(regs) >= class.Capacity {
+		students = filterExpiredStudents(students)
+		if int32(len(students)) >= class.Capacity {
 			return ErrClassFull
 		}
-		if _, err := datastore.Put(ctx, key, reg); err != nil {
-			return fmt.Errorf("Error writing registration %+v: %s", reg, err)
+
+		if _, err := datastore.Put(ctx, studentKey, student); err != nil {
+			return fmt.Errorf("Error adding student %s to class %d: %s", student.Email, class.ID, err)
 		}
 		return nil
 	}, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return reg, nil
+	return nil
 }
 
 type Registrar interface {
-	ListRegistrations() []*Registration
-	ListRegisteredClasses([]*Registration) []*Class
+	ListRegistrations() []*Student
+	ListRegisteredClasses([]*Student) []*RegisteredClass
 }
 
 type registrar struct {
 	appengine.Context
-	studentID string
+	user *UserAccount
 }
 
-func NewRegistrar(c appengine.Context, studentID string) Registrar {
-	return &registrar{c, studentID}
+func NewRegistrar(c appengine.Context, user *UserAccount) Registrar {
+	return &registrar{c, user}
 }
 
-func (r *registrar) ListRegistrations() []*Registration {
-	rs := []*Registration{}
-	q := datastore.NewQuery("Registration").
-		Filter("StudentID =", r.studentID).
-		Filter("Date >=", dateOnly(time.Now()))
-	if _, err := q.GetAll(r, &rs); err != nil {
+func (r *registrar) ListRegistrations() []*Student {
+	students := []*Student{}
+	q := datastore.NewQuery("Student").
+		Filter("Email =", r.user.Email)
+	if _, err := q.GetAll(r, &students); err != nil {
 		return nil
 	}
-	account, err := GetAccountByID(r, r.studentID)
-	if err != nil {
-		r.Errorf("Error looking up paper registrations for %s: %s", r.studentID, err)
-		return nil
-	}
-	papers := []*Registration{}
-	if _, err := datastore.NewQuery("Registration").
-		Filter("StudentID = ", "PAPERREGISTRATION|"+account.Email).
-		GetAll(r, &papers); err != nil {
-		r.Errorf("Error getting paper registrations for %s: %s", account.Email, err)
-		return nil
-	}
-	return append(rs, papers...)
+	return filterExpiredStudents(students)
 }
 
-func (r *registrar) ListRegisteredClasses(regs []*Registration) []*Class {
+type RegisteredClass struct {
+	*Class
+	Teacher *Teacher
+	*Student
+}
+
+type registeredClassList []*RegisteredClass
+
+func (l registeredClassList) Len() int      { return len(l) }
+func (l registeredClassList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l registeredClassList) Less(i, j int) bool {
+	a, b := l[i], l[j]
+	if !a.Student.DropIn && b.Student.DropIn {
+		return true
+	}
+	if a.Student.DropIn && !b.Student.DropIn {
+		return false
+	}
+	if a.Student.DropIn && b.Student.DropIn {
+		return a.Student.Date.Before(b.Student.Date)
+	}
+	return l[i].Class.Before(l[j].Class)
+}
+
+func (r *registrar) ListRegisteredClasses(regs []*Student) []*RegisteredClass {
 	classKeys := make([]*datastore.Key, len(regs))
-	classes := make([]*Class, len(classKeys))
+	classes := make([]*Class, len(regs))
 	for i, reg := range regs {
 		classKeys[i] = datastore.NewKey(r, "Class", "", reg.ClassID, nil)
 		classes[i] = &Class{}
 	}
 	if err := datastore.GetMulti(r, classKeys, classes); err != nil {
-		r.Errorf("Error getting registered classes for %s: %s", r.studentID, err)
+		r.Errorf("Error getting registered classes for %s: %s", r.user.AccountID, err)
 		return nil
 	}
-	for i, _ := range classes {
-		classes[i].ID = classKeys[i].IntID()
+	teacherKeys := make([]*datastore.Key, len(classes))
+	teachers := make([]*Teacher, len(classes))
+	for i, class := range classes {
+		teacherKeys[i] = class.Teacher
+		teachers[i] = &Teacher{}
 	}
-	return classes
+	if err := datastore.GetMulti(r, teacherKeys, teachers); err != nil {
+		r.Errorf("Error looking up teachers: %s", err)
+		return nil
+	}
+	registered := make([]*RegisteredClass, len(regs))
+	for i, _ := range registered {
+		classes[i].ID = classKeys[i].IntID()
+		registered[i] = &RegisteredClass{
+			Class:   classes[i],
+			Student: regs[i],
+			Teacher: teachers[i],
+		}
+	}
+	sort.Sort(registeredClassList(registered))
+	return registered
 }

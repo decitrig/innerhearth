@@ -1,0 +1,71 @@
+{{define "Navbar"}}
+<ul class="nav-links">
+  <li class="nav-link"><a href="/">Home</a>
+</ul>
+{{end}}
+{{define "body"}}
+<div class="section">
+<h1>{{.Class.Title}}</h1>
+<p>{{.Class.Weekday}}s at {{.Class.StartTime.Format "3:04pm"}}</p>
+<h2>Current Students</h2>
+<p>{{len .Students}} of {{.Class.Capacity}} registrations</p>
+<table>
+	<tr>
+		<th colspan="2">Name</th>
+		<th>Email</th>
+		<th>Phone</th>
+		<th>Drop In Date</th>
+		{{range .Students}}
+	<tr>
+		<td>{{.FirstName}}</td>
+		<td>{{.LastName}}</td>
+		<td>{{.Email}}</td>
+		<td>{{.Phone}}</td>
+		{{if .DropIn}}
+		<td>{{.Date.Format "1/2"}}</td>
+		{{end}}
+	</tr>
+{{end}}
+</table>
+<h2>Register a New Student</h2>
+<form method="post" action="/registration/paper">
+  {{template "XSRFTokenInput" .Token}}
+	<input type="hidden" name="class" value="{{.Class.ID}}" />
+	<ul class="field-list">
+		<li class="field-item">
+			<label for="firstname" class="field-label field-label-required">Name (required):</label>
+			<input type="text" required="required" name="firstname" id="firstname" placeholder="First"/>
+			<input type="text" required="required" name="lastname" id="lastname" placeholder="Last"/>
+		<li class="field-item">
+			<label for="email" class="field-label field-label-required">Email:</label>
+			<input type="email" id="email" required="required" name="email" placeholder="student.email@host.com"/>
+		<li class="field-item">
+			<label for="phone" class="field-label field-label-required">Phone (optional):</label>
+			<input type="text" id="phone" name="phone" placeholder="555-555-1212" />
+	</ul>
+	{{if not .Class.DropInOnly}}
+	<h3>Register for session</h3>
+	<button name="type" value="session">Session</button>
+	{{end}}
+	<h3>Register for single day</h3>
+	<div id="datepicker"></div>
+	<label class="field-label" for="date">Date (MM/DD/YYYY):</label>
+	<input type="text" name="date" id="date" readonly="readonly"/>
+	<button name="type" value="dropin">Register</button>
+</form>
+{{end}}
+
+{{define "script"}}
+<script>
+	$("#datepicker").datepicker({
+	beforeShowDay: function(date) {
+	show = {{weekdayAsIndex .Class.Weekday}} == date.getDay()
+	return [show, ""]
+	},
+	dateFormat: "mm/dd/yy",
+	onSelect: function(date, picker) {
+	$("#date").val(date)
+	}
+	})
+</script>
+{{end}}

@@ -1,0 +1,24 @@
+{{define "body"}}
+<div class="section">
+<h2>Welcome to Inner Hearth Yoga!</h2>
+<form method="post" action="/login/account/new">
+	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+	<input type="hidden" name="target" value="{{.Target}}" />
+	<p>It seems that this is the first time you've logged in at Inner Hearth Yoga. Please tell us a little bit about yourself:</p>
+	<ul class="field-list">
+		<li class="field-item">
+		  <label for="firstname" class="field-label field-label-required">Name (required):</label>
+		  <input type="text" required="required" name="firstname" id="firstname" placeholder="First"/>
+		  <input type="text" required="required" name="lastname" id="lastname" placeholder="Last"/>
+		<li class="field-item">
+		  <label for="email" class="field-label field-label-required">Email (required):</label>
+		  <input type="email" id="email" required="required" name="email" placeholder="your.email@host.com"/>
+		<li class="field-item">
+		  <label for="phone" class="field-label">Phone (optional):</label>
+		  <input type="text" id="email" name="phone" placeholder="(555) 555-1212" />
+	</ul>
+	<p>We store this data only for registration, billing and attendance purposes.</p>
+	<button>Create Account</button>
+</form>
+</div>
+{{end}}

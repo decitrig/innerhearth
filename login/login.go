@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -72,14 +73,14 @@ var (
 		"WordPress": "{{.}}.wordpress.com",
 	}
 	loginPage          = template.Must(template.ParseFiles("login/login.html"))
-	newAccountPage     = template.Must(template.ParseFiles("login/new-account.html"))
+	newAccountPage     = template.Must(template.ParseFiles("templates/base.html", "templates/new-account.html"))
 	accountConfirmPage = template.Must(template.ParseFiles("login/confirm-account.html"))
 	adminPage          = template.Must(template.ParseFiles("login/admin.html"))
 	editRolePage       = template.Must(template.ParseFiles("login/edit-role.html"))
 )
 
 func init() {
-	handle("/_ah/login_required", login)
+	//	handle("/_ah/login_required", login)
 	handle("/login/account", accountCheck)
 	handle("/login/account/new", postOnly(createNewAccount))
 	handle("/login/confirm", confirmNewAccount)
@@ -129,11 +130,19 @@ func admin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func accountCheck(w http.ResponseWriter, r *http.Request) error {
-	target := r.FormValue("continue")
-	if target == "" {
-		target = "/"
+func pathOrRoot(urlString string) string {
+	u, err := url.Parse(urlString)
+	if err != nil {
+		return "/"
 	}
+	if u.Path == "" {
+		return "/"
+	}
+	return u.Path
+}
+
+func accountCheck(w http.ResponseWriter, r *http.Request) error {
+	target := pathOrRoot(r.FormValue("continue"))
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	if u == nil {
@@ -202,6 +211,9 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 		Email:            values["email"],
 		ConfirmationCode: newConfirmCode(values["email"]),
 	}
+	if phone := r.FormValue("phone"); phone != "" {
+		account.Phone = phone
+	}
 	if err := model.StoreAccount(c, u, account); err != nil {
 		return fmt.Errorf("Error storing user account: %s", err)
 	}
@@ -212,7 +224,7 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}
-	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
+	http.Redirect(w, r, pathOrRoot(r.FormValue("target")), http.StatusSeeOther)
 	return nil
 }
 
@@ -278,7 +290,7 @@ func resendConfirmEmail(w http.ResponseWriter, r *http.Request) error {
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}
-	http.Redirect(w, r, r.FormValue("target"), http.StatusSeeOther)
+	http.Redirect(w, r, pathOrRoot(r.FormValue("target")), http.StatusSeeOther)
 	return nil
 }
 

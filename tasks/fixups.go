@@ -85,7 +85,7 @@ func longDescription(w http.ResponseWriter, r *http.Request) {
 			c.Errorf("Error getting cursor: %s", err)
 			return
 		}
-		t := taskqueue.NewPOSTTask("/task/fixup/description", map[string][]string{
+		t := taskqueue.NewPOSTTask("/task/fixup/long-description", map[string][]string{
 			"cursor":  {cursor.String()},
 			"tasknum": {fmt.Sprintf("%d", taskNum+1)},
 		})

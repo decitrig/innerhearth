@@ -15,57 +15,86 @@
 package tasks
 
 import (
-	"html/template"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"appengine"
 	"appengine/datastore"
+	"appengine/taskqueue"
 
 	"github.com/decitrig/innerhearth/model"
 )
 
-var (
-	copyDescriptionPage = template.Must(template.ParseFiles("templates/base.html", "templates/fixups/copy-description.html"))
-)
-
 func init() {
-	http.HandleFunc("/task/fixup/description", copyDescription)
+	http.HandleFunc("/task/fixup/long-description", longDescription)
 }
 
-func copyDescription(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	if r.Method == "POST" {
-		classes := []*model.Class{}
-		keys, err := datastore.NewQuery("Class").
-			Filter("LongDescription =", nil).
-			Limit(10).
-			GetAll(c, &classes)
-		if err != nil {
-			c.Errorf("Error looking up classes: %s", err)
-			return
-		}
-		for i, class := range classes {
-			class.LongDescription = []byte(class.Description)
-			_, err := datastore.Put(c, keys[i], class)
-			if err != nil {
-				c.Warningf("Error writing class %d: %e", keys[i].IntID(), err)
-			}
-		}
-		http.Redirect(w, r, "/task/fixup/description", http.StatusMovedPermanently)
-	}
-	count, err := datastore.NewQuery("Class").
-		KeysOnly().
-		Filter("LongDescription =", nil).
-		Count(c)
-	if err != nil {
-		c.Errorf("Error counting classes: %s", err)
-		http.Error(w, "Error counting classes.", http.StatusInternalServerError)
+func longDescription(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := copyDescriptionPage.Execute(w, map[string]interface{}{
-		"Count": count,
-	}); err != nil {
-		c.Errorf("Error rendering page: %s", err)
-		http.Error(w, "An error ocurred", http.StatusInternalServerError)
+	c := appengine.NewContext(r)
+	var taskNum int64 = 0
+	if numString := r.FormValue("tasknum"); numString != "" {
+		var err error
+		taskNum, err = strconv.ParseInt(numString, 10, 0)
+		if err != nil {
+			c.Errorf("Couldn't parse task number %s: %s", numString, err)
+			return
+		}
+	}
+	c.Infof("Starting LongDescription fixup #%d", taskNum)
+	q := datastore.NewQuery("Class").
+		Limit(10)
+	if cursorString := r.FormValue("cursor"); cursorString != "" {
+		cursor, err := datastore.DecodeCursor(cursorString)
+		if err != nil {
+			c.Errorf("Error decoding cursor: %s", err)
+			return
+		}
+		q.Start(cursor)
+		c.Infof("Starting LongDescription fixup iterator at %q", cursor)
+	}
+	classes := q.Run(c)
+	found := 0
+	for {
+		class := &model.Class{}
+		key, err := classes.Next(class)
+		if err == datastore.Done {
+			break
+		}
+		found++
+		if err != nil {
+			c.Errorf("Error reading class from iterator: %s", err)
+			continue
+		}
+		if class.LongDescription != nil {
+			continue
+		}
+		class.LongDescription = []byte(class.Description)
+		_, err = datastore.Put(c, key, class)
+		if err != nil {
+			c.Warningf("Error writing class %d: %e", key.IntID(), err)
+		}
+	}
+	if found == 10 {
+		cursor, err := classes.Cursor()
+		if err != nil {
+			c.Errorf("Error getting cursor: %s", err)
+			return
+		}
+		t := taskqueue.NewPOSTTask("/task/fixup/description", map[string][]string{
+			"cursor":  {cursor.String()},
+			"tasknum": {fmt.Sprintf("%d", taskNum+1)},
+		})
+		t.Name = fmt.Sprintf("long-description-fixup-%d", taskNum+1)
+		if _, err := taskqueue.Add(c, t, ""); err != nil {
+			c.Errorf("Error adding next task: %s", err)
+		}
+	}
+	if taskNum == 0 {
+		http.Redirect(w, r, "/admin", http.StatusSeeOther)
 	}
 }

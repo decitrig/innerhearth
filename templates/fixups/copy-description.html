@@ -1,0 +1,15 @@
+{{define "Navbar"}}
+<ul class="nav-links">
+  <li class="nav-link"><a href="/admin">Admin</a>
+</ul>
+{{end}}
+{{define "body"}}
+<div class="section">
+  <p>There are {{.Count}} classes with a nil LongDescription.</p>
+  {{if .Count}}
+  <form method="POST">
+    <button>Start Fixup</button>
+  </form>
+  {{end}}
+</div>
+{{end}}

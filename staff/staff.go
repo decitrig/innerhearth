@@ -87,7 +87,7 @@ func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListOpenClasses()
+	classes := scheduler.ListAllClasses()
 	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
 	data := map[string]interface{}{
 		"Teachers": model.ListTeachers(c),

@@ -136,8 +136,8 @@ func (c *Class) ValidDate(date time.Time) bool {
 type Scheduler interface {
 	AddNew(c *Class) error
 	GetClass(id int64) *Class
-	ListClasses(activeOnly bool) []*Class
-	ListOpenClasses() []*Class
+	ListActiveClasses() []*Class
+	ListAllClasses() []*Class
 	GetCalendarData(class *Class) *ClassCalendarData
 	ListCalendarData(classes []*Class) []*ClassCalendarData
 	DeleteClass(c *Class) error
@@ -175,24 +175,7 @@ func (s *scheduler) AddNew(c *Class) error {
 	return nil
 }
 
-func (s *scheduler) ListClasses(activeOnly bool) []*Class {
-	classes := []*Class{}
-	q := datastore.NewQuery("Class")
-	if activeOnly {
-		q = q.Filter("Active =", true)
-	}
-	keys, err := q.GetAll(s, &classes)
-	if err != nil {
-		s.Errorf("Error listing classes: %s", err)
-		return nil
-	}
-	for idx, key := range keys {
-		classes[idx].ID = key.IntID()
-	}
-	return classes
-}
-
-func (s *scheduler) ListOpenClasses() []*Class {
+func (s *scheduler) ListActiveClasses() []*Class {
 	dropins := []*Class{}
 	q := datastore.NewQuery("Class").
 		Filter("DropInOnly = ", true)
@@ -219,6 +202,19 @@ func (s *scheduler) ListOpenClasses() []*Class {
 	}
 	openClasses := append(dropins, sessions...)
 	return openClasses
+}
+
+func (s *scheduler) ListAllClasses() []*Class {
+	classes := []*Class{}
+	keys, err := datastore.NewQuery("Class").GetAll(s, &classes)
+	if err != nil {
+		s.Errorf("Error listing drop in classes: %s", err)
+		return nil
+	}
+	for i, class := range classes {
+		class.ID = keys[i].IntID()
+	}
+	return classes
 }
 
 func (s *scheduler) GetCalendarData(class *Class) *ClassCalendarData {

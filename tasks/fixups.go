@@ -28,6 +28,7 @@ import (
 
 func init() {
 	http.HandleFunc("/task/fixup/long-description", longDescription)
+	http.HandleFunc("/task/fixup/calendar-data", calendarData)
 }
 
 func longDescription(w http.ResponseWriter, r *http.Request) {
@@ -36,16 +37,6 @@ func longDescription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := appengine.NewContext(r)
-	var taskNum int64 = 0
-	if numString := r.FormValue("tasknum"); numString != "" {
-		var err error
-		taskNum, err = strconv.ParseInt(numString, 10, 0)
-		if err != nil {
-			c.Errorf("Couldn't parse task number %s: %s", numString, err)
-			return
-		}
-	}
-	c.Infof("Starting LongDescription fixup #%d", taskNum)
 	q := datastore.NewQuery("Class").
 		Limit(10)
 	if cursorString := r.FormValue("cursor"); cursorString != "" {
@@ -55,7 +46,6 @@ func longDescription(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		q.Start(cursor)
-		c.Infof("Starting LongDescription fixup iterator at %q", cursor)
 	}
 	classes := q.Run(c)
 	found := 0
@@ -70,9 +60,7 @@ func longDescription(w http.ResponseWriter, r *http.Request) {
 			c.Errorf("Error reading class from iterator: %s", err)
 			continue
 		}
-		if class.LongDescription != nil {
-			continue
-		}
+		class.Length = class.LengthMinutes * time.Minute
 		class.LongDescription = []byte(class.Description)
 		_, err = datastore.Put(c, key, class)
 		if err != nil {
@@ -89,12 +77,86 @@ func longDescription(w http.ResponseWriter, r *http.Request) {
 			"cursor":  {cursor.String()},
 			"tasknum": {fmt.Sprintf("%d", taskNum+1)},
 		})
-		t.Name = fmt.Sprintf("long-description-fixup-%d", taskNum+1)
 		if _, err := taskqueue.Add(c, t, ""); err != nil {
 			c.Errorf("Error adding next task: %s", err)
 		}
 	}
-	if taskNum == 0 {
-		http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+var weekdays = []string{
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+}
+
+func stringToWeekday(s string) (time.Weekday, error) {
+	for i, name := range weekdays {
+		if name == s {
+			return time.Weekday(i), nil
+		}
+	}
+	return time.Weekday(0), fmt.Errorf("Couldn't find weekday of %q", s)
+}
+
+func calendarData(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	c := appengine.NewContext(r)
+	q := datastore.NewQuery("Class").
+		Limit(10)
+	if cursorString := r.FormValue("cursor"); cursorString != "" {
+		cursor, err := datastore.DecodeCursor(cursorString)
+		if err != nil {
+			c.Errorf("Error decoding cursor: %s", err)
+			return
+		}
+		q.Start(cursor)
+	}
+	classes := q.Run(c)
+	found := 0
+	for {
+		class := &model.Class{}
+		key, err := classes.Next(class)
+		if err == datastore.Done {
+			break
+		}
+		found++
+		if err != nil {
+			c.Errorf("Error reading class from iterator: %s", err)
+			continue
+		}
+		if class.Length == 0 {
+			class.Length = class.LengthMinutes * time.Minute
+		}
+		if class.Weekday == 0 {
+			if w, err := stringToWeekday(class.DayOfWeek); err != nil {
+				c.Errorf("Error parsing weekday from %d: %s", key.IntID(), err)
+			} else {
+				class.Weekday = w
+			}
+		}
+		_, err = datastore.Put(c, key, class)
+		if err != nil {
+			c.Warningf("Error writing class %d: %e", key.IntID(), err)
+		}
+	}
+	if found == 10 {
+		cursor, err := classes.Cursor()
+		if err != nil {
+			c.Errorf("Error getting cursor: %s", err)
+			return
+		}
+		t := taskqueue.NewPOSTTask("/task/fixup/calendar-data", map[string][]string{
+			"cursor": {cursor.String()},
+		})
+		if _, err := taskqueue.Add(c, t, ""); err != nil {
+			c.Errorf("Error adding next task: %s", err)
+		}
 	}
 }

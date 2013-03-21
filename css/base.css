@@ -84,3 +84,8 @@ fieldset {
     border-radius: 10px;
     box-shadow: 3px 3px 4px black;
 }
+
+.teacher-headshot {
+    float: left;
+    margin-right: 1em;
+}

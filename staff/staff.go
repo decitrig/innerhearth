@@ -38,6 +38,7 @@ var (
 	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"weekdayEquals": func(a, b time.Weekday) bool { return a == b },
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
+	addAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 )
 
 const (
@@ -74,6 +75,7 @@ func init() {
 	handleFunc("/staff/add-class", addClass)
 	handleFunc("/staff/delete-class", deleteClass)
 	handleFunc("/staff/reschedule-class", rescheduleClass)
+	handleFunc("/staff/add-announcement", addAnnouncement)
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
@@ -90,8 +92,9 @@ func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	classes := scheduler.ListAllClasses()
 	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
 	data := map[string]interface{}{
-		"Teachers": model.ListTeachers(c),
-		"Classes":  classesByDay,
+		"Teachers":      model.ListTeachers(c),
+		"Classes":       classesByDay,
+		"Announcements": model.ListAnnouncements(c),
 	}
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -357,6 +360,37 @@ func rescheduleClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Token": token,
 	}
 	if err := rescheduleClassPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func addAnnouncement(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
+
+		fields, err := webapp.ParseRequiredValues(r, "text", "expiration")
+		if err != nil {
+			return webapp.InternalError(err)
+		}
+		expiration, err := time.Parse(dateFormat, fields["expiration"])
+		if err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing expiration date %s: %s", fields["expiration"], err))
+		}
+
+		c := appengine.NewContext(r)
+		if a := model.NewAnnouncement(c, fields["text"], expiration); a == nil {
+			return webapp.InternalError(fmt.Errorf("Didn't write announcement."))
+		}
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	if err := addAnnouncementPage.Execute(w, map[string]interface{}{
+		"Token": token,
+	}); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

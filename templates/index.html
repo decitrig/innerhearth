@@ -16,9 +16,14 @@
 </ul>
 {{end}}
 {{define "body"}}
+{{if .Announcements}}
 <div class="section">
-  <p style="font-weight: bold">Next $5 Preview Week April 8-14 - try as many classes as you like for only $5 each! Sign up for preview classes in advance to secure your spot.</p>
+  <h1>Announcements</h1>
+  {{range .Announcements}}
+  <p>{{.GetText}}</p>
+  {{end}}
 </div>
+{{end}}
 <div id="mission" class="section">
   <h1>About Us</h1>
   <p><strong>Inner Hearth Yoga</strong> is the place to stoke up your yoga practice along with the

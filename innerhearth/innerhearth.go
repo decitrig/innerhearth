@@ -62,7 +62,8 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	classes := scheduler.ListActiveClasses()
 	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
 	data := map[string]interface{}{
-		"Classes": classesByDay,
+		"Classes":       classesByDay,
+		"Announcements": model.ListAnnouncements(c),
 	}
 	if u := webapp.GetCurrentUser(r); u != nil {
 		data["LoggedIn"] = true

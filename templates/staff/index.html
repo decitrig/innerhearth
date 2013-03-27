@@ -5,6 +5,23 @@
 {{end}}
 {{define "body"}}
 <div class="section">
+  <h1>Announcements</h1>
+  <table>
+    <tr>
+      <th>Text</th>
+      <th>Expiration</th>
+    </tr>
+    {{range .Announcements}}
+    <tr>
+      <td>{{.GetText}}</td>
+      <td>{{.Expiration.Format "1/2"}}</td>
+      <td><a href="/staff/delete-announcement?id={{.ID}}">delete</a></td>
+    </tr>
+    {{end}}
+  </table>
+  <a href="/staff/add-announcement">Add Announcement</a>
+</div>
+<div class="section">
 <h1>Teachers</h1>
 {{with .Teachers}}
 <table>

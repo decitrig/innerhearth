@@ -1,0 +1,11 @@
+{{define "body"}}
+<div class="section">
+  <p>{{.Announcement.GetText}}</p>
+  <form method="POST">
+    {{template "XSRFTokenInput" .Token}}
+    <input type="hidden" value="{{.Announcement.ID}}" name="id" />
+    <p>Delete announcement?</p>
+    <button>Delete</button>
+  </form>
+</div>
+{{end}}

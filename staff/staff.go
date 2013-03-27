@@ -38,7 +38,8 @@ var (
 	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"weekdayEquals": func(a, b time.Weekday) bool { return a == b },
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
-	addAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
+	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
+	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
 )
 
 const (
@@ -76,6 +77,7 @@ func init() {
 	handleFunc("/staff/delete-class", deleteClass)
 	handleFunc("/staff/reschedule-class", rescheduleClass)
 	handleFunc("/staff/add-announcement", addAnnouncement)
+	handleFunc("/staff/delete-announcement", deleteAnnouncement)
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
@@ -390,6 +392,34 @@ func addAnnouncement(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	if err := addAnnouncementPage.Execute(w, map[string]interface{}{
 		"Token": token,
+	}); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func deleteAnnouncement(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	c := appengine.NewContext(r)
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't parse %s as announcement id: %s", r.FormValue("id"), err))
+	}
+	if r.Method == "POST" {
+		if !token.Validate(r.FormValue("xsrf_token")) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token"))
+		}
+		model.DeleteAnnouncement(c, id)
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	a := model.GetAnnouncement(c, id)
+	if a == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find announcement %d", id))
+	}
+	if err := deleteAnnouncementPage.Execute(w, map[string]interface{}{
+		"Token":        token,
+		"Announcement": a,
 	}); err != nil {
 		return webapp.InternalError(err)
 	}

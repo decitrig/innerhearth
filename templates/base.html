@@ -9,6 +9,7 @@ Inner Hearth Yoga
 <title>{{template "title"}}</title>
 </head>
 <body>
+
 <div id="header" class="section">
     <table style="width: 100%; text-align: center;">
         <tr>
@@ -28,19 +29,21 @@ Inner Hearth Yoga
         <!-- TODO(rwsims): Social icons -->
     </tr>
 </table>
-<p style="border: 2px solid red; padding: 1em">
-  We've upgraded! We hope that everything continues smoothly for you, but if you do run into any
-  issues, please contact us
-  at <a href="mailto:info@innerhearthyoga.com">info@innerhearthyoga.com</a> and we'll try to get
-  everything fixed. Thank you for your patience!
-</p>
-{{define "Navbar"}}{{end}}
-{{template "Navbar" .}}
 </div>
+
 {{define "XSRFTokenInput"}}
 <input type="hidden" name="xsrf_token" value="{{.Token}}" />
 {{end}}
+
+<div id="content-wrapper">
+<div id="contents">
 {{template "body" .}}
+</div>
+</div>
+<div id="navigation">
+{{define "Navbar"}}{{end}}
+{{template "Navbar" .}}
+</div>
 <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
 <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
 {{define "script"}}{{end}}

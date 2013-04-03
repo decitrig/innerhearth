@@ -40,12 +40,29 @@ var (
 	}).ParseFiles("templates/base.html", "templates/class.html"))
 )
 
+func staticTemplate(file string) webapp.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
+		t, err := template.ParseFiles("templates/base.html", file)
+		if err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing template %s: %s", file, err))
+		}
+		if err := t.Execute(w, nil); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error rendering template %s: %s", file, err))
+		}
+		return nil
+	}
+}
+
 func init() {
 	http.Handle("/", webapp.Router)
 	webapp.HandleFunc("/", index)
 	webapp.HandleFunc("/login", login)
 	webapp.HandleFunc("/_ah/login_required", login)
 	webapp.HandleFunc("/class", class)
+
+	webapp.HandleFunc("/about", staticTemplate("templates/about.html"))
+	webapp.HandleFunc("/pricing", staticTemplate("templates/pricing.html"))
+	webapp.HandleFunc("/teachers", staticTemplate("templates/teachers.html"))
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {

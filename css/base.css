@@ -6,7 +6,6 @@ body {
     background-color: #005166;
     max-width: 1024px;
     margin: auto;
-    padding: 1em;
 }
 
 .class-table .weekday:nth-of-type(1) th {
@@ -20,6 +19,15 @@ body {
 
 .class-table td {
     padding-right: 1.5em;
+}
+
+#contents {
+    margin-left: 170px;
+}
+
+#content-wrapper {
+    float: left;
+    width: 100%;
 }
 
 .field-item {
@@ -57,6 +65,13 @@ fieldset {
     border: 1px solid black;
 }
 
+#navigation {
+    float: left;
+    width: 150px;
+    margin-bottom: 1em;
+    margin-left: -100%;
+}
+
 .nav-links {
     list-style-type: none;
     padding: 0;
@@ -64,8 +79,11 @@ fieldset {
 }
 
 .nav-link {
-    display: inline-block;
-    margin-right: 1em;
+    margin-bottom: .3em;
+    padding: .5em;
+    box-shadow: 1px 1px 2px black;
+    border: 1px solid black;
+    background-color: #fff;
 }
 
 .nav-link-special a {
@@ -81,7 +99,6 @@ fieldset {
     background-color: #fffbc7;
     padding: .5em 2em;
     margin-bottom: 1em;
-    border-radius: 10px;
     box-shadow: 3px 3px 4px black;
 }
 

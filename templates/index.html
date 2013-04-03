@@ -1,10 +1,11 @@
 {{define "Navbar"}}
 <ul class="nav-links">
+  <li class="nav-link"><a href="/about">About Us</a>
   <li class="nav-link"><a href="#workshops">Our Workshops</a>  
-  <li class="nav-link"><a href="#classes">Our Classes</a>
-  <li class="nav-link"><a href="#pricing">Pricing Info</a>
   <li class="nav-link"><a href="#yin-yogassage">Yin Yogassage&trade;</a>
-  <li class="nav-link"><a href="#teachers">Our Teachers</a>
+  <!--<li class="nav-link"><a href="#classes">Our Classes</a>-->
+  <li class="nav-link"><a href="/pricing">Pricing Info</a>
+  <li class="nav-link"><a href="/teachers">Our Teachers</a>
     {{if not .User}}
   <li class="nav-link"><a href="/login">Log In</a>
     {{else}}
@@ -24,29 +25,25 @@
   {{end}}
 </div>
 {{end}}
-<div id="mission" class="section">
-  <h1>About Us</h1>
-  <p><strong>Inner Hearth Yoga</strong> is the place to stoke up your yoga practice along with the
-    Point Breeze community! Whether you're a novice or a longtime practitioner, our skilled and
-    attentive teachers at the Hearth will meet you where you are. Don't worry about having the right
-    outfit, the best attitude, or the perfect pose. Inner Hearth's yoga is for every body!
-  <p>Our teachers help students recognize their bodies' potential through precise and compassionate
-    instruction, supplying the anatomical context students need.
-    <div>
-      <h3>Plan Your Visit</h3>
-      <p>Our classroom opens 15 minutes before class begins. We're on the second floor at
-	<a href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">
-	  6736 Reynolds Street</a> in Point Breeze, above Make Your Mark Artspace and Coffeehouse.
-	Street parking is available for free.
-	
-      <p>If you visit our studio after Make Your Mark Coffeehouse is closed, please use the
-	<strong>outside</strong> staircase only. If Make Your Mark is open during your visit, you're
-	welcome to use the stairs inside the coffeehouse!
-	
-      <p>If you have your own yoga mat, please bring it! We have some mats available for your use (no
-	charge, they're free), but a yoga mat is a good investment for your health and home practice. We
-	have straps, blocks, blankets and bolsters for you to use.
-    </div>
+<div id="classes" class="section">
+  <h1>Our Classes</h1>
+  <p>Click on a class's name for details & registration.</p>
+  <table class="class-table">
+    {{range $day, $classes := .Classes}}
+    {{with $classes}}
+    <tr class="weekday">
+      <th colspan="4">{{indexAsWeekday $day}}</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><a href="/class?id={{.ID}}">{{.Title}}</a></td>
+      <td>{{.Teacher.FirstName}}</td>
+      <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
+    </tr>
+    {{end}}
+    {{end}}
+    {{end}}
+  </table>
 </div>
     <div id="workshops" class="section">
       <h1>Workshops</h1>
@@ -96,174 +93,4 @@
   </ul>
 </div>
 {{end}}
-<div id="classes" class="section">
-  <h1>Our Classes</h1>
-  <p>Click on a class's name for details & registration.</p>
-  <table class="class-table">
-    {{range $day, $classes := .Classes}}
-    {{with $classes}}
-    <tr class="weekday">
-      <th colspan="4">{{indexAsWeekday $day}}</th>
-    </tr>
-    {{range .}}
-    <tr>
-      <td><a href="/class?id={{.ID}}">{{.Title}}</a></td>
-      <td>{{.Teacher.FirstName}}</td>
-      <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
-    </tr>
-    {{end}}
-    {{end}}
-    {{end}}
-  </table>
-<h2 id="pricing">Pricing</h2>
-    <h3>How Our Classes Work</h3>
-    <p>Inner Hearth Yoga offers classes in sessions, like semesters! Just like a class offered at a
-    university, each weekly class builds on what was taught during previous classes. This
-    progressive teaching style helps students grow strength, skill and flexibility throughout the
-    session.
-
-    <p>When you register for a session at Inner Hearth:
-
-    <ul>
-        <li>You get a better deal, because your per-class cost decreases.
-        <li>You get the best of both worlds - attend all the classes you can, but make up all the
-        classes you miss! You may make up classes either before or after you miss them, in any class
-        that's appropriate for your level (with the exception of Yin Yogassage), by the end of the
-        session in which you missed the class.
-        <li>Regular attendance to classes not only builds your practice but builds a strong,
-        supportive yoga community. Making a commitment to your practice means making a commitment to
-        you.
-        <li>Your teachers gets to know you better, making it easier for them to offer  modifications
-        that are suited just for you
-    </ul>
-
-    <p>We offer a $5 preview week before each new session starts, giving you the chance to try out
-    different teachers, class times, and class types. You can register online or in person at the
-    studio at any point during the session - we will pro-rate your session fee based off of how many
-    weeks have elapsed when you decide to register.
-
-    <p>We also offer Six-Week Short Courses. These are like taking a special workshop that meets
-    once a week for six weeks! We offer them on topics we think you’ll like, such as Yoga Basics for
-    Beginners and Post-Natal Yoga for moms and pre-crawling babies. You can get a taste of the short
-    course content by coming to $5 Preview Week - try before you buy!
-    <table>
-        <tr>
-            <th colspan="2">Drop In Pricing</th>
-        </tr>
-        <tr>
-            <td>90 &amp; 75 minute class:</td>
-            <td>$15</td>
-        </tr>
-        <tr>
-            <td>60 minute class:</td>
-            <td>$12</td>
-        </tr>
-        <tr>
-            <td>Yin Yogassage:</td>
-            <td>$40 per class. Preregistration is <b>REQUIRED</b>; you can <a href="http://innerhearthyoga.appspot.com/registration">register online</a>.</td>
-        </tr>
-        <tr>
-            <th colspan="2">Session Pricing (Winter/Spring Session is 12 weeks long)</th>
-        <tr>
-            <td>90 minute class:</td>
-            <td>$144 ($12 per class)</td>
-        </tr>
-        <tr>
-            <td>75 minute class:</td>
-            <td>$132 ($11 per class)</td>
-        </tr>
-        <tr>
-            <td>60 minute class:</td>
-            <td>$120 ($10 per class)</td>
-        </tr>
-
-        <tr>
-            <th colspan="2">Six-Week Short Course Pricing</th>
-        </tr>
-        <tr>
-            <td colspan="2">All Six-Week Short Courses are only $66!</td>
-        </tr>
-
-        <tr>
-            <th colspan="2">Dates for Winter/Spring Session</th>
-        <tr>
-            <td>$5 Preview Week:</td>
-            <td>January 7 - 13 (All classes are $5 except Yin Yogassage)</td>
-        </tr>
-        <tr>
-            <td>Winter/Spring Session:</td>
-            <td>January 14 - April 7 (12 weeks)</td>
-        </tr>
-    </table>
-</div>
-<div id="teachers" class="section">
-    <h1>Our Teachers</h1>
-    <div>
-        <h2 class="teacher-name" id="jill-bio">Jill Cummings (co-owner, E-RYT/LCSW)</h2>
-        <img class="teacher-headshot" src="images/jill-headshot.jpg" alt="Jill Cummings" />
-        <p><span class="teacher-name">Jill Cummings</span> found yoga back in 1999 at the
-        12th Street Gym in Philadelphia while seeking a practice to nurture her body after
-        years of banging it up as an athlete. A few years later she became certified to
-        teach through the thoughtful and compassionate teachings of Corina Benner and Jill
-        Manning at Wake Up Yoga. She also completed trainings in kids', prenatal and
-        postpartum yoga with Gail Silver of Yoga Child. She's also spiced up her teachings
-        by studying Yin yoga with Corina Benner, yoga anatomy with Paul Grilley, Sanskrit
-        with Manorama and has practiced with many more amazing teachers.  Jill formerly
-        co-founded and taught at Yogawood in Collingswood, NJ until her family relocated to
-        Pittsburgh in 2009. While independently teaching the most amazing students in da
-        ‘burgh she also co-created Yin YogassageTM with Brad Mumpower in 2011. Jill then met
-        Lauren at another local yoga studio…and the rest is history!
-        <p>Her teachings are infused with anatomical and physiological considerations ,
-        compassion and attention for each unique student , a lot of laughter and tons of
-        fun!  When not teaching yoga, Jill is currently finishing her Master of Occupational
-        Therapy at the University of Pittsburgh, hanging with her husband and 2 kooky kids,
-        goofy hound dog, Charlie and crazy cat, Kitty.
-    </div>
-    <div>
-        <h2 class="teacher-name" id="lauren-bio">Lauren Sims (co-owner, RYT)</h2>
-        <img class="teacher-headshot" src="images/lauren-headshot.jpg" alt="Lauren Sims" />
-        <p>In 2004, <span class="teacher-name">Lauren Sims</span> accidentally walked into a
-        yoga class instead of a martial arts class and never walked out. Lauren is
-        passionate about helping students realize their capacity for growth and change, and
-        believes that the most profound possibility yoga offers is the chance to become an
-        active, joyful participant in your own life.
-
-        <p>After years of study at Willow Street Yoga in Takoma Park, MD, Lauren graduated
-        from their comprehensive teacher training program led by Suzie Hurley and Maria
-        Hamburger in 2010. Since then, she's studied therapeutic yoga and anatomy with Jenny
-        Otto of Body Balance Yoga, completed a prenatal teacher training with Janice
-        Clarfield, and continues to study with master teachers such as Douglas Brooks,
-        Christina Sell, Bernadette Birney, and Emma Magenta. Her classes inspire the body to
-        reach its full potential through mindful sequencing and precise instruction, and are
-        infused with warmth, humor, and just a bit of tough love!
-
-        <p>Lauren moved to Pittsburgh in June 2012, and fell in love with the City of Steel
-        at first sight. She lives in Shadyside with her husband and two entitled cats.
-    </div>
-    <div class="teacher-bio">
-      <h2 class="teacher-name" id="kim-bio">Kim Eckel</h2>
-      <img class="teacher-headshot" src="images/kim-headshot.jpg" height="150" alt="Kim Eckel" />
-      <p><span class="teacher-name">Kim Eckel</span>first turned to yoga in the late 90s to
-	complement her time spent running competitively in college. It did not take long for her to
-	discover the wonderful peace that can come through practice and in 2006, she completed her
-	200 hour certification at Kripalu. Kim aims to cultivate compassionate self-awareness among
-	her students, as well as an appreciation for the equanimity that can be found through
-	practice on the mat. Her classes vary depending on the needs of her students; however, she
-	continually seeks to provide a safe, fun and relaxing environment. When not practicing yoga
-	or running, Kim can be found working on her PhD and enjoying time with her husband and son.</p>
-    </div>
-    <div class="teacher-bio">
-        <h2 class="teacher-name" id="brad-bio">Brad Mumpower</h2>
-        <img class="teacher-headshot" src="images/brad-headshot.jpg" alt="Brad Mumpower" />
-        <p><span class="teacher-name">Brad Mumpower</span> is a Certified Massage
-        Therapist and Reiki Master working in private practice in Pittsburgh,
-        specializing in deep tissue and trigger point therapy. In addition to teaching
-        at the Pittsburgh School of Massage, Brad runs a small wellness center with a
-        group of massage therapists and yoga instructors. In 2011, Brad's 12 years of
-        bodywork experience lead him to collaborate with Jill Cummings to create Yin
-        Yogassage™, a practice that seamlessly blends restorative yoga poses and
-        bodywork.
-    </div>
-    <div style="clear: both"></div>
-</div>
 {{end}}

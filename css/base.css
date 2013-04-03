@@ -30,14 +30,6 @@ body {
     width: 100%;
 }
 
-#classes {
-    background-image: url("/images/armbalance-large.png");
-    background-position: 100% 50%;
-    background-repeat: no-repeat;
-    min-height: 702px;
-}
-    
-
 .field-item {
     margin-bottom: 1em;
 }

@@ -1,5 +1,5 @@
 application: innerhearthyoga
-version: 3
+version: 4
 runtime: go
 api_version: go1
 
@@ -32,6 +32,8 @@ handlers:
 - url: /admin.*
   script: _go_app
   login: admin
+- url: /teachers
+  script: _go_app
 - url: /teacher.*
   script: _go_app
   login: required

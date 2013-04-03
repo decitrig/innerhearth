@@ -3,7 +3,7 @@
 }
 
 body {
-    background-color: #005166;
+    background-color: #2a4952;
     max-width: 1024px;
     margin: auto;
 }
@@ -29,6 +29,14 @@ body {
     float: left;
     width: 100%;
 }
+
+#classes {
+    background-image: url("/images/armbalance-large.png");
+    background-position: 100% 50%;
+    background-repeat: no-repeat;
+    min-height: 702px;
+}
+    
 
 .field-item {
     margin-bottom: 1em;

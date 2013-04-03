@@ -30,7 +30,7 @@ import (
 
 var (
 	staffPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"indexAsWeekday": func(i int) time.Weekday { return time.Weekday(i) },
+		"indexAsWeekday": func(i int) time.Weekday { return time.Weekday((i + 1) % 7) },
 	}).ParseFiles("templates/base.html", "templates/staff/index.html"))
 	addTeacherPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
 	addClassPage        = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
@@ -83,7 +83,11 @@ func init() {
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
 	days := make([][]*model.ClassCalendarData, 7)
 	for _, d := range data {
-		days[d.Weekday] = append(days[d.Weekday], d)
+		idx := d.Weekday - 1
+		if idx < 0 {
+			idx = 6
+		}
+		days[idx] = append(days[idx], d)
 	}
 	return days
 }

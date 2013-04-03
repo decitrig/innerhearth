@@ -25,6 +25,24 @@
   {{end}}
 </div>
 {{end}}
+{{with .Registrations}}
+<div class="section">
+  <h1>Your Registrations</h1>
+  <ul class="registration-list">
+  {{range .}}
+  <li>
+    {{.Title}} with {{.Teacher.FirstName}} on
+    {{if .DropIn}}
+    {{.Weekday}} {{.Student.Date.Format "1/2"}}
+    {{else}}
+    {{.Weekday}}s
+    {{end}}
+    at {{.StartTime.Format "3:04pm"}}.
+  </li>
+  {{end}}
+  </ul>
+</div>
+{{end}}
 <div id="classes" class="section">
   <h1>Our Classes</h1>
   <p>Click on a class's name for details & registration.</p>
@@ -75,22 +93,4 @@
 	<li><a href="https://docs.google.com/spreadsheet/ccc?key=0AtxJOE-cKu6fdGN0d2o4NGVNNjlrRjA4YVBLWHdPaXc#gid=0">Signup for Thursday April 18th, 7&ndash;9pm</a>
       </ul>
     </div>
-{{with .Registrations}}
-<div class="section">
-  <h1>Your Registrations</h1>
-  <ul class="registration-list">
-  {{range .}}
-  <li>
-    {{.Title}} with {{.Teacher.FirstName}} on
-    {{if .DropIn}}
-    {{.Weekday}} {{.Student.Date.Format "1/2"}}
-    {{else}}
-    {{.Weekday}}s
-    {{end}}
-    at {{.StartTime.Format "3:04pm"}}.
-  </li>
-  {{end}}
-  </ul>
-</div>
-{{end}}
 {{end}}

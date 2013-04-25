@@ -13,29 +13,13 @@
   {{else}}
 
   {{if not .Student}}
-  <h2>Register</h2>
 
   {{if not .Class.DropInOnly}}
   <h3>Session Registration</h3>
-  <p>This class meets every week from {{.Class.BeginDate.Format "1/2"}} through {{.Class.EndDate.Format "1/2"}}.
-    You can reserve your spot for the whole session.<p>
-  <p>When you register for a session at Inner Hearth:
-    <ul>
-      <li>You get a better deal, because your per-class cost decreases.
-      <li>You get the best of both worlds - attend all the classes you can, but make up all the
-        classes you miss! You may make up classes either before or after you miss them, in any class
-        that's appropriate for your level (with the exception of Yin Yogassage), by the end of the
-        session in which you missed the class.
-      <li>Regular attendance to classes not only builds your practice but builds a strong,
-        supportive yoga community. Making a commitment to your practice means making a commitment to
-        you.
-      <li>Your teachers get to know you better, making it easier for them to offer  modifications
-        that are suited just for you.
-    </ul>
   <form method="post" action="/registration/session">
     {{template "XSRFTokenInput" .Token}}
     <input type="hidden" name="class" value="{{.Class.ID}}" />
-    <button>Register For Entire Session</button>
+    <button style="padding: 1em">Register For Entire Session</button>
   </form>
   {{end}}
 

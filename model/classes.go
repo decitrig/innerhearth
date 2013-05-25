@@ -164,6 +164,7 @@ func (s *scheduler) GetClass(id int64) *Class {
 		return nil
 	}
 	class.ID = id
+	class.Description = string(class.LongDescription)
 	return class
 }
 
@@ -324,6 +325,7 @@ func (s *scheduler) DeleteClass(c *Class) error {
 
 func (s *scheduler) WriteClass(c *Class) error {
 	key := c.key(s)
+	c.Description = ""
 	if _, err := datastore.Put(s, key, c); err != nil {
 		return fmt.Errorf("Error writing class %d: %s", c.ID, err)
 	}

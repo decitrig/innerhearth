@@ -35,6 +35,7 @@ var (
 	addTeacherPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
 	addClassPage        = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
 	deleteClassPage     = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
+	editClassPage       = template.Must(template.ParseFiles("templates/base.html", "templates/staff/edit-class.html"))
 	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"weekdayEquals": func(a, b time.Weekday) bool { return a == b },
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
@@ -75,6 +76,7 @@ func init() {
 	handleFunc("/staff/add-teacher", addTeacher)
 	handleFunc("/staff/add-class", addClass)
 	handleFunc("/staff/delete-class", deleteClass)
+	handleFunc("/staff/edit-class", editClass)
 	handleFunc("/staff/reschedule-class", rescheduleClass)
 	handleFunc("/staff/add-announcement", addAnnouncement)
 	handleFunc("/staff/delete-announcement", deleteAnnouncement)
@@ -366,6 +368,44 @@ func rescheduleClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Token": token,
 	}
 	if err := rescheduleClassPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func editClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Error parsing class id %s: %s", r.FormValue("class"), err))
+	}
+	c := appengine.NewContext(r)
+	s := model.NewScheduler(c)
+	class := s.GetClass(classID)
+	if class == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
+	}
+	token := webapp.GetXSRFToken(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
+		fields, err := webapp.ParseRequiredValues(r, "title", "description")
+		if err != nil {
+			return webapp.InternalError(err)
+		}
+		class.Title = fields["title"]
+		class.LongDescription = []byte(fields["description"])
+		if err := s.WriteClass(class); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error writing class %q: %s", classID, err))
+		}
+		http.Redirect(w, r, "/staff", http.StatusFound)
+		return nil
+	}
+	data := map[string]interface{}{
+		"Class": class,
+		"Token": token,
+	}
+	if err := editClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

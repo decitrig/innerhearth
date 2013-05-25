@@ -1,0 +1,18 @@
+{{define "body"}}
+<div class="section">
+<h1>Edit Class</h1>
+<form  method="post">
+  {{template "XSRFTokenInput" .Token}}
+  <p>{{.Class.Title}}</p>
+  <fieldset>
+    <ul class="field-list">
+      <li class="field-item"><label for="title" class="field-label">Title:</label>
+	<input type="text" required="required" name="title" id="title" size="40" value="{{.Class.Title}}"/>
+      <li class="field-item"><label for="description" class="field-label">Description:</label>
+	<textarea name="description" id="description" required="required" rows="5" cols="80">{{.Class.Description}}</textarea>
+    </ul>
+  </fieldset>
+  <button>Edit</button>
+</form>
+</div>
+{{end}}

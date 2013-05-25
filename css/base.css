@@ -2,6 +2,15 @@
     font-family: Sanchez, "Times New Roman", serif;
 }
 
+#about-us-pic {
+    float: right;
+    margin: 0 0 1em 1em;
+}
+
+#about-us-pic .caption {
+    text-align: right;
+}
+
 body {
     background-color: #2a4952;
     max-width: 1024px;
@@ -100,6 +109,7 @@ fieldset {
     padding: .5em 2em;
     margin-bottom: 1em;
     box-shadow: 3px 3px 4px black;
+    position: relative;
 }
 
 #session-sidebar {

@@ -102,6 +102,18 @@ fieldset {
     box-shadow: 3px 3px 4px black;
 }
 
+#session-sidebar {
+    float: right;
+    width: 40%;
+    text-align: justify;
+    margin-left: 2em;
+    font-size: 90%;
+    background-color: white;
+    padding: 0 1em 0 1em;
+    border: 1px solid black;
+    margin-bottom: 1em;
+}
+
 .teacher-headshot {
     float: left;
     margin-right: 1em;

@@ -34,6 +34,7 @@ var (
 	}).ParseFiles("templates/base.html", "templates/staff/index.html"))
 	addTeacherPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
 	addClassPage        = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-class.html"))
+	addSessionPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-session.html"))
 	deleteClassPage     = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
 	editClassPage       = template.Must(template.ParseFiles("templates/base.html", "templates/staff/edit-class.html"))
 	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
@@ -75,6 +76,7 @@ func init() {
 	handleFunc("/staff", staff)
 	handleFunc("/staff/add-teacher", addTeacher)
 	handleFunc("/staff/add-class", addClass)
+	handleFunc("/staff/add-session", addSession)
 	handleFunc("/staff/delete-class", deleteClass)
 	handleFunc("/staff/edit-class", editClass)
 	handleFunc("/staff/reschedule-class", rescheduleClass)
@@ -99,10 +101,12 @@ func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	scheduler := model.NewScheduler(c)
 	classes := scheduler.ListAllClasses()
 	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
+	sessions := model.ListSessions(c, time.Now())
 	data := map[string]interface{}{
 		"Teachers":      model.ListTeachers(c),
 		"Classes":       classesByDay,
 		"Announcements": model.ListAnnouncements(c),
+		"Sessions":      sessions,
 	}
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -464,6 +468,44 @@ func deleteAnnouncement(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if err := deleteAnnouncementPage.Execute(w, map[string]interface{}{
 		"Token":        token,
 		"Announcement": a,
+	}); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func addSession(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
+		fields, err := webapp.ParseRequiredValues(r, "name", "startdate", "enddate")
+		if err != nil {
+			return webapp.InternalError(err)
+		}
+		startDate, err := time.Parse(dateFormat, fields["startdate"])
+		if err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing start date date %q: %s", fields["expiration"], err))
+		}
+		endDate, err := time.Parse(dateFormat, fields["enddate"])
+		if err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing end date date %q: %s", fields["expiration"], err))
+		}
+		session := &model.Session{
+			Name:  fields["name"],
+			Start: startDate,
+			End:   endDate,
+		}
+		c := appengine.NewContext(r)
+		if err := model.AddSession(c, session); err != nil {
+			return webapp.InternalError(fmt.Errorf("couldnt' write session: %s", err))
+		}
+		http.Redirect(w, r, "/staff", http.StatusFound)
+		return nil
+	}
+	if err := addSessionPage.Execute(w, map[string]interface{}{
+		"Token": token,
 	}); err != nil {
 		return webapp.InternalError(err)
 	}

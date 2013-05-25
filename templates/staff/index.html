@@ -40,7 +40,15 @@
 </form>
 </div>
 <div class="section">
-<h1>Classes</h1>
+<h1>Scheduling</h1>
+<h2>Sessions</h2>
+<ul>
+  {{range .Sessions}}
+  <li>{{.Name}} ({{.Start.Format "1/2"}} &ndash; {{.End.Format "1/2"}})
+  {{end}}
+</ul>
+<a href="/staff/add-session">Add Session</a>
+<h2>Classes</h2>
 <table class="class-table">
   {{range $day, $classes := .Classes}}
   {{with $classes}}

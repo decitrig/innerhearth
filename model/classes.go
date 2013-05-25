@@ -33,6 +33,39 @@ var (
 	ErrInvalidDropInDate = errors.New("Invalid drop in date")
 )
 
+type Session struct {
+	ID int64 `datastore: "-"`
+
+	Name  string
+	Start time.Time
+	End   time.Time
+}
+
+func AddSession(c appengine.Context, s *Session) error {
+	key := datastore.NewIncompleteKey(c, "Session", nil)
+	key, err := datastore.Put(c, key, s)
+	if err != nil {
+		return fmt.Errorf("error writing session: %s", err)
+	}
+	s.ID = key.IntID()
+	return nil
+}
+
+func ListSessions(c appengine.Context, now time.Time) []*Session {
+	q := datastore.NewQuery("Session").
+		Filter("End >=", dateOnly(now))
+	sessions := []*Session{}
+	keys, err := q.GetAll(c, &sessions)
+	if err != nil {
+		c.Errorf("Error looking up sessions: %s", err)
+		return nil
+	}
+	for i, key := range keys {
+		sessions[i].ID = key.IntID()
+	}
+	return sessions
+}
+
 type Class struct {
 	ID              int64  `datastore: "-"`
 	Title           string `datastore: ",noindex"`

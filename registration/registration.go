@@ -120,9 +120,10 @@ func sessionRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	default:
 		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
+	c.Infof("Sending session confirmation email to %q", u.Email)
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
 		"email": {u.Email},
-		"class":   {fmt.Sprintf("%d", class.ID)},
+		"class": {fmt.Sprintf("%d", class.ID)},
 	})
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		return webapp.InternalError(fmt.Errorf("Error adding email confirmation task: %s", err))
@@ -166,9 +167,10 @@ func oneDayRegistration(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	default:
 		return webapp.InternalError(fmt.Errorf("Error registering student: %s", err))
 	}
+	c.Infof("Sending one-day confirmation email to %q", u.Email)
 	t := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
 		"email": {u.Email},
-		"class":   {fmt.Sprintf("%d", class.ID)},
+		"class": {fmt.Sprintf("%d", class.ID)},
 	})
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		return webapp.InternalError(fmt.Errorf("Error adding email confirmation task: %s", err))

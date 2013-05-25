@@ -56,21 +56,22 @@ func sendRegistrationConfirmation(w http.ResponseWriter, r *http.Request) {
 	roster := model.NewRoster(c, class)
 	student := roster.LookupStudent(r.FormValue("email"))
 	if student == nil {
-		c.Errorf("Couldn't find student %s in %d", r.FormValue("email"), class.ID)
+		c.Errorf("Couldn't find student %q in %d", r.FormValue("email"), class.ID)
 		http.Error(w, "Missing registration", http.StatusInternalServerError)
 		return
 	}
 	buf := &bytes.Buffer{}
 	if err := confirmationEmail.Execute(buf, map[string]interface{}{
 		"Class":   class,
-		"Email":   student.Email,
 		"Teacher": teacher,
+		"Student": student,
 	}); err != nil {
 		c.Criticalf("Couldn't create email to '%s': %s", student.Email, err)
 		return
 	}
+	sender := fmt.Sprintf("no-reply@%s.appspotmail.com", appengine.AppID(c))
 	msg := &mail.Message{
-		Sender:  noReply,
+		Sender:  sender,
 		To:      []string{student.Email},
 		Subject: fmt.Sprintf("Registration for %s at Inner Hearth Yoga", class.Title),
 		Body:    buf.String(),

@@ -40,6 +40,9 @@ var (
 	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"weekdayEquals": func(a, b time.Weekday) bool { return a == b },
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
+	sessionPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"indexAsWeekday": func(i int) time.Weekday { return time.Weekday((i + 1) % 7) },
+	}).ParseFiles("templates/base.html", "templates/staff/session.html"))
 	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
 )
@@ -80,12 +83,25 @@ func init() {
 	handleFunc("/staff/delete-class", deleteClass)
 	handleFunc("/staff/edit-class", editClass)
 	handleFunc("/staff/reschedule-class", rescheduleClass)
+	handleFunc("/staff/session", session)
 	handleFunc("/staff/add-announcement", addAnnouncement)
 	handleFunc("/staff/delete-announcement", deleteAnnouncement)
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
 	days := make([][]*model.ClassCalendarData, 7)
+	for _, d := range data {
+		idx := d.Weekday - 1
+		if idx < 0 {
+			idx = 6
+		}
+		days[idx] = append(days[idx], d)
+	}
+	return days
+}
+
+func groupByDay2(data []*model.Class) [][]*model.Class {
+	days := make([][]*model.Class, 7)
 	for _, d := range data {
 		idx := d.Weekday - 1
 		if idx < 0 {
@@ -161,109 +177,51 @@ func mustParseTime(layout, value string) time.Time {
 	return t
 }
 
-func parseSessionClass(r *http.Request) (*model.Class, error) {
-	fields, err := webapp.ParseRequiredValues(r, "name", "description", "teacher", "maxstudents",
-		"dayofweek", "starttime", "length", "startdate", "enddate")
-	if err != nil {
-		return nil, err
-	}
-	class := &model.Class{
-		Title:           fields["name"],
-		LongDescription: []byte(fields["description"]),
-	}
-	if cap, err := strconv.ParseInt(fields["maxstudents"], 10, 32); err != nil {
-		return nil, fmt.Errorf("Error parsing max students %s: %s", fields["maxstudents"], err)
-	} else {
-		class.Capacity = int32(cap)
-	}
-	if dayNum, err := strconv.ParseInt(fields["dayofweek"], 10, 0); err != nil {
-		return nil, fmt.Errorf("Error parsing weekday %s: %s", fields["dayofweek"], err)
-	} else {
-		class.Weekday = time.Weekday(dayNum)
-	}
-	if class.StartTime, err = time.Parse(timeFormat, fields["starttime"]); err != nil {
-		return nil, fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err)
-	}
-	if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
-		return nil, fmt.Errorf("Error parsing class length %s: %s", fields["length"], err)
-	} else {
-		class.Length = time.Duration(lengthMinutes) * time.Minute
-	}
-	if class.BeginDate, err = time.Parse(dateFormat, fields["startdate"]); err != nil {
-		return nil, fmt.Errorf("Error parsing start date %s: %s", fields["startdate"], err)
-	}
-	if class.EndDate, err = time.Parse(dateFormat, fields["enddate"]); err != nil {
-		return nil, fmt.Errorf("Error parsing end date %s: %s", fields["enddate"], err)
-	}
-	class.DropInOnly = false
-	return class, nil
-}
-
-func parseDropInOnlyClass(r *http.Request) (*model.Class, error) {
-	fields, err := webapp.ParseRequiredValues(r, "name", "description", "teacher", "maxstudents",
-		"dayofweek", "starttime", "length")
-	if err != nil {
-		return nil, err
-	}
-	class := &model.Class{
-		Title:           fields["name"],
-		LongDescription: []byte(fields["description"]),
-	}
-	if cap, err := strconv.ParseInt(fields["maxstudents"], 10, 32); err != nil {
-		return nil, fmt.Errorf("Error parsing max students %s: %s", fields["maxstudents"], err)
-	} else {
-		class.Capacity = int32(cap)
-	}
-	if dayNum, err := strconv.ParseInt(fields["dayofweek"], 10, 0); err != nil {
-		return nil, fmt.Errorf("Error parsing weekday %s: %s", fields["dayofweek"], err)
-	} else {
-		class.Weekday = time.Weekday(dayNum)
-	}
-	if class.StartTime, err = time.Parse(timeFormat, fields["starttime"]); err != nil {
-		return nil, fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err)
-	}
-	if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
-		return nil, fmt.Errorf("Error parsing class length %s: %s", fields["length"], err)
-	} else {
-		class.Length = time.Duration(lengthMinutes) * time.Minute
-	}
-	class.DropInOnly = true
-	return class, nil
-}
-
 func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
+	sessionID, err := strconv.ParseInt(r.FormValue("session"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("couldn't parse session id %q", r.FormValue("session")))
+	}
 	token := webapp.GetXSRFToken(r)
 	if r.Method == "POST" {
 		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
 			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
 		}
+
 		teacher := model.GetAccountByEmail(c, r.FormValue("teacher"))
 		if teacher == nil {
 			return webapp.InternalError(fmt.Errorf("No such teacher %s", r.FormValue("teacher")))
 		}
 
-		var class *model.Class
-		switch typ := r.FormValue("type"); typ {
-		case "session":
-			var err error
-			class, err = parseSessionClass(r)
-			if err != nil {
-				return webapp.InternalError(fmt.Errorf("Couldn't parse class from post: %s", err))
-			}
-
-		case "dropin":
-			var err error
-			class, err = parseDropInOnlyClass(r)
-			if err != nil {
-				return webapp.InternalError(fmt.Errorf("Couldn't parse class from post: %s", err))
-			}
-
-		default:
-			return webapp.InternalError(fmt.Errorf("Unknown class type '%s'", typ))
+		fields, err := webapp.ParseRequiredValues(r, "name", "description", "teacher", "maxstudents",
+			"dayofweek", "starttime", "length")
+		class := &model.Class{
+			Title:           fields["name"],
+			LongDescription: []byte(fields["description"]),
+			Session:         sessionID,
+			Teacher:         model.MakeTeacherKey(c, teacher),
 		}
+		if cap, err := strconv.ParseInt(fields["maxstudents"], 10, 32); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing max students %s: %s", fields["maxstudents"], err))
+		} else {
+			class.Capacity = int32(cap)
+		}
+		if dayNum, err := strconv.ParseInt(fields["dayofweek"], 10, 0); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing weekday %s: %s", fields["dayofweek"], err))
+		} else {
+			class.Weekday = time.Weekday(dayNum)
+		}
+		if class.StartTime, err = time.Parse(timeFormat, fields["starttime"]); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing start time %s: %s", fields["starttime"], err))
+		}
+		if lengthMinutes, err := strconv.ParseInt(fields["length"], 10, 32); err != nil {
+			return webapp.InternalError(fmt.Errorf("Error parsing class length %s: %s", fields["length"], err))
+		} else {
+			class.Length = time.Duration(lengthMinutes) * time.Minute
+		}
+		c.Infof(fmt.Sprintf("%+v", class))
 
-		class.Teacher = model.MakeTeacherKey(c, teacher)
 		s := model.NewScheduler(c)
 		if err := s.AddNew(class); err != nil {
 			return webapp.InternalError(fmt.Errorf("Couldn't add class: %s", err))
@@ -271,10 +229,14 @@ func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		http.Redirect(w, r, "/staff", http.StatusSeeOther)
 		return nil
 	}
-
+	session := model.GetSession(c, sessionID)
+	if session == nil {
+		return webapp.InternalError(fmt.Errorf("couldn't find session %d", sessionID))
+	}
 	data := map[string]interface{}{
 		"Teachers": model.ListTeachers(c),
 		"Token":    token,
+		"Session":  session,
 	}
 	if err := addClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -506,6 +468,29 @@ func addSession(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	if err := addSessionPage.Execute(w, map[string]interface{}{
 		"Token": token,
+	}); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func session(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("couldn't parse id %q", r.FormValue("id")))
+	}
+	c := appengine.NewContext(r)
+	session := model.GetSession(c, id)
+	if session == nil {
+		return webapp.InternalError(fmt.Errorf("couldn't find session %d", id))
+	}
+	classes := model.ListClasses(c, session)
+	classesByDay := groupByDay(classes)
+	if err := sessionPage.Execute(w, map[string]interface{}{
+		"Session": session,
+		"Token":   token,
+		"Classes": classesByDay,
 	}); err != nil {
 		return webapp.InternalError(err)
 	}

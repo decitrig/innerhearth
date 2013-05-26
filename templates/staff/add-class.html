@@ -1,76 +1,49 @@
 {{define "body"}}
 <div class="section">
 <h1>Add Class</h1>
-<form action="/staff/add-class" method="post">
+<p>
+  Adding class to {{.Session.Name}} ({{.Session.Start.Format "1/2"}}&ndash;{{.Session.End.Format "1/2"}})
+</p>
+<form method="post">
+  <input type="hidden" name="session" value="{{.Session.ID}}" />
   {{template "XSRFTokenInput" .Token}}
-	<fieldset>
-		<h2>Class Info</h2>
-		<ul class="field-list">
-			<li class="field-item"><label for="name" class="field-label">Name:</label>
-				<input type="text" required="required" name="name" id="name" size="40"/>
-			<li class="field-item"><label for="description" class="field-label">Description:</label>
-				<textarea name="description" id="description" required="required" rows="5" cols="80"></textarea>
-			<li class="field-item"><label for="teacher" class="field-label">Teacher:</label>
-				<select name="teacher" id="teacher">
-					{{range .Teachers}}
-					<option value="{{.Email}}">{{.FirstName}}</option>
-					{{end}}
-				</select>
-			<li class="field-item"><label for="maxstudents" class="field-label">Max students:</label>
-				<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" />
-		</ul>
-	</fieldset>
-	<fieldset>
-		<h2>Schedule</h2>
-		<ul class="field-list">
-			<li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
-				<select name="dayofweek" id="dayofweek">
-				  <option value="0">Sunday</option>
-				  <option value="1">Monday</option>
-				  <option value="2">Tuesday</option>
-				  <option value="3">Wednesday</option>
-				  <option value="4">Thursday</option>
-				  <option value="5">Friday</option>
-				  <option value="6">Saturday</option>
-				</select>
-			<li class="field-item"><label class="field-label" for="starttime">Start time (for example, 3:04pm):</label>
-				<input type="text" name="starttime" required="required" id="starttime" />
-			<li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
-				<input type="number" min="0" max="999" required="required" id="length" name="length" />
-		</ul>
-	</fieldset>
-	<fieldset>
-		<h2>Drop-in-Only Class</h2>
-		<button name="type" value="dropin">Add Drop-in-Only Class</button>
-	</fieldset>
-	<fieldset>
-		<h2>Session Class</h2>
-		<ul class="field-list">
-			<li class="field-item">
-			  <div id="start-date-picker"></div>
-			  <label class="field-label" for="startdate">Start Date (MM/DD/YYYY; for example 02/15/2012):</label>
-			  <input type="text" name="startdate" id="startdate" />
-			<li class="field-item">
-			  <div id="end-date-picker"></div>
-			  <label class="field-label" for="enddate">End Date (MM/DD/YYYY; for example 02/15/2012):</label>
-			  <input type="text" name="enddate" id="enddate" />
-		</ul>
-		<button name="type" value="session">Add Session Class</button>
-	</fieldset>
+  <fieldset>
+    <h2>Class Info</h2>
+    <ul class="field-list">
+      <li class="field-item"><label for="name" class="field-label">Name:</label>
+	<input type="text" required="required" name="name" id="name" size="40"/>
+      <li class="field-item"><label for="description" class="field-label">Description:</label>
+	<textarea name="description" id="description" required="required" rows="5" cols="80"></textarea>
+      <li class="field-item"><label for="teacher" class="field-label">Teacher:</label>
+	<select name="teacher" id="teacher">
+	  {{range .Teachers}}
+	  <option value="{{.Email}}">{{.FirstName}}</option>
+	  {{end}}
+	</select>
+      <li class="field-item"><label for="maxstudents" class="field-label">Max students:</label>
+	<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" />
+    </ul>
+  </fieldset>
+  <fieldset>
+    <h2>Schedule</h2>
+    <ul class="field-list">
+      <li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
+	<select name="dayofweek" id="dayofweek">
+	  <option value="0">Sunday</option>
+	  <option value="1">Monday</option>
+	  <option value="2">Tuesday</option>
+	  <option value="3">Wednesday</option>
+	  <option value="4">Thursday</option>
+	  <option value="5">Friday</option>
+	  <option value="6">Saturday</option>
+	</select>
+      <li class="field-item"><label class="field-label" for="starttime">Start time (for example, 3:04pm):</label>
+	<input type="text" name="starttime" required="required" id="starttime" />
+      <li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
+	<input type="number" min="0" max="999" required="required" id="length" name="length" />
+    </ul>
+  </fieldset>
+  <button>Add</button>
 </form>
 </div>
-{{end}}
-{{define "script"}}
-<script>
-  $("#start-date-picker").datepicker({
-  dateFormat: "mm/dd/yy",
-  onSelect: function(date, picker) {
-  $("#startdate").val(date);
-  }});
-  $("#end-date-picker").datepicker({
-  dateFormat: "mm/dd/yy",
-  onSelect: function(date, picker) {
-  $("#enddate").val(date);
-  }});
-</script>
 {{end}}

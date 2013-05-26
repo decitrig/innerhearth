@@ -1,0 +1,42 @@
+{{define "body"}}
+</div>
+<div class="section">
+<h1>{{.Session.Name}}</h1>
+<p>{{.Session.Start.Format "2 January"}} &ndash; {{.Session.End.Format "2 January"}}</p>
+<h2>Classes</h2>
+<table class="class-table">
+  {{range $day, $classes := .Classes}}
+  {{with $classes}}
+  <tr class="weekday">
+    <th colspan="4">{{indexAsWeekday $day}}</th>
+  </tr>
+  {{range .}}
+  <tr>
+    <td>{{.Title}}</td>
+    <td>{{.Teacher.FirstName}}</td>
+    <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
+    <td>
+      {{if .DropInOnly}}
+      <i>Drop-in Only</i>
+      {{end}}
+    </td>
+    <td>
+      <a href="/teacher/roster?class={{.ID}}">roster</a>
+    </td>
+    <td>
+      <a href="/staff/edit-class?class={{.ID}}">edit</a>
+    </td>
+    <td>
+      <a href="/staff/reschedule-class?class={{.ID}}">reschedule</a>
+    </td>
+    <td>
+      <a href="/staff/delete-class?class={{.ID}}">delete</a>
+    </td>
+  </tr>
+  {{end}}
+  {{end}}
+  {{end}}
+</table>
+<a href="/staff/add-class?session={{.Session.ID}}">Add Class</a>
+</div>
+{{end}}

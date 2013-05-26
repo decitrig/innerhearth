@@ -51,6 +51,19 @@ func AddSession(c appengine.Context, s *Session) error {
 	return nil
 }
 
+func GetSession(c appengine.Context, id int64) *Session {
+	k := datastore.NewKey(c, "Session", "", id, nil)
+	session := &Session{}
+	if err := datastore.Get(c, k, session); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			c.Errorf("Error looking up session %d: %s", id, err)
+		}
+		return nil
+	}
+	session.ID = k.IntID()
+	return session
+}
+
 func ListSessions(c appengine.Context, now time.Time) []*Session {
 	q := datastore.NewQuery("Session").
 		Filter("End >=", dateOnly(now))
@@ -76,13 +89,14 @@ type Class struct {
 	StartTime time.Time     `datastore: ",noindex"`
 	Length    time.Duration `datastore: ",noindex"`
 
-	BeginDate time.Time
-	EndDate   time.Time
+	Session int64
 
 	DropInOnly bool
 	Capacity   int32 `datastore: ",noindex"`
 
 	// The following fields are deprecated, but exist in legacy data.
+	BeginDate     time.Time
+	EndDate       time.Time
 	SpacesLeft    int32
 	Active        bool
 	Description   string `datastore: ",noindex"`
@@ -114,6 +128,39 @@ func (l classCalendarDataList) Len() int      { return len(l) }
 func (l classCalendarDataList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 func (l classCalendarDataList) Less(i, j int) bool {
 	return l[i].Class.Before(l[j].Class)
+}
+
+func getCalendarData(c appengine.Context, class *Class) *ClassCalendarData {
+	teacher := &Teacher{}
+	if err := datastore.Get(c, class.Teacher, teacher); err != nil {
+		c.Errorf("Error looking up teacher for class %d: %s", class.ID, err)
+		return nil
+	}
+	return &ClassCalendarData{
+		Class:       class,
+		EndTime:     class.StartTime.Add(class.Length),
+		Teacher:     teacher,
+		Description: string(class.LongDescription),
+	}
+}
+
+func ListClasses(c appengine.Context, session *Session) []*ClassCalendarData {
+	q := datastore.NewQuery("Class").
+		Filter("Session =", session.ID)
+	classes := []*Class{}
+	keys, err := q.GetAll(c, &classes)
+	if err != nil {
+		c.Errorf("Error looking up classes for session %d: %s", session.ID, err)
+		return nil
+	}
+	for i, key := range keys {
+		classes[i].ID = key.IntID()
+	}
+	data := make([]*ClassCalendarData, len(classes))
+	for i, class := range classes {
+		data[i] = getCalendarData(c, class)
+	}
+	return data
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the

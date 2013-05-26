@@ -42,11 +42,15 @@
 <div class="section">
 <h1>Scheduling</h1>
 <h2>Sessions</h2>
-<ul>
+<table>
   {{range .Sessions}}
-  <li>{{.Name}} ({{.Start.Format "1/2"}} &ndash; {{.End.Format "1/2"}})
+  <tr>
+    <td><a href="/staff/session?id={{.ID}}">{{.Name}}</a></td>
+    <td>{{.Start.Format "1/2"}}</td>
+    <td>{{.End.Format "1/2"}}</td>
+  </tr>
   {{end}}
-</ul>
+</table>
 <a href="/staff/add-session">Add Session</a>
 <h2>Classes</h2>
 <table class="class-table">

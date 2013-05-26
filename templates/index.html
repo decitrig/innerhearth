@@ -46,22 +46,31 @@
 <div id="classes" class="section">
   <h1>Our Classes</h1>
   <p>Click on a class's name to see the description, sign up to drop in, or sign up for a whole session.</p>
-  <table class="class-table">
-    {{range $day, $classes := .Classes}}
-    {{with $classes}}
-    <tr class="weekday">
-      <th colspan="4">{{indexAsWeekday $day}}</th>
+  <table class="session-table">
+
+  {{range .Sessions}}
+    <tr class="session-heading">
+      <th class="session-name" colspan="2">{{.Name}}</th>
+      <td class="session-dates">{{.Start.Format "2 January"}} &ndash; {{.End.Format "2 January"}}</td>
+    </tr>
+      {{range $day, $classes := .Classes}}
+      {{with $classes}}
+    <tr>
+      <th colspan="3" class="class-weekday">{{indexAsWeekday $day}}</th>
     </tr>
     {{range .}}
     <tr>
-      <td><a href="/class?id={{.ID}}">{{.Title}}</a></td>
+      <td><a href="/class?id={{.ID}}">{{.Title}}</a>{{if .DropInOnly}} <i>(drop-in only)</i>{{end}}</td>
       <td>{{.Teacher.FirstName}}</td>
       <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
     </tr>
     {{end}}
     {{end}}
     {{end}}
+
+  {{end}}
   </table>
+
   <div style="clear: both"></div>
 </div>
     <div id="yin-yogassage" class="section">

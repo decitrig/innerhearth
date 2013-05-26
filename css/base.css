@@ -17,15 +17,6 @@ body {
     margin: auto;
 }
 
-.class-table .weekday:nth-of-type(1) th {
-    padding-top: 0;
-}
-
-.class-table .weekday th {
-    text-align: left;
-    padding-top: 1em;
-}
-
 .class-table td {
     padding-right: 1.5em;
 }
@@ -124,7 +115,36 @@ fieldset {
     margin-bottom: 1em;
 }
 
+.session-table {
+    margin-bottom: 1em;
+    border-collapse: collapse;
+}
+
+.session-table th,td {
+    padding-right: 1em;
+}
+
+.session-name {
+    font-size: 150%;
+    vertical-align: baseline;
+    padding-top: 1em;
+    padding-right: 2em;
+    border-bottom: 1px solid black;
+    text-align: left;
+}
+
+.session-dates {
+    vertical-align: baseline;
+    text-align: right;
+    border-bottom: 1px solid black;
+}
+
 .teacher-headshot {
     float: left;
     margin-right: 1em;
+}
+
+.class-weekday {
+    text-align: left;
+    padding-top: .75em;
 }

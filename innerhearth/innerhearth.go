@@ -77,14 +77,25 @@ func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
 	return days
 }
 
+type session struct {
+	*model.Session
+	Classes [][]*model.ClassCalendarData
+}
+
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListActiveClasses()
-	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
+	sessions := []session{}
+	for _, s := range model.ListSessions(c, time.Now()) {
+		classes := model.ListClasses(c, s)
+		if len(classes) == 0 {
+			c.Infof("session %q has no classes", s.Name)
+			continue
+		}
+		sessions = append(sessions, session{s, groupByDay(classes)})
+	}
 	data := map[string]interface{}{
-		"Classes":       classesByDay,
 		"Announcements": model.ListAnnouncements(c),
+		"Sessions":      sessions,
 	}
 	if u := webapp.GetCurrentUser(r); u != nil {
 		data["LoggedIn"] = true

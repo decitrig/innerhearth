@@ -1,5 +1,5 @@
-application: innerhearthyoga
-version: 4
+application: innerhearth-testing
+version: 5
 runtime: go
 api_version: go1
 

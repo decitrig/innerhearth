@@ -114,13 +114,9 @@ func groupByDay2(data []*model.Class) [][]*model.Class {
 
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	classes := scheduler.ListAllClasses()
-	classesByDay := groupByDay(scheduler.ListCalendarData(classes))
 	sessions := model.ListSessions(c, time.Now())
 	data := map[string]interface{}{
 		"Teachers":      model.ListTeachers(c),
-		"Classes":       classesByDay,
 		"Announcements": model.ListAnnouncements(c),
 		"Sessions":      sessions,
 	}
@@ -473,7 +469,7 @@ func session(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if session == nil {
 		return webapp.InternalError(fmt.Errorf("couldn't find session %d", id))
 	}
-	classes := model.ListClasses(c, session)
+	classes := session.ListClasses(c)
 	classesByDay := groupByDay(classes)
 	if err := sessionPage.Execute(w, map[string]interface{}{
 		"Session": session,

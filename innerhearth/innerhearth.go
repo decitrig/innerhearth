@@ -86,7 +86,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	sessions := []session{}
 	for _, s := range model.ListSessions(c, time.Now()) {
-		classes := model.ListClasses(c, s)
+		classes := s.ListClasses(c)
 		if len(classes) == 0 {
 			c.Infof("session %q has no classes", s.Name)
 			continue

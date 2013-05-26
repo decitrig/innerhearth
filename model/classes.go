@@ -79,6 +79,25 @@ func ListSessions(c appengine.Context, now time.Time) []*Session {
 	return sessions
 }
 
+func (s *Session) ListClasses(c appengine.Context) []*ClassCalendarData {
+	q := datastore.NewQuery("Class").
+		Filter("Session =", s.ID)
+	classes := []*Class{}
+	keys, err := q.GetAll(c, &classes)
+	if err != nil {
+		c.Errorf("Error looking up classes for session %d: %s", s.ID, err)
+		return nil
+	}
+	for i, key := range keys {
+		classes[i].ID = key.IntID()
+	}
+	data := make([]*ClassCalendarData, len(classes))
+	for i, class := range classes {
+		data[i] = getCalendarData(c, class)
+	}
+	return data
+}
+
 type Class struct {
 	ID              int64  `datastore: "-"`
 	Title           string `datastore: ",noindex"`
@@ -142,25 +161,6 @@ func getCalendarData(c appengine.Context, class *Class) *ClassCalendarData {
 		Teacher:     teacher,
 		Description: string(class.LongDescription),
 	}
-}
-
-func ListClasses(c appengine.Context, session *Session) []*ClassCalendarData {
-	q := datastore.NewQuery("Class").
-		Filter("Session =", session.ID)
-	classes := []*Class{}
-	keys, err := q.GetAll(c, &classes)
-	if err != nil {
-		c.Errorf("Error looking up classes for session %d: %s", session.ID, err)
-		return nil
-	}
-	for i, key := range keys {
-		classes[i].ID = key.IntID()
-	}
-	data := make([]*ClassCalendarData, len(classes))
-	for i, class := range classes {
-		data[i] = getCalendarData(c, class)
-	}
-	return data
 }
 
 // NextClassTime returns the earliest start time of the class which starts strictly later than the

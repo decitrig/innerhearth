@@ -195,12 +195,13 @@ func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		}
 
 		fields, err := webapp.ParseRequiredValues(r, "name", "description", "teacher", "maxstudents",
-			"dayofweek", "starttime", "length")
+			"dayofweek", "starttime", "length", "dropinonly")
 		class := &model.Class{
 			Title:           fields["name"],
 			LongDescription: []byte(fields["description"]),
 			Session:         sessionID,
 			Teacher:         model.MakeTeacherKey(c, teacher),
+			DropInOnly:      fields["dropinonly"] == "yes",
 		}
 		if cap, err := strconv.ParseInt(fields["maxstudents"], 10, 32); err != nil {
 			return webapp.InternalError(fmt.Errorf("Error parsing max students %s: %s", fields["maxstudents"], err))

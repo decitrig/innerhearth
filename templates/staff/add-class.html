@@ -41,6 +41,15 @@
 	<input type="text" name="starttime" required="required" id="starttime" />
       <li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
 	<input type="number" min="0" max="999" required="required" id="length" name="length" />
+      <li class="field-item"><label class="field-label field-label-checkbox" for="dropinonly">Type</label>
+	<ul class="field-list">
+	  <li>
+	    <input type="radio" name="dropinonly" value="no" id="dropinonly-no" checked="checked" />
+	    <label for="dropinonly-no">Session Class</label>
+	  <li>
+	    <input type="radio" name="dropinonly" value="yes" id="dropinonly-yes" />
+	    <label for="dropinonly-yes">Drop In Only</label>
+	</ul>
     </ul>
   </fieldset>
   <button>Add</button>

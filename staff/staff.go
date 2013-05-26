@@ -310,19 +310,6 @@ func rescheduleClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		} else {
 			class.Length = time.Duration(lengthMinutes) * time.Minute
 		}
-
-		if !class.DropInOnly {
-			dates, err := webapp.ParseRequiredValues(r, "startdate", "enddate")
-			if err != nil {
-				return webapp.InternalError(err)
-			}
-			if class.BeginDate, err = time.Parse(dateFormat, dates["startdate"]); err != nil {
-				return webapp.InternalError(fmt.Errorf("Error parsing start date %s: %s", dates["startdate"], err))
-			}
-			if class.EndDate, err = time.Parse(dateFormat, dates["enddate"]); err != nil {
-				return webapp.InternalError(fmt.Errorf("Error parsing end date %s: %s", dates["enddate"], err))
-			}
-		}
 		if err := s.WriteClass(class); err != nil {
 			return webapp.InternalError(fmt.Errorf("Error writing class: %s", err))
 		}

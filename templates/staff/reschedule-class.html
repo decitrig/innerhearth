@@ -23,19 +23,6 @@
 				<input type="number" min="0" max="999" required="required" id="length" name="length" value="{{.Class.Length.Minutes}}"/>
 		</ul>
 	</fieldset>
-	{{if not .Class.DropInOnly}}
-	<fieldset>
-		<h2>Session Dates</h2>
-		<ul class="field-list">
-			<li class="field-item"><label class="field-label" for="startdate">Start Date (MM/DD/YYYY; for example, 02/15/2012):</label>
-			  {{$startDate := .Class.BeginDate.Format "01/02/2006"}}
-				<input type="text" name="startdate" id="startdate" value="{{$startDate}}"/>
-			<li class="field-item"><label class="field-label" for="enddate">End Date (MM/DD/YYYY; for example, 02/15/2012):</label>
-			  {{$endDate := .Class.EndDate.Format "01/02/2006"}}
-				<input type="text" name="enddate" id="enddate" value="{{$endDate}}" />
-		</ul>
-	</fieldset>
-	{{end}}
 	<button>Reschedule</button>
 </form>
 </div>

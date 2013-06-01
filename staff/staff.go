@@ -20,6 +20,7 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"appengine"
@@ -45,6 +46,7 @@ var (
 	}).ParseFiles("templates/base.html", "templates/staff/session.html"))
 	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
+	assignClassesPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/assign-classes.html"))
 )
 
 const (
@@ -86,6 +88,7 @@ func init() {
 	handleFunc("/staff/session", session)
 	handleFunc("/staff/add-announcement", addAnnouncement)
 	handleFunc("/staff/delete-announcement", deleteAnnouncement)
+	handleFunc("/staff/assign-classes", assignClasses)
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
@@ -475,6 +478,69 @@ func session(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Session": session,
 		"Token":   token,
 		"Classes": classesByDay,
+	}); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func trimPrefix(s, prefix string) string {
+	if !strings.HasPrefix(s, prefix) {
+		return s
+	}
+	return s[len(prefix):]
+}
+
+func assignClasses(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	c := appengine.NewContext(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
+		for k, v := range r.Form {
+			if !strings.HasPrefix(k, "sessionof") {
+				continue
+			}
+			classIDString := trimPrefix(k, "sessionof")
+			classID, err := strconv.ParseInt(classIDString, 10, 64)
+			if err != nil {
+				c.Errorf("couldn't parse class id from %q", k)
+				continue
+			}
+			if len(v) == 0 {
+				c.Errorf("no session assigned to %d", classID)
+				continue
+			}
+			sessionID, err := strconv.ParseInt(v[0], 10, 64)
+			if err != nil {
+				c.Errorf("couldn't parse session id from %q", v[0])
+				continue
+			}
+			class, err := model.GetClass(c, classID)
+			if err != nil {
+				return webapp.InternalError(fmt.Errorf("Erorr looking up class %d: %s", classID, err))
+			}
+			class.Session = sessionID
+			if err = class.Write(c); err != nil {
+				return webapp.InternalError(fmt.Errorf("Error writing class %d: %s", classID, err))
+			}
+		}
+		http.Redirect(w, r, "/staff", http.StatusFound)
+		return nil
+	}
+	classes := model.ListClasses(c)
+	withoutSession := []*model.Class{}
+	for _, class := range classes {
+		if class.Session == 0 {
+			withoutSession = append(withoutSession, class)
+		}
+	}
+	sessions := model.ListSessions(c, time.Now())
+	if err := assignClassesPage.Execute(w, map[string]interface{}{
+		"Token":    token,
+		"Classes":  withoutSession,
+		"Sessions": sessions,
 	}); err != nil {
 		return webapp.InternalError(err)
 	}

@@ -134,6 +134,33 @@ func (c *Class) Before(d *Class) bool {
 	return false
 }
 
+func GetClass(c appengine.Context, id int64) (*Class, error) {
+	k := datastore.NewKey(c, "Class", "", id, nil)
+	class := &Class{}
+	if err := datastore.Get(c, k, class); err != nil {
+		if err != datastore.ErrNoSuchEntity {
+			return nil, fmt.Errorf("error looking up class: %s", err)
+		}
+		return nil, nil
+	}
+	class.ID = id
+	return class, nil
+}
+
+func ListClasses(c appengine.Context) []*Class {
+	q := datastore.NewQuery("Class")
+	classes := []*Class{}
+	keys, err := q.GetAll(c, &classes)
+	if err != nil {
+		c.Errorf("Error listing classes: %s", err)
+		return nil
+	}
+	for i, key := range keys {
+		classes[i].ID = key.IntID()
+	}
+	return classes
+}
+
 type ClassCalendarData struct {
 	*Class
 	*Teacher
@@ -210,6 +237,15 @@ func (c *Class) ValidDate(date time.Time) bool {
 		return false
 	}
 	return true
+}
+
+func (c *Class) Write(ctx appengine.Context) error {
+	k := datastore.NewKey(ctx, "Class", "", c.ID, nil)
+	c.Description = ""
+	if _, err := datastore.Put(ctx, k, c); err != nil {
+		return fmt.Errorf("Error writing class %d: %s", c.ID, err)
+	}
+	return nil
 }
 
 // A Scheduler is responsible for manipulating classes.

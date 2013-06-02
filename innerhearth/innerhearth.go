@@ -63,6 +63,7 @@ func init() {
 	webapp.HandleFunc("/about", staticTemplate("templates/about.html"))
 	webapp.HandleFunc("/pricing", staticTemplate("templates/pricing.html"))
 	webapp.HandleFunc("/teachers", staticTemplate("templates/teachers.html"))
+	webapp.HandleFunc("/workshops", staticTemplate("templates/workshops.html"))
 }
 
 func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {

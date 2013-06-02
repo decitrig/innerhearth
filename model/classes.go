@@ -41,6 +41,14 @@ type Session struct {
 	End   time.Time
 }
 
+type byStartDate []*Session
+
+func (l byStartDate) Len() int      { return len(l) }
+func (l byStartDate) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l byStartDate) Less(i, j int) bool {
+	return l[i].Start.Before(l[j].Start)
+}
+
 func AddSession(c appengine.Context, s *Session) error {
 	key := datastore.NewIncompleteKey(c, "Session", nil)
 	key, err := datastore.Put(c, key, s)
@@ -76,6 +84,7 @@ func ListSessions(c appengine.Context, now time.Time) []*Session {
 	for i, key := range keys {
 		sessions[i].ID = key.IntID()
 	}
+	sort.Sort(byStartDate(sessions))
 	return sessions
 }
 

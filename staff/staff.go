@@ -91,30 +91,6 @@ func init() {
 	handleFunc("/staff/assign-classes", assignClasses)
 }
 
-func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
-	days := make([][]*model.ClassCalendarData, 7)
-	for _, d := range data {
-		idx := d.Weekday - 1
-		if idx < 0 {
-			idx = 6
-		}
-		days[idx] = append(days[idx], d)
-	}
-	return days
-}
-
-func groupByDay2(data []*model.Class) [][]*model.Class {
-	days := make([][]*model.Class, 7)
-	for _, d := range data {
-		idx := d.Weekday - 1
-		if idx < 0 {
-			idx = 6
-		}
-		days[idx] = append(days[idx], d)
-	}
-	return days
-}
-
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	sessions := model.ListSessions(c, time.Now())
@@ -473,7 +449,7 @@ func session(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		return webapp.InternalError(fmt.Errorf("couldn't find session %d", id))
 	}
 	classes := session.ListClasses(c)
-	classesByDay := groupByDay(classes)
+	classesByDay := model.GroupByDay(classes)
 	if err := sessionPage.Execute(w, map[string]interface{}{
 		"Session": session,
 		"Token":   token,

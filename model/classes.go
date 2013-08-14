@@ -177,12 +177,27 @@ type ClassCalendarData struct {
 	EndTime     time.Time
 }
 
-type classCalendarDataList []*ClassCalendarData
+type byStartTime []*ClassCalendarData
 
-func (l classCalendarDataList) Len() int      { return len(l) }
-func (l classCalendarDataList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
-func (l classCalendarDataList) Less(i, j int) bool {
+func (l byStartTime) Len() int      { return len(l) }
+func (l byStartTime) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l byStartTime) Less(i, j int) bool {
 	return l[i].Class.Before(l[j].Class)
+}
+
+func GroupByDay(data []*ClassCalendarData) [][]*ClassCalendarData {
+	days := make([][]*ClassCalendarData, 7)
+	for _, d := range data {
+		idx := int(d.Weekday) - 1
+		if idx < 0 {
+			idx = 6
+		}
+		days[idx] = append(days[idx], d)
+	}
+	for i, _ := range days {
+		sort.Sort(byStartTime(days[i]))
+	}
+	return days
 }
 
 func getCalendarData(c appengine.Context, class *Class) *ClassCalendarData {
@@ -377,7 +392,7 @@ func (s *scheduler) ListCalendarData(classes []*Class) []*ClassCalendarData {
 			Description: string(class.LongDescription),
 		}
 	}
-	sort.Sort(classCalendarDataList(data))
+	sort.Sort(byStartTime(data))
 	return data
 }
 

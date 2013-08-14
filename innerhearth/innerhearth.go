@@ -66,18 +66,6 @@ func init() {
 	webapp.HandleFunc("/workshops", staticTemplate("templates/workshops.html"))
 }
 
-func groupByDay(data []*model.ClassCalendarData) [][]*model.ClassCalendarData {
-	days := make([][]*model.ClassCalendarData, 7)
-	for _, d := range data {
-		idx := int(d.Weekday) - 1
-		if idx < 0 {
-			idx = 6
-		}
-		days[idx] = append(days[idx], d)
-	}
-	return days
-}
-
 type session struct {
 	*model.Session
 	Classes [][]*model.ClassCalendarData
@@ -92,7 +80,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			c.Infof("session %q has no classes", s.Name)
 			continue
 		}
-		sessions = append(sessions, session{s, groupByDay(classes)})
+		sessions = append(sessions, session{s, model.GroupByDay(classes)})
 	}
 	data := map[string]interface{}{
 		"Announcements": model.ListAnnouncements(c),

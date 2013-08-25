@@ -47,6 +47,8 @@ var (
 	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
 	assignClassesPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/assign-classes.html"))
+	yinYogassagePage       = template.Must(template.ParseFiles("templates/base.html", "templates/staff/yin-yogassage.html"))
+	deleteYinYogassagePage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-yin-yogassage.html"))
 )
 
 const (
@@ -78,26 +80,34 @@ func handleFunc(path string, fn webapp.HandlerFunc) {
 }
 
 func init() {
-	handleFunc("/staff", staff)
-	handleFunc("/staff/add-teacher", addTeacher)
-	handleFunc("/staff/add-class", addClass)
-	handleFunc("/staff/add-session", addSession)
-	handleFunc("/staff/delete-class", deleteClass)
-	handleFunc("/staff/edit-class", editClass)
-	handleFunc("/staff/reschedule-class", rescheduleClass)
-	handleFunc("/staff/session", session)
-	handleFunc("/staff/add-announcement", addAnnouncement)
-	handleFunc("/staff/delete-announcement", deleteAnnouncement)
-	handleFunc("/staff/assign-classes", assignClasses)
+	for url, fn := range map[string]webapp.HandlerFunc{
+		"/staff":                      staff,
+		"/staff/add-teacher":          addTeacher,
+		"/staff/add-class":            addClass,
+		"/staff/add-session":          addSession,
+		"/staff/delete-class":         deleteClass,
+		"/staff/edit-class":           editClass,
+		"/staff/reschedule-class":     rescheduleClass,
+		"/staff/session":              session,
+		"/staff/add-announcement":     addAnnouncement,
+		"/staff/delete-announcement":  deleteAnnouncement,
+		"/staff/assign-classes":       assignClasses,
+		"/staff/yin-yogassage":        yinYogassage,
+		"/staff/delete-yin-yogassage": deleteYinYogassage,
+	} {
+		handleFunc(url, fn)
+	}
 }
 
 func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
-	sessions := model.ListSessions(c, time.Now())
+	now := time.Now()
+	sessions := model.ListSessions(c, now)
 	data := map[string]interface{}{
-		"Teachers":      model.ListTeachers(c),
-		"Announcements": model.ListAnnouncements(c),
-		"Sessions":      sessions,
+		"Teachers":            model.ListTeachers(c),
+		"Announcements":       model.ListAnnouncements(c),
+		"Sessions":            sessions,
+		"YinYogassageClasses": model.ListYinYogassage(c, now),
 	}
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -517,6 +527,67 @@ func assignClasses(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Token":    token,
 		"Classes":  withoutSession,
 		"Sessions": sessions,
+	}); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func yinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	c := appengine.NewContext(r)
+	if r.Method == "POST" {
+		if t := r.FormValue("xsrf_token"); !token.Validate(t) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token %s", t))
+		}
+		fields, err := webapp.ParseRequiredValues(r, "date", "signup")
+		if err != nil {
+			return webapp.InternalError(err)
+		}
+		date, err := time.Parse(dateFormat, fields["date"])
+		if err != nil {
+			return webapp.InternalError(err)
+		}
+		y := &model.YinYogassage{
+			Date:       date,
+			SignupLink: fields["signup"],
+		}
+		if err := model.AddYinYogassage(c, y); err != nil {
+			return webapp.InternalError(err)
+		}
+		http.Redirect(w, r, "/staff", http.StatusFound)
+		return nil
+	}
+	if err := yinYogassagePage.Execute(w, map[string]interface{}{
+		"Token": token,
+	}); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func deleteYinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	token := webapp.GetXSRFToken(r)
+	c := appengine.NewContext(r)
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't parse %s as class id: %s", r.FormValue("id"), err))
+	}
+	if r.Method == "POST" {
+		if !token.Validate(r.FormValue("xsrf_token")) {
+			return webapp.InternalError(fmt.Errorf("Invalid XSRF token"))
+		}
+		model.DeleteYinYogassage(c, id)
+		http.Redirect(w, r, "/staff", http.StatusFound)
+		return nil
+	}
+	y := model.GetYinYogassage(c, id)
+	if y == nil {
+		return webapp.InternalError(fmt.Errorf("Couldn't find yin yogassage %d", id))
+	}
+	if err := deleteYinYogassagePage.Execute(w, map[string]interface{}{
+		"Token": token,
+		"Class": y,
 	}); err != nil {
 		return webapp.InternalError(err)
 	}

@@ -1,0 +1,28 @@
+{{define "body"}}
+<div class="section">
+  <h1>Add YinYogassage</h1>
+  <form method="POST">
+    {{template "XSRFTokenInput" .Token}}
+    <ul class="field-list">
+      <li class="field-item">
+	<label class="field-label" for="date">Date:</label>
+	<div id="datepicker"></div>
+	<input type="text" id="date" name="date" placeholder="MM/DD/YYYY" />
+      <li class="field-item">
+	<label class="field-label" for="signup">Signup Link:</label>
+	<input type="text" id="signup" name="signup" />
+    </ul>
+    <button>add</button>
+  </form>
+</div>
+{{end}}
+{{define "script"}}
+<script>
+  $("#datepicker").datepicker({
+  dateFormat: "mm/dd/yy",
+  onSelect: function(date, picker) {
+  $("#date").val(date);
+  }});
+ </script>
+{{end}}
+

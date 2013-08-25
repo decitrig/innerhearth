@@ -88,7 +88,9 @@
 	sign up!
       </p>
       <ul>
-	<li><a href="https://docs.google.com/spreadsheet/ccc?key=0AtxJOE-cKu6fdEVJOEVPR3lTbWFzdktYTVBkZTlIQWc#gid=0">Signup for Thursday, August 22, 7&ndash;9pm</a>
+	{{range .YinYogassage}}
+	<li><a href="{{.SignupLink}}">Signup for {{.Date.Format "Monday, January 2"}}</a>
+	{{end}}
       </ul>
     </div>
 {{end}}

@@ -40,6 +40,23 @@
 </form>
 </div>
 <div class="section">
+<h1>Yin Yogassage</h1>
+<table>
+  <tr>
+    <th>Date</th>
+    <th>Signup Link</th>
+  </tr>
+  {{range .YinYogassageClasses}}
+  <tr>
+    <td>{{.Date.Format "Monday, 1/2"}}</td>
+    <td><a href="{{.SignupLink}}">{{.SignupLink}}</a></td>
+    <td><a href="/staff/delete-yin-yogassage?id={{.ID}}">delete</a></td>
+  </tr>
+  {{end}}
+</table>
+<a href="/staff/yin-yogassage">Add YinYogassage Class</a>
+</div>
+<div class="section">
 <h1>Sessions</h1>
 <table>
   {{range .Sessions}}

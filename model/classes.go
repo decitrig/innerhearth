@@ -718,3 +718,58 @@ func (r *registrar) ListRegisteredClasses(regs []*Student) []*RegisteredClass {
 	sort.Sort(registeredClassList(registered))
 	return registered
 }
+
+type YinYogassage struct {
+	ID         int64 `datastore: "-"`
+	Date       time.Time
+	SignupLink string
+}
+
+func AddYinYogassage(c appengine.Context, y *YinYogassage) error {
+	k := datastore.NewIncompleteKey(c, "YinYogassage", nil)
+	if _, err := datastore.Put(c, k, y); err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetYinYogassage(c appengine.Context, id int64) *YinYogassage {
+	k := datastore.NewKey(c, "YinYogassage", "", id, nil)
+	y := &YinYogassage{}
+	if err := datastore.Get(c, k, y); err != nil {
+		c.Errorf("Couldn't find yin yogassage %d: %s", id, err)
+		return nil
+	}
+	return y
+}
+
+type byDate []*YinYogassage
+
+func (l byDate) Len() int      { return len(l) }
+func (l byDate) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l byDate) Less(i, j int) bool {
+	return l[i].Date.Before(l[j].Date)
+}
+
+func ListYinYogassage(c appengine.Context, now time.Time) []*YinYogassage {
+	classes := []*YinYogassage{}
+	keys, err := datastore.NewQuery("YinYogassage").
+		Filter("Date >=", dateOnly(now)).
+		GetAll(c, &classes)
+	if err != nil {
+		c.Errorf("Error listing yogassage classes: %s", err)
+		return nil
+	}
+	for i, key := range keys {
+		classes[i].ID = key.IntID()
+	}
+	sort.Sort(byDate(classes))
+	return classes
+}
+
+func DeleteYinYogassage(c appengine.Context, id int64) {
+	key := datastore.NewKey(c, "YinYogassage", "", id, nil)
+	if err := datastore.Delete(c, key); err != nil {
+		c.Errorf("Error deleting yin yogassage %d: %s", id, err)
+	}
+}

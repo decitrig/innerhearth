@@ -85,6 +85,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	data := map[string]interface{}{
 		"Announcements": model.ListAnnouncements(c),
 		"Sessions":      sessions,
+		"YinYogassage":  model.ListYinYogassage(c, time.Now()),
 	}
 	if u := webapp.GetCurrentUser(r); u != nil {
 		data["LoggedIn"] = true

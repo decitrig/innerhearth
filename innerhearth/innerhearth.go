@@ -60,10 +60,15 @@ func init() {
 	webapp.HandleFunc("/_ah/login_required", login)
 	webapp.HandleFunc("/class", class)
 
-	webapp.HandleFunc("/about", staticTemplate("templates/about.html"))
-	webapp.HandleFunc("/pricing", staticTemplate("templates/pricing.html"))
-	webapp.HandleFunc("/teachers", staticTemplate("templates/teachers.html"))
-	webapp.HandleFunc("/workshops", staticTemplate("templates/workshops.html"))
+	for url, template := range map[string]string{
+		"/about":           "templates/about.html",
+		"/pricing":         "templates/pricing.html",
+		"/privates-groups": "templates/privates-groups.html",
+		"/teachers":        "templates/teachers.html",
+		"/workshops":       "templates/workshops.html",
+	} {
+		webapp.HandleFunc(url, staticTemplate(template))
+	}
 }
 
 type session struct {

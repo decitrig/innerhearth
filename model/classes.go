@@ -740,6 +740,7 @@ func GetYinYogassage(c appengine.Context, id int64) *YinYogassage {
 		c.Errorf("Couldn't find yin yogassage %d: %s", id, err)
 		return nil
 	}
+	y.ID = id
 	return y
 }
 

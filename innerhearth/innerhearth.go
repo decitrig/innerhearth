@@ -66,6 +66,7 @@ func init() {
 		"/privates-groups": "templates/privates-groups.html",
 		"/teachers":        "templates/teachers.html",
 		"/workshops":       "templates/workshops.html",
+		"/mailinglist":     "templates/mailinglist.html",
 	} {
 		webapp.HandleFunc(url, staticTemplate(template))
 	}

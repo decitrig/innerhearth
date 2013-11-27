@@ -72,11 +72,11 @@ var (
 		"Flickr":    "flickr.com/{{.}}",
 		"WordPress": "{{.}}.wordpress.com",
 	}
-	loginPage          = template.Must(template.ParseFiles("login/login.html"))
+	loginPage          = template.Must(template.ParseFiles("templates/login/login.html"))
 	newAccountPage     = template.Must(template.ParseFiles("templates/base.html", "templates/new-account.html"))
-	accountConfirmPage = template.Must(template.ParseFiles("login/confirm-account.html"))
-	adminPage          = template.Must(template.ParseFiles("login/admin.html"))
-	editRolePage       = template.Must(template.ParseFiles("login/edit-role.html"))
+	accountConfirmPage = template.Must(template.ParseFiles("templates/login/confirm-account.html"))
+	adminPage          = template.Must(template.ParseFiles("templates/login/admin.html"))
+	editRolePage       = template.Must(template.ParseFiles("templates/login/edit-role.html"))
 )
 
 func init() {

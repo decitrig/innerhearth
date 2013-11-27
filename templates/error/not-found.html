@@ -1,0 +1,25 @@
+{{define "Navbar"}}
+<ul class="nav-links">
+  <li class="nav-link"><a href="/about">About Us</a>
+  <li class="nav-link"><a href="#yin-yogassage">Yin Yogassage&trade;</a>
+  <li class="nav-link"><a href="/pricing">Pricing &amp; Policies</a>
+  <li class="nav-link"><a href="/privates-groups">Private &amp; Group Lessons</a>
+  <li class="nav-link"><a href="/workshops">Workshops</a>
+  <li class="nav-link"><a href="/teachers">Our Teachers</a>
+  <li class="nav-link"><a href="/mailinglist">Subscribe to our mailing list!</a>
+    {{if not .User}}
+  <li class="nav-link"><a href="/login">Log In</a>
+    {{else}}
+    {{if .Teacher}}<li class="nav-link nav-link-special"><a href="/teacher">Teacher Portal</a>{{end}}
+    {{if .Staff}}<li class="nav-link nav-link-special"><a href="/staff">Staff Portal</a>{{end}}
+    {{if .Admin}}<li class="nav-link nav-link-special"><a href="/admin">Admin</a>{{end}}
+  <li class="nav-link"><a href="{{.LogoutURL}}">Log Out</a>
+    {{end}}
+</ul>
+{{end}}
+{{define "body"}}
+<div class="section">
+  <p>Sorry, the page you were looking for was not found.</p>
+  <p><a href="/">Return home.</a></p>
+</div>
+{{end}}

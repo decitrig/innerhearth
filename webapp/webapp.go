@@ -17,6 +17,7 @@ package webapp
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 
@@ -32,6 +33,11 @@ type Error struct {
 	Message string
 	Code    int
 }
+
+var (
+	Router       = mux.NewRouter()
+	notFoundPage = template.Must(template.ParseFiles("templates/base.html", "templates/error/not-found.html"))
+)
 
 func (e *Error) Error() string {
 	return e.Err.Error()
@@ -97,10 +103,6 @@ func (fn HandlerFunc) Serve(w http.ResponseWriter, r *http.Request) *Error {
 	return fn(w, r)
 }
 
-var (
-	Router = mux.NewRouter()
-)
-
 func Handle(path string, h Handler) {
 	Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Serve(w, r); err != nil {
@@ -115,6 +117,17 @@ func HandleFunc(path string, f HandlerFunc) {
 	Handle(path, Handler(f))
 }
 
+func init() {
+	Router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
+}
+
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	if err := notFoundPage.Execute(w, nil); err != nil {
+		http.Error(w, "An internal error ocurred, sorry!", http.StatusInternalServerError)
+	}
+}
+
 func PostOnly(handler Handler) Handler {
 	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) *Error {
 		if r.Method != "POST" {
@@ -127,7 +140,7 @@ func PostOnly(handler Handler) Handler {
 
 // PathOrRoot parses a string into a URL and returns the path component. If the URL cannot be
 // parsed, or if the path is empty, returns the root path ("/").
-// 
+//
 // TODO(rwsims): This should probably allow the query string through as well.
 func PathOrRoot(urlString string) string {
 	u, err := url.Parse(urlString)

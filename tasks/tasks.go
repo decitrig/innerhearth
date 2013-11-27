@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"text/template"
 
 	"appengine"
 	"appengine/mail"
+	"appengine/taskqueue"
 
 	"github.com/decitrig/innerhearth/model"
 )
@@ -32,11 +34,31 @@ var (
 	confirmationEmail   = template.Must(template.ParseFiles("templates/registration/confirmation-email.txt"))
 	accountConfirmEmail = template.Must(template.ParseFiles("templates/account-confirm-email.txt"))
 	noReply             = "no-reply@innerhearthyoga.appspotmail.com"
+	onceHandle          sync.Once
 )
 
 func init() {
-	http.HandleFunc("/task/email-confirmation", sendRegistrationConfirmation)
-	http.HandleFunc("/task/email-account-confirmation", sendNewAccountConfirmation)
+	onceHandle.Do(func() {
+		http.HandleFunc("/task/email-confirmation", sendRegistrationConfirmation)
+		http.HandleFunc("/task/email-account-confirmation", sendNewAccountConfirmation)
+	})
+}
+
+func newConfirmTask(email string, classID int64, retries int) *taskqueue.Task {
+	return taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
+		"email":   {email},
+		"class":   {fmt.Sprintf("%d", classID)},
+		"retries": {fmt.Sprintf("%d", 3)},
+	})
+}
+
+func ConfirmRegistration(c appengine.Context, email string, class *model.Class) error {
+	c.Infof("Sending session confirmation email to %q", email)
+	t := newConfirmTask(email, class.ID, 3)
+	if _, err := taskqueue.Add(c, t, ""); err != nil {
+		return err
+	}
+	return nil
 }
 
 func sendRegistrationConfirmation(w http.ResponseWriter, r *http.Request) {

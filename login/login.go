@@ -221,6 +221,9 @@ func createNewAccount(w http.ResponseWriter, r *http.Request) error {
 		"email": {account.Email},
 		"code":  {account.ConfirmationCode},
 	})
+	t.RetryOptions = &taskqueue.RetryOptions{
+		RetryLimit: 3,
+	}
 	if _, err := taskqueue.Add(c, t, ""); err != nil {
 		c.Errorf("Error enqueuing account email task: %s", err)
 	}

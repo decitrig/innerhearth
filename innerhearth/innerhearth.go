@@ -28,6 +28,9 @@ import (
 
 	"github.com/decitrig/innerhearth/model"
 	"github.com/decitrig/innerhearth/webapp"
+
+	_ "github.com/decitrig/innerhearth/staff"
+	_ "github.com/decitrig/innerhearth/teacher"
 )
 
 var (

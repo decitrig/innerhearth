@@ -30,6 +30,7 @@ import (
 	"github.com/decitrig/innerhearth/webapp"
 
 	_ "github.com/decitrig/innerhearth/login"
+	_ "github.com/decitrig/innerhearth/registration"
 	_ "github.com/decitrig/innerhearth/staff"
 	_ "github.com/decitrig/innerhearth/teacher"
 )

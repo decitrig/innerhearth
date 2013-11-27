@@ -17,9 +17,12 @@ package tasks
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/gob"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"strconv"
+	"strings"
 	"sync"
 	"text/template"
 
@@ -44,41 +47,59 @@ func init() {
 	})
 }
 
-func newConfirmTask(email string, classID int64, retries int) *taskqueue.Task {
-	return taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
-		"email":   {email},
-		"class":   {fmt.Sprintf("%d", classID)},
-		"retries": {fmt.Sprintf("%d", 3)},
-	})
+type ConfirmationTask struct {
+	Email   string
+	ClassID int64
 }
 
-func ConfirmRegistration(c appengine.Context, email string, class *model.Class) error {
-	c.Infof("Sending session confirmation email to %q", email)
-	t := newConfirmTask(email, class.ID, 3)
-	if _, err := taskqueue.Add(c, t, ""); err != nil {
+func parseConfirmationTask(r *http.Request) (*ConfirmationTask, error) {
+	task := &ConfirmationTask{}
+	b, err := urlDecode(r.FormValue("gob"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to base64 decode gob: %s", err)
+	}
+	gobDecode(b, task)
+	return task, nil
+}
+
+func (t ConfirmationTask) Post(c appengine.Context) error {
+	posted := taskqueue.NewPOSTTask("/task/email-confirmation", map[string][]string{
+		"gob": {urlEncode(gobEncode(t))},
+	})
+	posted.RetryOptions = &taskqueue.RetryOptions{
+		RetryLimit: 3,
+	}
+	if _, err := taskqueue.Add(c, posted, ""); err != nil {
 		return err
 	}
 	return nil
 }
 
+func ConfirmRegistration(c appengine.Context, email string, class *model.Class) error {
+	c.Infof("Sending confirmation email to %q", email)
+	t := &ConfirmationTask{Email: email, ClassID: class.ID}
+	return t.Post(c)
+}
+
 func sendRegistrationConfirmation(w http.ResponseWriter, r *http.Request) {
-	classID, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
 	c := appengine.NewContext(r)
+	task, err := parseConfirmationTask(r)
 	if err != nil {
-		c.Criticalf("Could not parse class ID %s from request: %s", r.FormValue("class"), err)
+		c.Criticalf("Could not parse gob for confirmation task: %s", err)
 		return
 	}
 	scheduler := model.NewScheduler(c)
-	class := scheduler.GetClass(classID)
+	class := scheduler.GetClass(task.ClassID)
 	if class == nil {
-		c.Errorf("Couldn't find class %d", classID)
+		c.Errorf("Couldn't find class %d", task.ClassID)
 		http.Error(w, "Missing class", http.StatusInternalServerError)
+		return
 	}
 	teacher := scheduler.GetTeacher(class)
 	roster := model.NewRoster(c, class)
-	student := roster.LookupStudent(r.FormValue("email"))
+	student := roster.LookupStudent(task.Email)
 	if student == nil {
-		c.Errorf("Couldn't find student %q in %d", r.FormValue("email"), class.ID)
+		c.Errorf("Couldn't find student %q in %d", task.Email, class.ID)
 		http.Error(w, "Missing registration", http.StatusInternalServerError)
 		return
 	}
@@ -132,4 +153,33 @@ func sendNewAccountConfirmation(w http.ResponseWriter, r *http.Request) {
 	if err := mail.Send(c, msg); err != nil {
 		c.Criticalf("Couldn't send email to '%s': %s", email, err)
 	}
+}
+
+func gobEncode(d interface{}) []byte {
+	buf := &bytes.Buffer{}
+	e := gob.NewEncoder(buf)
+	e.Encode(d)
+	return buf.Bytes()
+}
+
+func urlEncode(data []byte) string {
+	buf := &bytes.Buffer{}
+	e := base64.NewEncoder(base64.URLEncoding, buf)
+	e.Write(data)
+	e.Close()
+	return buf.String()
+}
+
+func gobDecode(b []byte, e interface{}) {
+	decoder := gob.NewDecoder(bytes.NewReader(b))
+	decoder.Decode(e)
+}
+
+func urlDecode(s string) ([]byte, error) {
+	decoder := base64.NewDecoder(base64.URLEncoding, strings.NewReader(s))
+	b, err := ioutil.ReadAll(decoder)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }

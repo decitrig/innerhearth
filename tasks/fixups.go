@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"sync"
 	"time"
 
 	"appengine"

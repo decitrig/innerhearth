@@ -23,10 +23,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"sync"
 	"text/template"
+	"time"
 
 	"appengine"
+	"appengine/datastore"
 	"appengine/mail"
 	"appengine/taskqueue"
 
@@ -37,14 +38,12 @@ var (
 	confirmationEmail   = template.Must(template.ParseFiles("templates/registration/confirmation-email.txt"))
 	accountConfirmEmail = template.Must(template.ParseFiles("templates/account-confirm-email.txt"))
 	noReply             = "no-reply@innerhearthyoga.appspotmail.com"
-	onceHandle          sync.Once
 )
 
 func init() {
-	onceHandle.Do(func() {
-		http.HandleFunc("/task/email-confirmation", sendRegistrationConfirmation)
-		http.HandleFunc("/task/email-account-confirmation", sendNewAccountConfirmation)
-	})
+	http.HandleFunc("/task/email-confirmation", sendRegistrationConfirmation)
+	http.HandleFunc("/task/email-account-confirmation", sendNewAccountConfirmation)
+	http.HandleFunc("/task/delete-expired-tokens", deleteExpiredTokens)
 }
 
 type ConfirmationTask struct {
@@ -152,6 +151,21 @@ func sendNewAccountConfirmation(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := mail.Send(c, msg); err != nil {
 		c.Criticalf("Couldn't send email to '%s': %s", email, err)
+	}
+}
+
+func deleteExpiredTokens(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	q := datastore.NewQuery("XSRFToken").
+		Filter("Expiration <", time.Now()).
+		KeysOnly()
+	keys, err := q.GetAll(c, nil)
+	if err != nil {
+		c.Criticalf("Failed to get expired token keys: %s", err)
+		return
+	}
+	if err := datastore.DeleteMulti(c, keys); err != nil {
+		c.Warningf("Failed to delete expired tokens: %s", err)
 	}
 }
 

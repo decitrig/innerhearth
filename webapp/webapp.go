@@ -35,8 +35,9 @@ type Error struct {
 }
 
 var (
-	Router       = mux.NewRouter()
-	notFoundPage = template.Must(template.ParseFiles("templates/base.html", "templates/error/not-found.html"))
+	Router            = mux.NewRouter()
+	notFoundPage      = template.Must(template.ParseFiles("templates/base.html", "templates/error/not-found.html"))
+	internalErrorPage = template.Must(template.ParseFiles("templates/base.html", "templates/error/internal.html"))
 )
 
 func (e *Error) Error() string {
@@ -107,8 +108,16 @@ func Handle(path string, h Handler) {
 	Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Serve(w, r); err != nil {
 			c := appengine.NewContext(r)
-			c.Errorf("%s", err)
-			http.Error(w, err.Message, err.Code)
+			log, err2 := NewErrorLog(c, err.Error())
+			if err2 != nil {
+				c.Criticalf("Failed to persist error log: %s", err2)
+				c.Errorf(err.Error())
+			}
+			c.Infof("%+v", log)
+			w.WriteHeader(err.Code)
+			if err := internalErrorPage.Execute(w, log); err != nil {
+				c.Criticalf("Failed to execute error page template: %s", err)
+			}
 		}
 	})
 }

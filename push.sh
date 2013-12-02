@@ -11,7 +11,7 @@ while getopts "p" opt; do
     esac
 done
 
-$appcfg update \
-    innerhearth \
+echo $appid
+$appcfg update innerhearth \
     --oauth2 \
     -A $appid

@@ -108,12 +108,11 @@ func Handle(path string, h Handler) {
 	Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Serve(w, r); err != nil {
 			c := appengine.NewContext(r)
-			log, err2 := NewErrorLog(c, err.Error())
+			log, err2 := NewErrorLog(c, r, err.Error())
 			if err2 != nil {
 				c.Criticalf("Failed to persist error log: %s", err2)
 				c.Errorf(err.Error())
 			}
-			c.Infof("%+v", log)
 			w.WriteHeader(err.Code)
 			if err := internalErrorPage.Execute(w, log); err != nil {
 				c.Criticalf("Failed to execute error page template: %s", err)

@@ -1,7 +1,7 @@
 package webapp
 
 import (
-	"runtime"
+	"net/http"
 	"time"
 
 	"appengine"
@@ -9,40 +9,18 @@ import (
 )
 
 type ErrorLog struct {
-	ID         int64 `datastore:"-"`
-	Time       time.Time
-	Message    string
-	Stacktrace []Caller
+	ID      int64 `datastore:"-"`
+	Time    time.Time
+	Message string
+	Path    string
 }
 
-type Caller struct {
-	Func string
-	File string
-	Line int
-}
-
-func getCallers(max int) []Caller {
-	pcs := make([]uintptr, max)
-	l := runtime.Callers(3, pcs)
-	callers := make([]Caller, l)
-	for i, pc := range pcs[:l] {
-		f := runtime.FuncForPC(pc)
-		file, line := f.FileLine(pc)
-		callers[i] = Caller{
-			Func: f.Name(),
-			File: file,
-			Line: line,
-		}
-	}
-	return callers
-}
-
-func NewErrorLog(c appengine.Context, message string) (*ErrorLog, error) {
+func NewErrorLog(c appengine.Context, r *http.Request, message string) (*ErrorLog, error) {
 	log := &ErrorLog{
-		ID:         0,
-		Time:       time.Now(),
-		Message:    message,
-		Stacktrace: getCallers(10),
+		ID:      0,
+		Path:    r.URL.String(),
+		Time:    time.Now(),
+		Message: message,
 	}
 	tmpKey := datastore.NewIncompleteKey(c, "ErrorLog", nil)
 	key, err := datastore.Put(c, tmpKey, log)

@@ -37,5 +37,8 @@ handlers:
 - url: /teacher.*
   script: _go_app
   login: required
+- url: /_ah/queue/go/delay
+  script: _go_app
+  login: admin
 - url: /.*
   script: _go_app

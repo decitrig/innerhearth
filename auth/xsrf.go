@@ -116,6 +116,8 @@ func (t *Token) Equals(u *Token) bool {
 	return t.Encode() == u.Encode()
 }
 
+// IsValid returns true if the token's encoding matches the given
+// encoded token and its expiration is not after now.
 func (t *Token) IsValid(encoded string, now time.Time) bool {
 	if t.Encode() != encoded {
 		return false

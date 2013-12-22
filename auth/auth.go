@@ -1,3 +1,6 @@
+// The auth package provides functions and types for dealing with
+// logins, account registration and user authentication (including
+// XSRF protection).
 package auth
 
 import (

@@ -1,18 +1,3 @@
-/*
- *  Copyright 2013 Ryan W Sims (rwsims@gmail.com)
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
 package auth
 
 import (
@@ -30,6 +15,7 @@ import (
 	"appengine/user"
 )
 
+// Errors returned from login-related functions.
 var (
 	ErrUserNotFound          = fmt.Errorf("User not found")
 	ErrAlreadyConfirmed      = fmt.Errorf("User is already confirmed")
@@ -64,7 +50,7 @@ var (
 
 var (
 	// OpenIDProviders is a list of the OpenID providers we support.
-	OpenIDProviders = providerList{
+	OpenIDProviders = []Provider{
 		{"Google", "https://www.google.com/accounts/o8/id"},
 		{"Yahoo", "yahoo.com"},
 		{"AOL", "aol.com"},
@@ -72,7 +58,7 @@ var (
 )
 
 // provider represents an OpenID provider which we use for login.
-type provider struct {
+type Provider struct {
 	// The display name of the provider.
 	Name string
 
@@ -80,21 +66,26 @@ type provider struct {
 	Identifier string
 }
 
-type providerList []provider
+// AsLink returns a LoginLink to allow the user to login with the provider.
+func (p Provider) AsLink(c appengine.Context, continueURL string) (LoginLink, error) {
+	url, err := user.LoginURLFederated(c, continueURL, p.Identifier)
+	if err != nil {
+		return LoginLink{}, fmt.Errorf("failed to create login link for %q: %s", p.Name, err)
+	}
+	return LoginLink{p.Name, url}, nil
+}
 
-// GetLinks converts a list of providers into login links for presentation to the user.
-func (l providerList) GetLinks(c appengine.Context, continueURL string) ([]LoginLink, error) {
-	links := make([]LoginLink, len(l))
-	for i, provider := range l {
-		loginURL, err := user.LoginURLFederated(c, continueURL, provider.Identifier)
+// MakeLinkList converts a list of Provider structs to a list of login
+// links for display to a user.
+func MakeLinkList(c appengine.Context, providers []Provider, continueURL string) ([]LoginLink, error) {
+	links := make([]LoginLink, len(providers))
+	for i, provider := range providers {
+		link, err := provider.AsLink(c, continueURL)
 		if err != nil {
 			c.Errorf("Couldn't create login link for %q: %s", provider.Identifier, err)
 			return nil, fmt.Errorf("invalid provider ID %q", provider.Identifier)
 		}
-		links[i] = LoginLink{
-			ProviderName: provider.Name,
-			URL:          loginURL,
-		}
+		links[i] = link
 	}
 	return links, nil
 }
@@ -255,7 +246,7 @@ func (e *UserEmail) key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "UserEmail", e.Email, 0, nil)
 }
 
-// Claim attempts to unqiquely associate the user and email.
+// Claim attempts to uniquely associate the user and email.
 func (e *UserEmail) Claim(c appengine.Context) error {
 	err := datastore.RunInTransaction(c, func(c appengine.Context) error {
 		key := e.key(c)

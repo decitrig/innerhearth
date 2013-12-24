@@ -57,7 +57,7 @@ var (
 	}
 )
 
-// provider represents an OpenID provider which we use for login.
+// Provider represents an OpenID provider which we use for login.
 type Provider struct {
 	// The display name of the provider.
 	Name string

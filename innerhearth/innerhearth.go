@@ -19,16 +19,16 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
 	"appengine"
 	"appengine/user"
 
-	_ "github.com/decitrig/innerhearth/login"
+	"github.com/decitrig/innerhearth/auth"
 	"github.com/decitrig/innerhearth/model"
 	_ "github.com/decitrig/innerhearth/registration"
+	"github.com/decitrig/innerhearth/scheduling"
 	_ "github.com/decitrig/innerhearth/teacher"
 	"github.com/decitrig/innerhearth/webapp"
 )
@@ -59,8 +59,6 @@ func staticTemplate(file string) webapp.HandlerFunc {
 func init() {
 	http.Handle("/", webapp.Router)
 	webapp.HandleFunc("/", index)
-	webapp.HandleFunc("/login", login)
-	webapp.HandleFunc("/_ah/login_required", login)
 	webapp.HandleFunc("/class", class)
 	if appengine.IsDevAppServer() {
 		webapp.HandleFunc("/error", throwError)
@@ -99,70 +97,42 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Sessions":      sessions,
 		"YinYogassage":  model.ListYinYogassage(c, time.Now()),
 	}
-	if u := webapp.GetCurrentUser(r); u != nil {
+	if u := user.Current(c); u != nil {
+		account, err := auth.LookupUser(c, u)
+		switch {
+		case err == nil:
+			break
+		case err == auth.ErrUserNotFound:
+			webapp.RedirectToLogin(w, r, "/")
+			return nil
+		default:
+			return webapp.InternalError(err)
+		}
 		data["LoggedIn"] = true
-		data["User"] = u
+		data["User"] = account
 		if url, err := user.LogoutURL(c, "/"); err != nil {
 			return webapp.InternalError(fmt.Errorf("Error creating logout url: %s", err))
 		} else {
 			data["LogoutURL"] = url
 		}
-		data["Staff"] = model.GetStaff(c, u) != nil
-		data["Teacher"] = model.GetTeacher(c, u) != nil
+		if staff, err := scheduling.LookupStaff(c, account); err != nil {
+			if err != scheduling.ErrUserIsNotStaff {
+				c.Errorf("Failed to lookup staff for %q: %s", err)
+			}
+		} else {
+			data["Staff"] = staff
+		}
+		/*
+			data["Teacher"] = model.GetTeacher(c, u) != nil
+		*/
 		data["Admin"] = user.IsAdmin(c)
 
-		registrar := model.NewRegistrar(c, u)
-		data["Registrations"] = registrar.ListRegisteredClasses(registrar.ListRegistrations())
+		/*
+			registrar := model.NewRegistrar(c, u)
+			data["Registrations"] = registrar.ListRegisteredClasses(registrar.ListRegistrations())
+		*/
 	}
 	if err := indexPage.Execute(w, data); err != nil {
-		return webapp.InternalError(err)
-	}
-	return nil
-}
-
-type directProvider struct {
-	Name       string
-	Identifier string
-}
-
-type directProviderLink struct {
-	Name string
-	URL  string
-}
-
-var (
-	directProviders = []directProvider{
-		{"Google", "https://www.google.com/accounts/o8/id"},
-		{"Yahoo", "yahoo.com"},
-		{"AOL", "aol.com"},
-		{"MyOpenID", "myopenid.com"},
-	}
-)
-
-func login(w http.ResponseWriter, r *http.Request) *webapp.Error {
-	redirect, err := url.Parse("/login/account")
-	if err != nil {
-		return webapp.InternalError(err)
-	}
-	q := redirect.Query()
-	q.Set("continue", webapp.PathOrRoot(r.FormValue("continue")))
-	redirect.RawQuery = q.Encode()
-	c := appengine.NewContext(r)
-	directProviderLinks := []*directProviderLink{}
-	for _, provider := range directProviders {
-		url, err := user.LoginURLFederated(c, redirect.String(), provider.Identifier)
-		if err != nil {
-			c.Errorf("Error creating URL for %s: %s", provider.Name, err)
-			continue
-		}
-		directProviderLinks = append(directProviderLinks, &directProviderLink{
-			Name: provider.Name,
-			URL:  url,
-		})
-	}
-	if err := loginPage.Execute(w, map[string]interface{}{
-		"DirectProviders": directProviderLinks,
-	}); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

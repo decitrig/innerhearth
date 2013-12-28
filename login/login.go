@@ -72,7 +72,6 @@ var (
 		"Flickr":    "flickr.com/{{.}}",
 		"WordPress": "{{.}}.wordpress.com",
 	}
-	loginPage          = template.Must(template.ParseFiles("templates/login/login.html"))
 	newAccountPage     = template.Must(template.ParseFiles("templates/base.html", "templates/new-account.html"))
 	accountConfirmPage = template.Must(template.ParseFiles("templates/login/confirm-account.html"))
 	adminPage          = template.Must(template.ParseFiles("templates/login/admin.html"))
@@ -80,34 +79,12 @@ var (
 )
 
 func init() {
-	//	handle("/_ah/login_required", login)
 	handle("/login/account", accountCheck)
 	handle("/login/account/new", postOnly(createNewAccount))
 	handle("/login/confirm", confirmNewAccount)
 	handle("/login/confirm/resend", resendConfirmEmail)
 	handle("/login/admin", admin)
 	handle("/login/admin/edit-role", editUserRole)
-}
-
-func login(w http.ResponseWriter, r *http.Request) error {
-	c := appengine.NewContext(r)
-	target := r.FormValue("continue")
-	if target == "" {
-		target = "/"
-	}
-	providerMap := make(map[string]string, 0)
-	for name, id := range directProviders {
-		if login, err := user.LoginURLFederated(c, "/login/account?continue="+target, id); err == nil {
-			providerMap[name] = login
-		}
-	}
-	data := map[string]interface{}{
-		"DirectProviders": providerMap,
-	}
-	if err := loginPage.Execute(w, data); err != nil {
-		return fmt.Errorf("Error rendering login page template: %s", err)
-	}
-	return nil
 }
 
 func admin(w http.ResponseWriter, r *http.Request) error {

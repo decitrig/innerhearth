@@ -108,6 +108,7 @@ func Handle(path string, h Handler) {
 	Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Serve(w, r); err != nil {
 			c := appengine.NewContext(r)
+			c.Errorf(err.Error())
 			log, err2 := NewErrorLog(c, r, err.Error())
 			if err2 != nil {
 				c.Criticalf("Failed to persist error log: %s", err2)

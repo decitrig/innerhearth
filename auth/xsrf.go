@@ -11,6 +11,10 @@ import (
 	"appengine/datastore"
 )
 
+const (
+	TokenFieldName = "xsrf_token"
+)
+
 // Errors returned from Token-related functions.
 var (
 	ErrTokenNotFound = fmt.Errorf("token not found")

@@ -7,8 +7,8 @@
 <div class="section">
 <h2>Log in with...</h2>
 <ul class="login-providers">
-{{range .DirectProviders}}
-<li class="login-provider"><a href="{{.URL}}">{{.Name}}</a>&trade;
+{{range .LoginLinks}}
+<li class="login-provider"><a href="{{.URL}}">{{.ProviderName}}</a>&trade;
 {{end}}
 </ul>
 <p><strong>Note:</strong> Inner Hearth Yoga is neither affiliated with nor endorsed by any of the above entities.</p>

@@ -26,12 +26,12 @@ func NewTeacher(user *auth.UserAccount) *Teacher {
 	}
 }
 
-// ByName sorts teachers in alphabetical order by first and then last name.
-type ByName []*Teacher
+// TeachersByName sorts teachers in alphabetical order by first and then last name.
+type TeachersByName []*Teacher
 
-func (l ByName) Len() int      { return len(l) }
-func (l ByName) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
-func (l ByName) Less(i, j int) bool {
+func (l TeachersByName) Len() int      { return len(l) }
+func (l TeachersByName) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l TeachersByName) Less(i, j int) bool {
 	if l[i].FirstName != l[j].FirstName {
 		return l[i].FirstName < l[j].FirstName
 	}

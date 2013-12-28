@@ -85,8 +85,8 @@ func TestTeacher(t *testing.T) {
 	if len(allTeachers) != len(expected) {
 		t.Fatalf("Wrong number of teachers returned; %d vs %d", len(allTeachers), len(expected))
 	}
-	sort.Sort(ByName(expected))
-	sort.Sort(ByName(allTeachers))
+	sort.Sort(TeachersByName(expected))
+	sort.Sort(TeachersByName(allTeachers))
 	for i, want := range expected {
 		if got := allTeachers[i]; !reflect.DeepEqual(got, want) {
 			t.Errorf("Wrong teacher at %d; %v vs %v", i, got, want)

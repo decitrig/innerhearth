@@ -24,10 +24,6 @@ var (
 )
 
 var (
-	noReply = "no-reply@innerhearthyoga.appspotmail.com"
-)
-
-var (
 	delayedConfirmAccount = delay.Func("confirmAccount", func(c appengine.Context, user UserAccount) error {
 		buf := &bytes.Buffer{}
 		if err := accountConfirmationEmail.Execute(buf, user); err != nil {

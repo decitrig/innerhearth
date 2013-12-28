@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"appengine/aetest"
+	"appengine/datastore"
 	"appengine/user"
 )
 
@@ -87,6 +88,54 @@ func TestStoreAndLookup(t *testing.T) {
 	}
 	if !usersEqual(ihu, found) {
 		t.Errorf("Found wrong user for %q; %v vs %v", ihu.Email, found, ihu)
+	}
+}
+
+func TestConvertOldUser(t *testing.T) {
+	info := UserInfo{"First", "Last", "foo@foo.com", "5551212"}
+	u := &user.User{
+		ID:                "fooID",
+		Email:             info.Email,
+		FederatedIdentity: "0xdeadbeef",
+	}
+	account, err := NewUserAccount(u, info)
+	if err != nil {
+		t.Fatalf("Failed to create user: %s", err)
+	}
+	c, err := aetest.NewContext(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	old := &UserAccount{}
+	*old = *account
+	old.AccountID = u.ID
+	oldKey := datastore.NewKey(c, "UserAccount", u.ID, 0, nil)
+	if _, err := datastore.Put(c, oldKey, old); err != nil {
+		t.Fatalf("Failed to store user under old key %q: %s", oldKey.StringID(), err)
+	}
+	if _, err := LookupUser(c, u); err != ErrUserNotFound {
+		t.Errorf("Should not have found user under new key")
+	} else if err != ErrUserNotFound {
+		t.Fatalf("Error looking up user: %s", err)
+	}
+	if got, err := LookupOldUser(c, u); err != nil {
+		t.Fatalf("Error looking up user: %s", err)
+	} else if !usersEqual(got, old) {
+		t.Errorf("Wrong old user found: %v vs %v", got, account)
+	}
+	if err := old.ConvertToNewUser(c, u); err != nil {
+		t.Fatalf("Failed to convert user: %s", err)
+	}
+	expected := &UserAccount{}
+	*expected = *account
+	if got, err := LookupUser(c, u); err != nil {
+		t.Fatalf("Failed to find new user: %s", err)
+	} else if !usersEqual(got, expected) {
+		t.Errorf("Wrong user found; %v vs %v", got, expected)
+	}
+	if _, err := LookupOldUser(c, u); err != ErrUserNotFound {
+		t.Errorf("Should have deleted old user.")
 	}
 }
 

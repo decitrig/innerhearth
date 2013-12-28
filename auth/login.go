@@ -173,6 +173,11 @@ func LookupUser(c appengine.Context, u *user.User) (*UserAccount, error) {
 	return lookupUserByKey(c, userKeyFromFederatedIdentity(c, u))
 }
 
+// LookupOldUser returns the UserAccount stored under the ID of the given user.
+func LookupOldUser(c appengine.Context, u *user.User) (*UserAccount, error) {
+	return LookupUserByID(c, u.ID)
+}
+
 // LookupUserByID returns the InnerHearthUser with the given ID, if any.
 func LookupUserByID(c appengine.Context, id string) (*UserAccount, error) {
 	return lookupUserByKey(c, userKeyFromID(c, id))
@@ -200,6 +205,32 @@ func (u *UserAccount) Store(c appengine.Context) error {
 	key := u.key(c)
 	if _, err := datastore.Put(c, key, u); err != nil {
 		return fmt.Errorf("failed to store user %q: %s", u.AccountID, err)
+	}
+	return nil
+}
+
+// ConvertToNewUser transactionally rewrites the UserAccount under the
+// correct (i.e., obfuscated) key.
+func (a *UserAccount) ConvertToNewUser(c appengine.Context, u *user.User) error {
+	a.AccountID = SaltAndHashString(u.FederatedIdentity)
+	var txnErr error
+	for i := 0; i < 10; i++ {
+		txnErr = datastore.RunInTransaction(c, func(c appengine.Context) error {
+			if err := a.Store(c); err != nil {
+				return err
+			}
+			oldKey := datastore.NewKey(c, "UserAccount", u.ID, 0, nil)
+			if err := datastore.Delete(c, oldKey); err != nil {
+				return err
+			}
+			return nil
+		}, &datastore.TransactionOptions{XG: true})
+		if txnErr != datastore.ErrConcurrentTransaction {
+			break
+		}
+	}
+	if txnErr != nil {
+		return txnErr
 	}
 	return nil
 }

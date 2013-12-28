@@ -81,7 +81,7 @@ func handleFunc(path string, fn webapp.HandlerFunc) {
 
 func init() {
 	for url, fn := range map[string]webapp.HandlerFunc{
-		"/staff":                      staff,
+		//		"/staff":                      staff,
 		"/staff/add-teacher":          addTeacher,
 		"/staff/add-class":            addClass,
 		"/staff/add-session":          addSession,

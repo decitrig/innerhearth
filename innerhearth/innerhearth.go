@@ -26,13 +26,11 @@ import (
 	"appengine"
 	"appengine/user"
 
-	"github.com/decitrig/innerhearth/model"
-	"github.com/decitrig/innerhearth/webapp"
-
 	_ "github.com/decitrig/innerhearth/login"
+	"github.com/decitrig/innerhearth/model"
 	_ "github.com/decitrig/innerhearth/registration"
-	_ "github.com/decitrig/innerhearth/staff"
 	_ "github.com/decitrig/innerhearth/teacher"
+	"github.com/decitrig/innerhearth/webapp"
 )
 
 var (

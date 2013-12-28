@@ -19,7 +19,7 @@ type Teacher struct {
 }
 
 // Creates a new Teacher associated with the given user.
-func NewTeacher(user *auth.InnerHearthUser) *Teacher {
+func NewTeacher(user *auth.UserAccount) *Teacher {
 	return &Teacher{
 		AccountID: user.AccountID,
 		UserInfo:  user.UserInfo,
@@ -58,7 +58,7 @@ func lookupTeacher(c appengine.Context, key *datastore.Key) (*Teacher, error) {
 }
 
 // LookupTeacher returns the Teacher associated with the given user, if one exists.
-func LookupTeacher(c appengine.Context, user *auth.InnerHearthUser) (*Teacher, error) {
+func LookupTeacher(c appengine.Context, user *auth.UserAccount) (*Teacher, error) {
 	return lookupTeacher(c, teacherKeyFromID(c, user.AccountID))
 }
 

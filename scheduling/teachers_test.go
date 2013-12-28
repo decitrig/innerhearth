@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewTeacher(t *testing.T) {
-	ihu := &auth.InnerHearthUser{
+	ihu := &auth.UserAccount{
 		AccountID: "0xdeadbeef",
 		UserInfo: auth.UserInfo{
 			FirstName: "First",
@@ -28,7 +28,7 @@ func TestNewTeacher(t *testing.T) {
 	}
 }
 
-func usersToTeachers(users []*auth.InnerHearthUser) []*Teacher {
+func usersToTeachers(users []*auth.UserAccount) []*Teacher {
 	teachers := make([]*Teacher, len(users))
 	for i, user := range users {
 		teachers[i] = NewTeacher(user)
@@ -37,7 +37,7 @@ func usersToTeachers(users []*auth.InnerHearthUser) []*Teacher {
 }
 
 func TestTeacher(t *testing.T) {
-	users := []*auth.InnerHearthUser{{
+	users := []*auth.UserAccount{{
 		AccountID: "0x1",
 		UserInfo: auth.UserInfo{
 			FirstName: "a",

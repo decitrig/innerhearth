@@ -81,8 +81,7 @@ func handleFunc(path string, fn webapp.HandlerFunc) {
 
 func init() {
 	for url, fn := range map[string]webapp.HandlerFunc{
-		//		"/staff":                      staff,
-		"/staff/add-teacher":          addTeacher,
+		// "/staff/add-teacher":          addTeacher,
 		"/staff/add-class":            addClass,
 		"/staff/add-session":          addSession,
 		"/staff/delete-class":         deleteClass,
@@ -97,22 +96,6 @@ func init() {
 	} {
 		handleFunc(url, fn)
 	}
-}
-
-func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
-	c := appengine.NewContext(r)
-	now := time.Now()
-	sessions := model.ListSessions(c, now)
-	data := map[string]interface{}{
-		"Teachers":            model.ListTeachers(c),
-		"Announcements":       model.ListAnnouncements(c),
-		"Sessions":            sessions,
-		"YinYogassageClasses": model.ListYinYogassage(c, now),
-	}
-	if err := staffPage.Execute(w, data); err != nil {
-		return webapp.InternalError(err)
-	}
-	return nil
 }
 
 func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {

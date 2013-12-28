@@ -2,7 +2,7 @@
 <div class="section">
   <form method="post">
     <p>Add "{{.User.Email}}" as a teacher?</p>
-    {{template "XSRFTokenInput" .}}
+    {{template "XSRFTokenInput" .Token}}
     <button>Add Teacher</button>
   </form>
 </div>

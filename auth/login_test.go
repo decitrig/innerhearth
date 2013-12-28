@@ -9,13 +9,13 @@ import (
 	"appengine/user"
 )
 
-func TestNewInnerHearthUser(t *testing.T) {
+func TestNewUserAccount(t *testing.T) {
 	info := UserInfo{"First", "Last", "foo@foo.com", "5551212"}
 	u := &user.User{
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ihu, err := NewInnerHearthUser(u, info)
+	ihu, err := NewUserAccount(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
@@ -33,7 +33,7 @@ func TestNewInnerHearthUser(t *testing.T) {
 	}
 }
 
-func usersEqual(u, v *InnerHearthUser) bool {
+func usersEqual(u, v *UserAccount) bool {
 	if u.AccountID != v.AccountID {
 		return false
 	}
@@ -55,7 +55,7 @@ func TestStoreAndLookup(t *testing.T) {
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ihu, err := NewInnerHearthUser(u, info)
+	ihu, err := NewUserAccount(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
@@ -96,7 +96,7 @@ func TestConfirmation(t *testing.T) {
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ihu, err := NewInnerHearthUser(u, info)
+	ihu, err := NewUserAccount(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
@@ -131,7 +131,7 @@ func TestConfirmation(t *testing.T) {
 	}
 }
 
-func TestUserEmail(t *testing.T) {
+func TestClaimedEmail(t *testing.T) {
 	c, err := aetest.NewContext(nil)
 	if err != nil {
 		t.Fatal(err)

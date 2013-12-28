@@ -28,7 +28,7 @@ var (
 )
 
 var (
-	delayedConfirmAccount = delay.Func("confirmAccount", func(c appengine.Context, user InnerHearthUser) error {
+	delayedConfirmAccount = delay.Func("confirmAccount", func(c appengine.Context, user UserAccount) error {
 		buf := &bytes.Buffer{}
 		if err := accountConfirmationEmail.Execute(buf, user); err != nil {
 			c.Criticalf("Couldn't execute account confirm email: %s", err)
@@ -105,8 +105,8 @@ type UserInfo struct {
 	Phone     string `datastore: ",noindex"`
 }
 
-// An InnerHearthUser is a registered user of the site.
-type InnerHearthUser struct {
+// A UserAccount stores data about a registered user of the site.
+type UserAccount struct {
 	AccountID string `datastore: "-"`
 
 	UserInfo
@@ -123,14 +123,13 @@ func newConfirmationCode() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// NewInnerHearthUser creates a new InnerHearthUser for the given
-// user.
-func NewInnerHearthUser(u *user.User, info UserInfo) (*InnerHearthUser, error) {
+// NewUserAccount creates a new UserAccount for the given user.
+func NewUserAccount(u *user.User, info UserInfo) (*UserAccount, error) {
 	confirmCode, err := newConfirmationCode()
 	if err != nil {
 		return nil, fmt.Errorf("couldnt' create confirmation code: %s", err)
 	}
-	return &InnerHearthUser{
+	return &UserAccount{
 		AccountID:        SaltAndHashString(u.FederatedIdentity),
 		UserInfo:         info,
 		ConfirmationCode: confirmCode,
@@ -138,24 +137,35 @@ func NewInnerHearthUser(u *user.User, info UserInfo) (*InnerHearthUser, error) {
 }
 
 func userKeyFromID(c appengine.Context, id string) *datastore.Key {
-	return datastore.NewKey(c, "InnerHearthUser", id, 0, nil)
+	return datastore.NewKey(c, "UserAccount", id, 0, nil)
 }
 
 func userKeyFromFederatedIdentity(c appengine.Context, u *user.User) *datastore.Key {
 	return userKeyFromID(c, SaltAndHashString(u.FederatedIdentity))
 }
 
-func (u *InnerHearthUser) key(c appengine.Context) *datastore.Key {
+func (u *UserAccount) key(c appengine.Context) *datastore.Key {
 	return userKeyFromID(c, u.AccountID)
 }
 
-func lookupUserByKey(c appengine.Context, key *datastore.Key) (*InnerHearthUser, error) {
-	ihu := &InnerHearthUser{}
+func isFieldMismatch(err error) bool {
+	_, ok := err.(*datastore.ErrFieldMismatch)
+	return ok
+}
+
+func lookupUserByKey(c appengine.Context, key *datastore.Key) (*UserAccount, error) {
+	ihu := &UserAccount{}
 	if err := datastore.Get(c, key, ihu); err != nil {
-		if err != datastore.ErrNoSuchEntity {
+		switch {
+		case err == datastore.ErrNoSuchEntity:
+			return nil, ErrUserNotFound
+		case isFieldMismatch(err):
+			c.Warningf("Type mismatch on user %q: %+v", key.StringID(), err)
+			return ihu, nil
+		default:
 			c.Errorf("Failed looking up user %q: %s", key.StringID(), err)
+			return nil, ErrUserNotFound
 		}
-		return nil, ErrUserNotFound
 	}
 	ihu.AccountID = key.StringID()
 	return ihu, nil
@@ -163,18 +173,18 @@ func lookupUserByKey(c appengine.Context, key *datastore.Key) (*InnerHearthUser,
 
 // LookupUser returns the InnerHearthUser for the given AppEngine
 // user's federated identity, if any.
-func LookupUser(c appengine.Context, u *user.User) (*InnerHearthUser, error) {
+func LookupUser(c appengine.Context, u *user.User) (*UserAccount, error) {
 	return lookupUserByKey(c, userKeyFromFederatedIdentity(c, u))
 }
 
 // LookupUserByID returns the InnerHearthUser with the given ID, if any.
-func LookupUserByID(c appengine.Context, id string) (*InnerHearthUser, error) {
+func LookupUserByID(c appengine.Context, id string) (*UserAccount, error) {
 	return lookupUserByKey(c, userKeyFromID(c, id))
 }
 
 // LookupUserByEmail returns the InnerHearthUser with the given email, if any.
-func LookupUserByEmail(c appengine.Context, email string) (*InnerHearthUser, error) {
-	q := datastore.NewQuery("InnerHearthUser").
+func LookupUserByEmail(c appengine.Context, email string) (*UserAccount, error) {
+	q := datastore.NewQuery("UserAccount").
 		KeysOnly().
 		Filter("Email =", email).
 		Limit(1)
@@ -190,7 +200,7 @@ func LookupUserByEmail(c appengine.Context, email string) (*InnerHearthUser, err
 }
 
 // Store persists the InnerHearthUser to the datastore.
-func (u *InnerHearthUser) Store(c appengine.Context) error {
+func (u *UserAccount) Store(c appengine.Context) error {
 	key := u.key(c)
 	if _, err := datastore.Put(c, key, u); err != nil {
 		return fmt.Errorf("failed to store user %q: %s", u.AccountID, err)
@@ -200,7 +210,7 @@ func (u *InnerHearthUser) Store(c appengine.Context) error {
 
 // SendConfirmation schedules a task to email a confirmation request
 // to a new user.
-func (u *InnerHearthUser) SendConfirmation(c appengine.Context) error {
+func (u *UserAccount) SendConfirmation(c appengine.Context) error {
 	t, err := delayedConfirmAccount.Task(*u)
 	if err != nil {
 		return fmt.Errorf("error getting function task: %s", err)
@@ -216,7 +226,7 @@ func (u *InnerHearthUser) SendConfirmation(c appengine.Context) error {
 
 // Confirm marks the user as having confirmed their registration and
 // stores the confirmation time back to the datastore.
-func (u *InnerHearthUser) Confirm(c appengine.Context, code string, now time.Time) error {
+func (u *UserAccount) Confirm(c appengine.Context, code string, now time.Time) error {
 	if u.ConfirmationCode == "" {
 		return ErrAlreadyConfirmed
 	}
@@ -229,28 +239,28 @@ func (u *InnerHearthUser) Confirm(c appengine.Context, code string, now time.Tim
 }
 
 // A UserEmail associates a user ID with an email address, enforcing uniqueness among email addresses.
-type UserEmail struct {
-	user  *datastore.Key
-	Email string
+type ClaimedEmail struct {
+	ClaimedBy *datastore.Key
+	Email     string
 }
 
 // Creates a new UserEmail struct associating the user with their email.
-func NewUserEmail(c appengine.Context, u *user.User, email string) *UserEmail {
-	return &UserEmail{
-		user:  userKeyFromFederatedIdentity(c, u),
-		Email: email,
+func NewUserEmail(c appengine.Context, u *user.User, email string) *ClaimedEmail {
+	return &ClaimedEmail{
+		ClaimedBy: userKeyFromFederatedIdentity(c, u),
+		Email:     email,
 	}
 }
 
-func (e *UserEmail) key(c appengine.Context) *datastore.Key {
-	return datastore.NewKey(c, "UserEmail", e.Email, 0, nil)
+func (e *ClaimedEmail) key(c appengine.Context) *datastore.Key {
+	return datastore.NewKey(c, "ClaimedEmail", e.Email, 0, nil)
 }
 
 // Claim attempts to uniquely associate the user and email.
-func (e *UserEmail) Claim(c appengine.Context) error {
+func (e *ClaimedEmail) Claim(c appengine.Context) error {
 	err := datastore.RunInTransaction(c, func(c appengine.Context) error {
 		key := e.key(c)
-		old := &UserEmail{}
+		old := &ClaimedEmail{}
 		lookupErr := datastore.Get(c, key, old)
 		switch {
 		case lookupErr == nil:

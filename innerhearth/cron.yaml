@@ -1,0 +1,4 @@
+cron:
+- description: Delete expired xsrf tokens.
+  url: /task/delete-expired-tokens
+  schedule: every 24 hours

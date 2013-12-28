@@ -62,6 +62,9 @@ func init() {
 	webapp.HandleFunc("/login", login)
 	webapp.HandleFunc("/_ah/login_required", login)
 	webapp.HandleFunc("/class", class)
+	if appengine.IsDevAppServer() {
+		webapp.HandleFunc("/error", throwError)
+	}
 
 	for url, template := range map[string]string{
 		"/about":           "templates/about.html",
@@ -190,4 +193,8 @@ func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		return webapp.InternalError(err)
 	}
 	return nil
+}
+
+func throwError(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	return webapp.InternalError(fmt.Errorf("this is an intentional error"))
 }

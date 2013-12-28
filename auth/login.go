@@ -244,8 +244,8 @@ type ClaimedEmail struct {
 	Email     string
 }
 
-// Creates a new UserEmail struct associating the user with their email.
-func NewUserEmail(c appengine.Context, u *user.User, email string) *ClaimedEmail {
+// Creates a new ClaimedEmail struct associating the user with their email.
+func NewClaimedEmail(c appengine.Context, u *user.User, email string) *ClaimedEmail {
 	return &ClaimedEmail{
 		ClaimedBy: userKeyFromFederatedIdentity(c, u),
 		Email:     email,

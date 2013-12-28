@@ -140,7 +140,7 @@ func TestClaimedEmail(t *testing.T) {
 	u := &user.User{
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ue := NewUserEmail(c, u, "test@example.com")
+	ue := NewClaimedEmail(c, u, "test@example.com")
 	if err := ue.Claim(c); err != nil {
 		t.Fatalf("Failed to claim user email %q: %s", ue.Email, err)
 	}

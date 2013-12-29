@@ -76,6 +76,17 @@ func (s *Staff) Store(c appengine.Context) error {
 	return nil
 }
 
+// AddAnnouncement persists an Announcement entity to the datastore.
+func (s *Staff) AddAnnouncement(c appengine.Context, announcement *Announcement) error {
+	iKey := datastore.NewIncompleteKey(c, "Announcement", nil)
+	key, err := datastore.Put(c, iKey, announcement)
+	if err != nil {
+		return err
+	}
+	announcement.ID = key.IntID()
+	return nil
+}
+
 // AllStaff returns a list of all the current staff members.
 func AllStaff(c appengine.Context) ([]*Staff, error) {
 	q := datastore.NewQuery("Staff").

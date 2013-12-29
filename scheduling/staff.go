@@ -76,6 +76,14 @@ func (s *Staff) Store(c appengine.Context) error {
 	return nil
 }
 
+// PutTeacher persists a Teacher entity to the datastore.
+func (s *Staff) PutTeacher(c appengine.Context, teacher *Teacher) error {
+	if _, err := datastore.Put(c, teacher.key(c), teacher); err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddAnnouncement persists an Announcement entity to the datastore.
 func (s *Staff) AddAnnouncement(c appengine.Context, announcement *Announcement) error {
 	iKey := datastore.NewIncompleteKey(c, "Announcement", nil)

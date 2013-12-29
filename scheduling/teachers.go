@@ -67,15 +67,6 @@ func LookupTeacherByID(c appengine.Context, id string) (*Teacher, error) {
 	return lookupTeacher(c, teacherKeyFromID(c, id))
 }
 
-// Store persists the Teacher to the datastore.
-func (t *Teacher) Store(c appengine.Context) error {
-	key := t.key(c)
-	if _, err := datastore.Put(c, key, t); err != nil {
-		return err
-	}
-	return nil
-}
-
 // AllTeachers returns a list of all the Teachers which currently exist.
 func AllTeachers(c appengine.Context) []*Teacher {
 	q := datastore.NewQuery("Teacher").

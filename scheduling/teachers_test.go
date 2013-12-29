@@ -10,32 +10,6 @@ import (
 	"github.com/decitrig/innerhearth/auth"
 )
 
-func TestNewTeacher(t *testing.T) {
-	ihu := &auth.UserAccount{
-		AccountID: "0xdeadbeef",
-		UserInfo: auth.UserInfo{
-			FirstName: "First",
-			LastName:  "last",
-			Email:     "foo@bar.com",
-		},
-	}
-	expected := &Teacher{
-		AccountID: ihu.AccountID,
-		UserInfo:  ihu.UserInfo,
-	}
-	if teacher := NewTeacher(ihu); !reflect.DeepEqual(expected, teacher) {
-		t.Errorf("Wrong teacher created; %v vs %v", teacher, expected)
-	}
-}
-
-func usersToTeachers(users []*auth.UserAccount) []*Teacher {
-	teachers := make([]*Teacher, len(users))
-	for i, user := range users {
-		teachers[i] = NewTeacher(user)
-	}
-	return teachers
-}
-
 func TestTeacher(t *testing.T) {
 	users := []*auth.UserAccount{{
 		AccountID: "0x1",
@@ -61,12 +35,13 @@ func TestTeacher(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
+	staff := &Staff{"0x1", auth.UserInfo{"staffer", "smith", "foo@foo.com", ""}}
 	for i, user := range users {
 		if _, err := LookupTeacher(c, user); err == nil {
 			t.Errorf("Shouldn't have found teacher for user %d", i)
 		}
 		teacher := NewTeacher(user)
-		if err := teacher.Store(c); err != nil {
+		if err := staff.PutTeacher(c, teacher); err != nil {
 			t.Fatalf("Failed to store teacher %d: %s", i, err)
 		}
 		if found, err := LookupTeacher(c, user); err != nil {
@@ -92,4 +67,12 @@ func TestTeacher(t *testing.T) {
 			t.Errorf("Wrong teacher at %d; %v vs %v", i, got, want)
 		}
 	}
+}
+
+func usersToTeachers(users []*auth.UserAccount) []*Teacher {
+	teachers := make([]*Teacher, len(users))
+	for i, user := range users {
+		teachers[i] = NewTeacher(user)
+	}
+	return teachers
 }

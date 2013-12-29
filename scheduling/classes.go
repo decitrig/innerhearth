@@ -52,17 +52,6 @@ func ActiveSessions(c appengine.Context, now time.Time) ([]*Session, error) {
 	return sessions, nil
 }
 
-// Store persists a new session into the datastore.
-func (s *Session) Insert(c appengine.Context) error {
-	incompleteKey := datastore.NewIncompleteKey(c, "Session", nil)
-	key, err := datastore.Put(c, incompleteKey, s)
-	if err != nil {
-		return err
-	}
-	s.ID = key.IntID()
-	return nil
-}
-
 // Classes returns a list of all the classes within the session.
 func (s *Session) Classes(c appengine.Context) ([]*Class, error) {
 	q := datastore.NewQuery("Class").
@@ -115,23 +104,6 @@ func ClassByID(c appengine.Context, id int64) (*Class, error) {
 	}
 	class.ID = id
 	return class, nil
-}
-
-func (c *Class) Insert(ctx appengine.Context) error {
-	incompleteKey := datastore.NewIncompleteKey(ctx, "Class", nil)
-	key, err := datastore.Put(ctx, incompleteKey, c)
-	if err != nil {
-		return err
-	}
-	c.ID = key.IntID()
-	return nil
-}
-
-func (c *Class) Update(ctx appengine.Context) error {
-	if _, err := datastore.Put(ctx, classKeyFromID(ctx, c.ID), c); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Classes wraps a list of Class entities for sorting.

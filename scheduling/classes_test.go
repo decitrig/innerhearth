@@ -37,7 +37,7 @@ func TestSessions(t *testing.T) {
 	}
 	defer c.Close()
 	for i, s := range sessions {
-		if err := s.Insert(c); err != nil {
+		if err := stafferSmith.AddSession(c, s); err != nil {
 			t.Fatalf("Failed to store session %d: %s", i, err)
 		}
 		if s.ID <= 0 {
@@ -66,7 +66,7 @@ func TestSessions(t *testing.T) {
 	}
 }
 
-func TestSessionClasses(t *testing.T) {
+func TestClasses(t *testing.T) {
 	session1 := &Session{1, "session1", unix(10), unix(100)}
 	session2 := &Session{2, "session2", unix(10), unix(100)}
 	classes := []*Class{{
@@ -88,7 +88,7 @@ func TestSessionClasses(t *testing.T) {
 	}
 	defer c.Close()
 	for i, class := range classes {
-		if err := class.Insert(c); err != nil {
+		if err := stafferSmith.AddClass(c, class); err != nil {
 			t.Fatalf("Failed to store class %d: %s", i, err)
 		}
 		if class.ID <= 0 {
@@ -117,7 +117,7 @@ func TestSessionClasses(t *testing.T) {
 	}
 	class := classes[0]
 	class.Title = "new title"
-	if err := class.Update(c); err != nil {
+	if err := stafferSmith.UpdateClass(c, class); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := ClassByID(c, class.ID); err != nil {

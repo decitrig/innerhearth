@@ -84,6 +84,37 @@ func (s *Staff) PutTeacher(c appengine.Context, teacher *Teacher) error {
 	return nil
 }
 
+// AddSession writes a new Session to the datastore. It will not
+// overwrite any existing Session.
+func (s *Staff) AddSession(c appengine.Context, session *Session) error {
+	incompleteKey := datastore.NewIncompleteKey(c, "Session", nil)
+	key, err := datastore.Put(c, incompleteKey, session)
+	if err != nil {
+		return err
+	}
+	session.ID = key.IntID()
+	return nil
+}
+
+// AddClass inserts a new Class into the datastore. It will not overwrite any existing Class.
+func (s *Staff) AddClass(c appengine.Context, class *Class) error {
+	incompleteKey := datastore.NewIncompleteKey(c, "Class", nil)
+	key, err := datastore.Put(c, incompleteKey, class)
+	if err != nil {
+		return err
+	}
+	class.ID = key.IntID()
+	return nil
+}
+
+// UpdateClass overwrites an existing Class entity with new data.
+func (s *Staff) UpdateClass(c appengine.Context, class *Class) error {
+	if _, err := datastore.Put(c, classKeyFromID(c, class.ID), class); err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddAnnouncement persists an Announcement entity to the datastore.
 func (s *Staff) AddAnnouncement(c appengine.Context, announcement *Announcement) error {
 	iKey := datastore.NewIncompleteKey(c, "Announcement", nil)

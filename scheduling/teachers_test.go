@@ -35,13 +35,12 @@ func TestTeacher(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	staff := &Staff{"0x1", auth.UserInfo{"staffer", "smith", "foo@foo.com", ""}}
 	for i, user := range users {
 		if _, err := LookupTeacher(c, user); err == nil {
 			t.Errorf("Shouldn't have found teacher for user %d", i)
 		}
 		teacher := NewTeacher(user)
-		if err := staff.PutTeacher(c, teacher); err != nil {
+		if err := stafferSmith.PutTeacher(c, teacher); err != nil {
 			t.Fatalf("Failed to store teacher %d: %s", i, err)
 		}
 		if found, err := LookupTeacher(c, user); err != nil {

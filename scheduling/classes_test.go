@@ -24,10 +24,6 @@ func sessionsEqual(s1, s2 *Session) bool {
 	return true
 }
 
-func unix(seconds int64) time.Time {
-	return time.Unix(seconds, 0)
-}
-
 func TestSessions(t *testing.T) {
 	sessions := []*Session{
 		NewSession("foo", unix(1000), unix(10000)),

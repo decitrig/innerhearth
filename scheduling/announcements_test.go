@@ -7,8 +7,6 @@ import (
 
 	"appengine/aetest"
 	"appengine/datastore"
-
-	"github.com/decitrig/innerhearth/auth"
 )
 
 func TestAnnouncements(t *testing.T) {
@@ -24,9 +22,8 @@ func TestAnnouncements(t *testing.T) {
 		NewAnnouncement("a3", unix(3000)),
 		NewAnnouncement("a4", unix(500)),
 	}
-	staffer := &Staff{"0x1", auth.UserInfo{"staffer", "smith", "foo@foo.com", ""}}
 	for i, a := range announcements {
-		if err := staffer.AddAnnouncement(c, a); err != nil {
+		if err := stafferSmith.AddAnnouncement(c, a); err != nil {
 			t.Fatalf("Failed to add announcement %d: %s", i, err)
 		}
 		if a.ID <= 0 {

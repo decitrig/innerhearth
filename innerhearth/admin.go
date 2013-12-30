@@ -9,7 +9,7 @@ import (
 	"appengine"
 
 	"github.com/decitrig/innerhearth/auth"
-	"github.com/decitrig/innerhearth/scheduling"
+	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
@@ -56,7 +56,7 @@ func addStaff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if !token.IsValid(r.FormValue("xsrf_token"), time.Now()) {
 			return webapp.UnauthorizedError(fmt.Errorf("Invalid XSRF token provided"))
 		}
-		staff := scheduling.NewStaff(account)
+		staff := staff.NewStaff(account)
 		if err := staff.Store(c); err != nil {
 			return webapp.InternalError(fmt.Errorf("Couldn't add %s as staff", account.Email))
 		}

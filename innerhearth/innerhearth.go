@@ -28,7 +28,7 @@ import (
 	"github.com/decitrig/innerhearth/auth"
 	"github.com/decitrig/innerhearth/model"
 	_ "github.com/decitrig/innerhearth/registration"
-	"github.com/decitrig/innerhearth/scheduling"
+	"github.com/decitrig/innerhearth/staff"
 	_ "github.com/decitrig/innerhearth/teacher"
 	"github.com/decitrig/innerhearth/webapp"
 )
@@ -115,7 +115,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		} else {
 			data["LogoutURL"] = url
 		}
-		if staff, err := scheduling.LookupStaff(c, account); err != nil {
+		if staff, err := staff.LookupStaff(c, account); err != nil {
 			if err != scheduling.ErrUserIsNotStaff {
 				c.Errorf("Failed to lookup staff for %q: %s", err)
 			}

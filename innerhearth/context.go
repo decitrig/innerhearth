@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/context"
 
 	"github.com/decitrig/innerhearth/auth"
-	"github.com/decitrig/innerhearth/scheduling"
+	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
@@ -32,14 +32,14 @@ func setUserContext(r *http.Request, account *auth.UserAccount) {
 	context.Set(r, userAccountKey, account)
 }
 
-func staffContext(r *http.Request) (*scheduling.Staff, bool) {
+func staffContext(r *http.Request) (*staff.Staff, bool) {
 	if staff, ok := context.GetOk(r, staffKey); ok {
 		return staff.(*scheduling.Staff), true
 	}
 	return nil, false
 }
 
-func setStaffContext(r *http.Request, staff *scheduling.Staff) {
+func setStaffContext(r *http.Request, staff *staff.Staff) {
 	context.Set(r, staffKey, staff)
 }
 

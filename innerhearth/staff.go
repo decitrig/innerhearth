@@ -10,7 +10,7 @@ import (
 	"appengine"
 
 	"github.com/decitrig/innerhearth/auth"
-	"github.com/decitrig/innerhearth/scheduling"
+	"github.com/decitrig/innerhearth/classes"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
@@ -46,7 +46,7 @@ func weekdayEquals(a, b time.Weekday) bool { return a == b }
 
 func init() {
 	for url, fn := range map[string]webapp.HandlerFunc{
-		"/staff":             staff,
+		"/staff":             staffPortal,
 		"/staff/add-teacher": addTeacher,
 		/*
 			"/staff/add-class":            addClass,
@@ -66,11 +66,11 @@ func init() {
 	}
 }
 
-func staff(w http.ResponseWriter, r *http.Request) *webapp.Error {
+func staffPortal(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	data := make(map[string]interface{})
-	teachers := scheduling.AllTeachers(c)
-	sort.Sort(scheduling.TeachersByName(teachers))
+	teachers := classes.AllTeachers(c)
+	sort.Sort(classes.TeachersByName(teachers))
 	data["Teachers"] = teachers
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -100,8 +100,8 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if !token.IsValid(r.FormValue("xsrf_token"), time.Now()) {
 			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
 		}
-		teacher := scheduling.NewTeacher(account)
-		if err := teacher.Store(c); err != nil {
+		teacher := classes.NewTeacher(account)
+		if err := staffAccount.PutTeacher(c, teacher); err != nil {
 			return webapp.InternalError(fmt.Errorf("Couldn't store teacher for %q: %s", account.Email, err))
 		}
 		http.Redirect(w, r, "/staff", http.StatusSeeOther)

@@ -51,12 +51,12 @@ func userContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 			webapp.RedirectToLogin(w, r, r.URL.Path)
 			return nil
 		}
-		account, err := auth.LookupUser(c, u)
+		account, err := auth.AccountForUser(c, u)
 		switch {
 		case err == nil:
 			break
 		case err == auth.ErrUserNotFound:
-			old, err := auth.LookupOldUser(c, u)
+			old, err := auth.OldAccountForUser(c, u)
 			switch {
 			case err == nil:
 				c.Infof("found old-style user: %v", old)
@@ -64,7 +64,7 @@ func userContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 					return webapp.InternalError(fmt.Errorf("failed to convert old user: %s", err))
 				}
 			case err == auth.ErrUserNotFound:
-				webapp.RedirectToLogin(w, r, r.URL.Path)
+				http.Redirect(w, r, "/login/new", http.StatusSeeOther)
 				return nil
 			default:
 				return webapp.InternalError(fmt.Errorf("failed to look up old user: %s", err))

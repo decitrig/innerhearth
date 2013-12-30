@@ -67,14 +67,15 @@ func TestLoadStoreTokens(t *testing.T) {
 	if err := tok.Store(c); err != nil {
 		t.Fatalf("Error storing token: %s", err)
 	}
-	tok1, err := LookupToken(c, userID, path)
+	tok1, err := TokenForRequest(c, userID, path)
 	if err != nil {
 		t.Fatalf("Error looking up token: %s", err)
 	}
 	if !reflect.DeepEqual(tok, tok1) {
 		t.Errorf("Tokens don't match; %v instead of %v", tok1, tok)
 	}
-	_, err = LookupToken(c, userID, path)
+	tok.Delete(c)
+	_, err = TokenForRequest(c, userID, path)
 	if err != ErrTokenNotFound {
 		t.Errorf("Should not have found token on second lookup")
 	}

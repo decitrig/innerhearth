@@ -61,10 +61,9 @@ func (t *Token) key(c appengine.Context) *datastore.Key {
 	return tokenKey(c, t.UserID, t.Path)
 }
 
-// LookupToken attempts to retrieve a token for the given user and
-// path. If the token could not be found, returns ErrTokenNotFound. If
-// the lookup succeeds, it attempts to delete the token.
-func LookupToken(c appengine.Context, userID, path string) (*Token, error) {
+// TokenForRequest returns the stored auth token for a user request.
+// If the token could not be found, returns ErrTokenNotFound.
+func TokenForRequest(c appengine.Context, userID, path string) (*Token, error) {
 	tok := &Token{}
 	if err := datastore.Get(c, tokenKey(c, userID, path), tok); err != nil {
 		if err != datastore.ErrNoSuchEntity {
@@ -113,4 +112,9 @@ func (t *Token) IsValid(encoded string, now time.Time) bool {
 		return false
 	}
 	return t.Expiration.After(now)
+}
+
+// Delete attempts to remove the token from the datastore.
+func (t *Token) Delete(c appengine.Context) {
+	datastore.Delete(c, t.key(c))
 }

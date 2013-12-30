@@ -88,12 +88,12 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if !ok {
 		return webapp.UnauthorizedError(fmt.Errorf("only staff may add teachers"))
 	}
-	account, err := auth.LookupUserByEmail(c, vals["email"])
+	account, err := auth.AccountWithEmail(c, vals["email"])
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't find account for '%s'", vals["email"]))
 	}
 	if r.Method == "POST" {
-		token, err := auth.LookupToken(c, staffAccount.AccountID, r.URL.Path)
+		token, err := auth.TokenForRequest(c, staffAccount.AccountID, r.URL.Path)
 		if err != nil {
 			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
 		}

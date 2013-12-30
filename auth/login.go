@@ -119,14 +119,29 @@ func newConfirmationCode() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
+// AccountID returns the internal ID for an appengine User.
+func AccountID(u *user.User) (string, error) {
+	if appengine.IsDevAppServer() && u.FederatedIdentity == "" {
+		return SaltAndHashString(u.Email), nil
+	}
+	if u.FederatedIdentity == "" {
+		return "", fmt.Errorf("user has no federated identity")
+	}
+	return SaltAndHashString(u.FederatedIdentity), nil
+}
+
 // NewUserAccount creates a new UserAccount for the given user.
 func NewUserAccount(u *user.User, info UserInfo) (*UserAccount, error) {
 	confirmCode, err := newConfirmationCode()
 	if err != nil {
 		return nil, fmt.Errorf("couldnt' create confirmation code: %s", err)
 	}
+	id, err := AccountID(u)
+	if err != nil {
+		return nil, err
+	}
 	return &UserAccount{
-		AccountID:        SaltAndHashString(u.FederatedIdentity),
+		AccountID:        id,
 		UserInfo:         info,
 		ConfirmationCode: confirmCode,
 	}, nil
@@ -136,8 +151,12 @@ func userKeyFromID(c appengine.Context, id string) *datastore.Key {
 	return datastore.NewKey(c, "UserAccount", id, 0, nil)
 }
 
-func userKeyFromFederatedIdentity(c appengine.Context, u *user.User) *datastore.Key {
-	return userKeyFromID(c, SaltAndHashString(u.FederatedIdentity))
+func userKeyFromFederatedIdentity(c appengine.Context, u *user.User) (*datastore.Key, error) {
+	id, err := AccountID(u)
+	if err != nil {
+		return nil, err
+	}
+	return userKeyFromID(c, id), nil
 }
 
 func (u *UserAccount) key(c appengine.Context) *datastore.Key {
@@ -169,22 +188,26 @@ func lookupUserByKey(c appengine.Context, key *datastore.Key) (*UserAccount, err
 
 // LookupUser returns the InnerHearthUser for the given AppEngine
 // user's federated identity, if any.
-func LookupUser(c appengine.Context, u *user.User) (*UserAccount, error) {
-	return lookupUserByKey(c, userKeyFromFederatedIdentity(c, u))
+func AccountForUser(c appengine.Context, u *user.User) (*UserAccount, error) {
+	key, err := userKeyFromFederatedIdentity(c, u)
+	if err != nil {
+		return nil, err
+	}
+	return lookupUserByKey(c, key)
 }
 
 // LookupOldUser returns the UserAccount stored under the ID of the given user.
-func LookupOldUser(c appengine.Context, u *user.User) (*UserAccount, error) {
-	return LookupUserByID(c, u.ID)
+func OldAccountForUser(c appengine.Context, u *user.User) (*UserAccount, error) {
+	return AccountWithID(c, u.ID)
 }
 
 // LookupUserByID returns the InnerHearthUser with the given ID, if any.
-func LookupUserByID(c appengine.Context, id string) (*UserAccount, error) {
+func AccountWithID(c appengine.Context, id string) (*UserAccount, error) {
 	return lookupUserByKey(c, userKeyFromID(c, id))
 }
 
 // LookupUserByEmail returns the InnerHearthUser with the given email, if any.
-func LookupUserByEmail(c appengine.Context, email string) (*UserAccount, error) {
+func AccountWithEmail(c appengine.Context, email string) (*UserAccount, error) {
 	q := datastore.NewQuery("UserAccount").
 		KeysOnly().
 		Filter("Email =", email).
@@ -272,9 +295,9 @@ type ClaimedEmail struct {
 }
 
 // Creates a new ClaimedEmail struct associating the user with their email.
-func NewClaimedEmail(c appengine.Context, u *user.User, email string) *ClaimedEmail {
+func NewClaimedEmail(c appengine.Context, id string, email string) *ClaimedEmail {
 	return &ClaimedEmail{
-		ClaimedBy: userKeyFromFederatedIdentity(c, u),
+		ClaimedBy: userKeyFromID(c, id),
 		Email:     email,
 	}
 }
@@ -296,7 +319,7 @@ func (e *ClaimedEmail) Claim(c appengine.Context) error {
 			// Didn't find old claim: all is well.
 			break
 		default:
-			return fmt.Errorf("failed to look up old UserEmail: %s", lookupErr)
+			return lookupErr
 		}
 
 		if _, storeErr := datastore.Put(c, key, e); storeErr != nil {

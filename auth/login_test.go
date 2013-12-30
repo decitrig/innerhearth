@@ -68,21 +68,21 @@ func TestStoreAndLookup(t *testing.T) {
 	if err := ihu.Store(c); err != nil {
 		t.Fatalf("Failed to store user: %s", err)
 	}
-	found, err := LookupUser(c, u)
+	found, err := AccountForUser(c, u)
 	if err != nil {
 		t.Fatalf("Failed to find user for %v: %s", u, err)
 	}
 	if !usersEqual(ihu, found) {
 		t.Errorf("Found wrong user; %v vs %v", found, ihu)
 	}
-	found, err = LookupUserByID(c, ihu.AccountID)
+	found, err = AccountWithID(c, ihu.AccountID)
 	if err != nil {
 		t.Fatalf("Failed to find user for id %v: %s", ihu.AccountID, err)
 	}
 	if !usersEqual(ihu, found) {
 		t.Errorf("Found wrong user for %q; %v vs %v", ihu.AccountID, found, ihu)
 	}
-	found, err = LookupUserByEmail(c, ihu.Email)
+	found, err = AccountWithEmail(c, ihu.Email)
 	if err != nil {
 		t.Fatalf("Failed to find user for email %q: %s", ihu.Email, err)
 	}
@@ -114,12 +114,12 @@ func TestConvertOldUser(t *testing.T) {
 	if _, err := datastore.Put(c, oldKey, old); err != nil {
 		t.Fatalf("Failed to store user under old key %q: %s", oldKey.StringID(), err)
 	}
-	if _, err := LookupUser(c, u); err != ErrUserNotFound {
+	if _, err := AccountForUser(c, u); err != ErrUserNotFound {
 		t.Errorf("Should not have found user under new key")
 	} else if err != ErrUserNotFound {
 		t.Fatalf("Error looking up user: %s", err)
 	}
-	if got, err := LookupOldUser(c, u); err != nil {
+	if got, err := OldAccountForUser(c, u); err != nil {
 		t.Fatalf("Error looking up user: %s", err)
 	} else if !usersEqual(got, old) {
 		t.Errorf("Wrong old user found: %v vs %v", got, account)
@@ -129,12 +129,12 @@ func TestConvertOldUser(t *testing.T) {
 	}
 	expected := &UserAccount{}
 	*expected = *account
-	if got, err := LookupUser(c, u); err != nil {
+	if got, err := AccountForUser(c, u); err != nil {
 		t.Fatalf("Failed to find new user: %s", err)
 	} else if !usersEqual(got, expected) {
 		t.Errorf("Wrong user found; %v vs %v", got, expected)
 	}
-	if _, err := LookupOldUser(c, u); err != ErrUserNotFound {
+	if _, err := OldAccountForUser(c, u); err != ErrUserNotFound {
 		t.Errorf("Should have deleted old user.")
 	}
 }
@@ -157,7 +157,7 @@ func TestConfirmation(t *testing.T) {
 	if err := ihu.Store(c); err != nil {
 		t.Fatalf("Failed to store user: %s", err)
 	}
-	if found, _ := LookupUserByID(c, ihu.AccountID); !found.Confirmed.IsZero() {
+	if found, _ := AccountWithID(c, ihu.AccountID); !found.Confirmed.IsZero() {
 		t.Errorf("Unconfirmed user should not have confirmation time %s", found.Confirmed)
 	}
 	now := time.Unix(1234, 0)
@@ -171,7 +171,7 @@ func TestConfirmation(t *testing.T) {
 	if err := ihu.Confirm(c, ihu.ConfirmationCode, now); err != nil {
 		t.Fatalf("Failed to confirm: %s", err)
 	}
-	found, _ := LookupUserByID(c, ihu.AccountID)
+	found, _ := AccountWithID(c, ihu.AccountID)
 	if confirmed := found.Confirmed; !confirmed.Equal(now) {
 		t.Errorf("Wrong confirmation time; %s vs %s", confirmed, now)
 	}
@@ -186,14 +186,11 @@ func TestClaimedEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	u := &user.User{
-		FederatedIdentity: "0xdeadbeef",
+	claim := NewClaimedEmail(c, "0xdeadbeef", "test@example.com")
+	if err := claim.Claim(c); err != nil {
+		t.Fatalf("Failed to claim user email %q: %s", claim.Email, err)
 	}
-	ue := NewClaimedEmail(c, u, "test@example.com")
-	if err := ue.Claim(c); err != nil {
-		t.Fatalf("Failed to claim user email %q: %s", ue.Email, err)
-	}
-	if err := ue.Claim(c); err != ErrEmailAlreadyClaimed {
+	if err := claim.Claim(c); err != ErrEmailAlreadyClaimed {
 		t.Errorf("Expected error on claim; %q vs %q", err, ErrEmailAlreadyClaimed)
 	}
 }

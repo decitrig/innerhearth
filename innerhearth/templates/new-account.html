@@ -1,8 +1,8 @@
 {{define "body"}}
 <div class="section">
 <h2>Welcome to Inner Hearth Yoga!</h2>
-<form method="post" action="/login/account/new">
-	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
+<form method="post">
+  {{template "XSRFTokenInput" .Token}}
 	<input type="hidden" name="target" value="{{.Target}}" />
 	<p>It seems that this is the first time you've logged in at Inner Hearth Yoga. Please tell us a little bit about yourself:</p>
 	<ul class="field-list">

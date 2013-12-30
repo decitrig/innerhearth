@@ -98,12 +98,12 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"YinYogassage":  model.ListYinYogassage(c, time.Now()),
 	}
 	if u := user.Current(c); u != nil {
-		account, err := auth.LookupUser(c, u)
+		account, err := auth.AccountForUser(c, u)
 		switch {
 		case err == nil:
 			break
 		case err == auth.ErrUserNotFound:
-			webapp.RedirectToLogin(w, r, "/")
+			http.Redirect(w, r, "/login/new", http.StatusSeeOther)
 			return nil
 		default:
 			return webapp.InternalError(err)

@@ -44,12 +44,12 @@ func addStaff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if !ok {
 		return webapp.InternalError(fmt.Errorf("user not logged in"))
 	}
-	account, err := auth.LookupUserByEmail(c, r.FormValue("email"))
+	account, err := auth.AccountWithEmail(c, r.FormValue("email"))
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't find user for email %s", r.FormValue("email")))
 	}
 	if r.Method == "POST" {
-		token, err := auth.LookupToken(c, adminAccount.AccountID, r.URL.Path)
+		token, err := auth.TokenForRequest(c, adminAccount.AccountID, r.URL.Path)
 		if err != nil {
 			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
 		}

@@ -12,9 +12,8 @@ import (
 )
 
 var (
-	ErrStudentNotFound   = fmt.Errorf("students: student not found")
-	ErrClassIsFull       = fmt.Errorf("students: class is full")
-	ErrAlreadyRegistered = fmt.Errorf("students: already registered for class")
+	ErrStudentNotFound = fmt.Errorf("students: student not found")
+	ErrClassIsFull     = fmt.Errorf("students: class is full")
 )
 
 // A Student is a single registration in a single class. A UserAccount
@@ -100,7 +99,13 @@ func In(c appengine.Context, class *classes.Class, now time.Time) ([]*Student, e
 
 // Add attempts to write a new Student entity; it will not overwrite
 // any existing Students. Returns ErrClassFull if the class is full as
-// of the given date.
+// of the given date. The number of students "currently registered"
+// for a class is the number of session-registered students plus any
+// future drop ins. This may be smaller than the number of students
+// registered on a particular day, and so may prevent drop-ins which
+// may otherwise have succeeded. In other words, a student can only
+// drop in if we can prove that there is room for them to register for
+// the rest of the session.
 func (s *Student) Add(c appengine.Context, asOf time.Time) error {
 	key := s.key(c)
 	var txnErr error
@@ -115,7 +120,7 @@ func (s *Student) Add(c appengine.Context, asOf time.Time) error {
 					// Old registration is an expired drop-in. Allow re-registering.
 					break
 				}
-				// Old registration is still active; drop.
+				// Old registration is still active; do nothing.
 				c.Warningf("Attempted duplicate registration of %q in %d", s.AccountID, s.ClassID)
 				return nil
 			default:

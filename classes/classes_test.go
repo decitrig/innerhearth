@@ -125,7 +125,7 @@ func TestClasses(t *testing.T) {
 	}
 	class := classes[0]
 	class.Title = "new title"
-	if err := stafferSmith.UpdateClass(c, class); err != nil {
+	if err := class.Update(c); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := ClassWithID(c, class.ID); err != nil {

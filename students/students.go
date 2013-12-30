@@ -1,0 +1,175 @@
+package students
+
+import (
+	"fmt"
+	"time"
+
+	"appengine"
+	"appengine/datastore"
+
+	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/classes"
+)
+
+var (
+	ErrStudentNotFound   = fmt.Errorf("students: student not found")
+	ErrClassIsFull       = fmt.Errorf("students: class is full")
+	ErrAlreadyRegistered = fmt.Errorf("students: already registered for class")
+)
+
+// A Student is a single registration in a single class. A UserAccount
+// may have multiple Students associated with it.
+type Student struct {
+	AccountID string
+	auth.UserInfo
+
+	ClassID   int64
+	ClassType classes.Type
+
+	Date   time.Time
+	DropIn bool
+}
+
+// New creates a new session Student registration for a user in a class.
+func New(user *auth.UserAccount, class *classes.Class) *Student {
+	return &Student{
+		AccountID: user.AccountID,
+		UserInfo:  user.UserInfo,
+		ClassID:   class.ID,
+		ClassType: classes.Regular,
+	}
+}
+
+// NewDropIn creates a new drop-in Student registration for a user in
+// a class on a specific date.
+func NewDropIn(user *auth.UserAccount, class *classes.Class, date time.Time) *Student {
+	return &Student{
+		AccountID: user.AccountID,
+		UserInfo:  user.UserInfo,
+		ClassID:   class.ID,
+		ClassType: classes.Regular,
+		DropIn:    true,
+		Date:      date,
+	}
+}
+
+// WithID returns a list of all Students with an account ID.
+func WithID(c appengine.Context, id string) ([]*Student, error) {
+	q := datastore.NewQuery("Student").
+		Filter("AccountID =", id)
+	students := []*Student{}
+	_, err := q.GetAll(c, &students)
+	if err != nil {
+		return nil, err
+	}
+	return students, nil
+}
+
+// WithEmail returns a list of all Students with an email.
+func WithEmail(c appengine.Context, email string) ([]*Student, error) {
+	q := datastore.NewQuery("Student").
+		Filter("Email =", email)
+	students := []*Student{}
+	_, err := q.GetAll(c, &students)
+	if err != nil {
+		return nil, err
+	}
+	return students, nil
+}
+
+// In returns a list of all Students registered for a class. The list
+// will include only those drop-in Students whose date is not in the
+// past.
+func In(c appengine.Context, class *classes.Class, now time.Time) ([]*Student, error) {
+	q := datastore.NewQuery("Student").
+		Ancestor(class.Key(c))
+	students := []*Student{}
+	_, err := q.GetAll(c, &students)
+	if err != nil {
+		return nil, err
+	}
+	filtered := []*Student{}
+	for _, student := range students {
+		if student.DropIn && student.Date.Before(now) {
+			continue
+		}
+		filtered = append(filtered, student)
+	}
+	return filtered, nil
+}
+
+// Add attempts to write a new Student entity; it will not overwrite
+// any existing Students. Returns ErrClassFull if the class is full as
+// of the given date.
+func (s *Student) Add(c appengine.Context, asOf time.Time) error {
+	key := s.key(c)
+	var txnErr error
+	for i := 0; i < 25; i++ {
+		txnErr = datastore.RunInTransaction(c, func(c appengine.Context) error {
+			old := &Student{}
+			switch err := datastore.Get(c, key, old); err {
+			case datastore.ErrNoSuchEntity:
+				break
+			case nil:
+				if old.DropIn && old.Date.Before(asOf) {
+					// Old registration is an expired drop-in. Allow re-registering.
+					break
+				}
+				// Old registration is still active; drop.
+				c.Warningf("Attempted duplicate registration of %q in %d", s.AccountID, s.ClassID)
+				return nil
+			default:
+				return fmt.Errorf("students: failed to look up existing student: %s", err)
+			}
+			class, err := classes.ClassWithID(c, s.ClassID)
+			if err != nil {
+				return err
+			}
+			in, err := In(c, class, asOf)
+			if err != nil {
+				return fmt.Errorf("students: failed to look up registered students")
+			}
+			if int32(len(in)) >= class.Capacity {
+				return ErrClassIsFull
+			}
+			if err := class.Update(c); err != nil {
+				return fmt.Errorf("students: failed to update class: %s", err)
+			}
+			if _, err := datastore.Put(c, key, s); err != nil {
+				return fmt.Errorf("students: failed to write student: %s", err)
+			}
+			return nil
+		}, nil)
+		if txnErr != datastore.ErrConcurrentTransaction {
+			break
+		}
+	}
+	switch txnErr {
+	case nil:
+		return nil
+	case datastore.ErrConcurrentTransaction:
+		return fmt.Errorf("students: too many concurrent updates to class %d", s.ClassID)
+	default:
+		return txnErr
+	}
+}
+
+func (s *Student) key(c appengine.Context) *datastore.Key {
+	return datastore.NewKey(c, "Student", s.AccountID, 0, classes.NewClassKey(c, s.ClassID))
+}
+
+// ByName sorts Students in alphabetial order by first and then last name.
+type ByName []*Student
+
+func (l ByName) Len() int      { return len(l) }
+func (l ByName) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l ByName) Less(i, j int) bool {
+	switch a, b := l[i], l[j]; {
+	case a.FirstName != b.FirstName:
+		return a.FirstName < b.FirstName
+	case a.LastName != b.LastName:
+		return a.LastName < b.LastName
+	default:
+		return false
+	}
+}

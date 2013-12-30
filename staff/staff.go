@@ -108,14 +108,7 @@ func (s *Staff) AddClass(c appengine.Context, class *classes.Class) error {
 	return nil
 }
 
-// UpdateClass overwrites an existing Class entity with new data.
-func (s *Staff) UpdateClass(c appengine.Context, class *classes.Class) error {
-	if _, err := datastore.Put(c, class.Key(c), class); err != nil {
-		return err
-	}
-	return nil
-}
-
+// DeleteClass removes a class from the datastore.
 func (s *Staff) DeleteClass(c appengine.Context, class *classes.Class) error {
 	if err := datastore.Delete(c, class.Key(c)); err != nil {
 		return err

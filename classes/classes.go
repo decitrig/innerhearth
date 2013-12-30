@@ -91,6 +91,14 @@ func (l SessionsByStartDate) Less(i, j int) bool {
 	return l[i].Start.Before(l[j].Start)
 }
 
+type Type int
+
+const (
+	Regular Type = iota
+	Workshop
+	YinYogassage
+)
+
 // A Class is a yoga class for which students can register.
 type Class struct {
 	ID int64 `datastore: "-"`
@@ -130,8 +138,19 @@ func (cls *Class) NewIncompleteKey(c appengine.Context) *datastore.Key {
 	return datastore.NewIncompleteKey(c, "Class", nil)
 }
 
+func NewClassKey(c appengine.Context, id int64) *datastore.Key {
+	return datastore.NewKey(c, "Class", "", id, nil)
+}
+
 func (cls *Class) Key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Class", "", cls.ID, nil)
+}
+
+func (cls *Class) Update(c appengine.Context) error {
+	if _, err := datastore.Put(c, cls.Key(c), cls); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ClassesByTitle returns a sort.Interface which sorts classes

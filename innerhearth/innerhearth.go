@@ -115,12 +115,12 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		} else {
 			data["LogoutURL"] = url
 		}
-		if staff, err := staff.LookupStaff(c, account); err != nil {
-			if err != scheduling.ErrUserIsNotStaff {
+		if staffer, err := staff.ForUserAccount(c, account); err != nil {
+			if err != staff.ErrUserIsNotStaff {
 				c.Errorf("Failed to lookup staff for %q: %s", err)
 			}
 		} else {
-			data["Staff"] = staff
+			data["Staff"] = staffer
 		}
 		/*
 			data["Teacher"] = model.GetTeacher(c, u) != nil

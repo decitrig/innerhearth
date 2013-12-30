@@ -25,7 +25,7 @@ func init() {
 
 func admin(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
-	staff, err := scheduling.AllStaff(c)
+	staff, err := staff.All(c)
 	if err != nil {
 		return webapp.InternalError(err)
 	}
@@ -56,7 +56,7 @@ func addStaff(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if !token.IsValid(r.FormValue("xsrf_token"), time.Now()) {
 			return webapp.UnauthorizedError(fmt.Errorf("Invalid XSRF token provided"))
 		}
-		staff := staff.NewStaff(account)
+		staff := staff.New(account)
 		if err := staff.Store(c); err != nil {
 			return webapp.InternalError(fmt.Errorf("Couldn't add %s as staff", account.Email))
 		}

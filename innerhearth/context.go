@@ -33,8 +33,8 @@ func setUserContext(r *http.Request, account *auth.UserAccount) {
 }
 
 func staffContext(r *http.Request) (*staff.Staff, bool) {
-	if staff, ok := context.GetOk(r, staffKey); ok {
-		return staff.(*scheduling.Staff), true
+	if staffer, ok := context.GetOk(r, staffKey); ok {
+		return staffer.(*staff.Staff), true
 	}
 	return nil, false
 }
@@ -84,16 +84,16 @@ func staffContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 		if !ok {
 			return webapp.InternalError(fmt.Errorf("staff context requires user context"))
 		}
-		staff, err := scheduling.LookupStaff(c, account)
+		staffer, err := staff.ForUserAccount(c, account)
 		switch {
 		case err == nil:
 			break
-		case err == scheduling.ErrUserIsNotStaff:
+		case err == staff.ErrUserIsNotStaff:
 			return webapp.UnauthorizedError(fmt.Errorf("%s is not staff", account.Email))
 		default:
 			return webapp.InternalError(fmt.Errorf("failed to look up staff for %q: %s", account.AccountID, err))
 		}
-		setStaffContext(r, staff)
+		setStaffContext(r, staffer)
 		return handler.Serve(w, r)
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ErrUserIsNotStaff = fmt.Errorf("user is not staff")
+	ErrUserIsNotStaff = fmt.Errorf("staff: user is not staff")
 )
 
 // Staff is allowed to create/delete classes, add announcments, etc.
@@ -111,6 +111,13 @@ func (s *Staff) AddClass(c appengine.Context, class *classes.Class) error {
 // UpdateClass overwrites an existing Class entity with new data.
 func (s *Staff) UpdateClass(c appengine.Context, class *classes.Class) error {
 	if _, err := datastore.Put(c, class.Key(c), class); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Staff) DeleteClass(c appengine.Context, class *classes.Class) error {
+	if err := datastore.Delete(c, class.Key(c)); err != nil {
 		return err
 	}
 	return nil

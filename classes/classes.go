@@ -1,10 +1,17 @@
 package classes
 
 import (
+	"fmt"
+	"sort"
 	"time"
 
 	"appengine"
 	"appengine/datastore"
+)
+
+var (
+	ErrClassNotFound   = fmt.Errorf("classes: class not found")
+	ErrSessionNotFound = fmt.Errorf("classes: session not found")
 )
 
 // A Session is a contiguous block of time which contains classes.
@@ -26,15 +33,19 @@ func sessionKeyFromID(c appengine.Context, id int64) *datastore.Key {
 	return datastore.NewKey(c, "Session", "", id, nil)
 }
 
-// SessionByID returns the Session entity with the given ID, if one exists.
-func SessionByID(c appengine.Context, id int64) (*Session, error) {
+// SessionWithID returns the Session entity with the given ID, if one exists.
+func SessionWithID(c appengine.Context, id int64) (*Session, error) {
 	key := sessionKeyFromID(c, id)
 	session := &Session{}
-	if err := datastore.Get(c, key, session); err != nil {
+	switch err := datastore.Get(c, key, session); err {
+	case nil:
+		session.ID = id
+		return session, nil
+	case datastore.ErrNoSuchEntity:
+		return nil, ErrSessionNotFound
+	default:
 		return nil, err
 	}
-	session.ID = id
-	return session, nil
 }
 
 // ActiveSessions returns a list of all sessions whose end time is not in the past.
@@ -101,13 +112,18 @@ func classKeyFromID(c appengine.Context, id int64) *datastore.Key {
 	return datastore.NewKey(c, "Class", "", id, nil)
 }
 
-func ClassByID(c appengine.Context, id int64) (*Class, error) {
+// ClassWithID returns the class with the given ID, if one exists.
+func ClassWithID(c appengine.Context, id int64) (*Class, error) {
 	class := &Class{}
-	if err := datastore.Get(c, classKeyFromID(c, id), class); err != nil {
+	switch err := datastore.Get(c, classKeyFromID(c, id), class); err {
+	case nil:
+		class.ID = id
+		return class, nil
+	case datastore.ErrNoSuchEntity:
+		return nil, ErrClassNotFound
+	default:
 		return nil, err
 	}
-	class.ID = id
-	return class, nil
 }
 
 func (cls *Class) NewIncompleteKey(c appengine.Context) *datastore.Key {
@@ -118,26 +134,35 @@ func (cls *Class) Key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Class", "", cls.ID, nil)
 }
 
-// Classes wraps a list of Class entities for sorting.
-type Classes []*Class
-
-func (cs Classes) Len() int      { return len(cs) }
-func (cs Classes) Swap(i, j int) { cs[i], cs[j] = cs[j], cs[i] }
-
-// ClassesByTitle sorts classes in alphabetical order by title.
-type ClassesByTitle struct {
-	Classes
+// ClassesByTitle returns a sort.Interface which sorts classes
+// alphabetically by title.
+func ClassesByTitle(cs []*Class) sort.Interface {
+	return classesByTitle{classes(cs)}
 }
 
-func (cs ClassesByTitle) Less(i, j int) bool {
-	return cs.Classes[i].Title < cs.Classes[j].Title
+// ClassesByStartTime returns a sort.Interface which sorts classes by
+// their start times, earliest first.
+func ClassesByStartTime(cs []*Class) sort.Interface {
+	return classesByStartTime{classes(cs)}
 }
 
-// ClassesByStartTime sorts classes by start time, earliest first.
-type ClassesByStartTime struct {
-	Classes
+type classes []*Class
+
+func (cs classes) Len() int      { return len(cs) }
+func (cs classes) Swap(i, j int) { cs[i], cs[j] = cs[j], cs[i] }
+
+type classesByTitle struct {
+	classes
 }
 
-func (cs ClassesByStartTime) Less(i, j int) bool {
-	return cs.Classes[i].StartTime.Before(cs.Classes[j].StartTime)
+func (cs classesByTitle) Less(i, j int) bool {
+	return cs.classes[i].Title < cs.classes[j].Title
+}
+
+type classesByStartTime struct {
+	classes
+}
+
+func (cs classesByStartTime) Less(i, j int) bool {
+	return cs.classes[i].StartTime.Before(cs.classes[j].StartTime)
 }

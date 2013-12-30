@@ -51,7 +51,7 @@ func TestSessions(t *testing.T) {
 		if s.ID <= 0 {
 			t.Fatalf("Session %d got invalid ID %d", i, s.ID)
 		}
-		if got, err := SessionByID(c, s.ID); err != nil {
+		if got, err := SessionWithID(c, s.ID); err != nil {
 			t.Errorf("Failed to lookup session: %s", err)
 		} else if !sessionsEqual(got, s) {
 			t.Errorf("Found wrong session for %d: %v vs %v", got, s)
@@ -102,7 +102,7 @@ func TestClasses(t *testing.T) {
 		if class.ID <= 0 {
 			t.Fatalf("Invalid id given to class %d: %d", i, class.ID)
 		}
-		if got, err := ClassByID(c, class.ID); err != nil {
+		if got, err := ClassWithID(c, class.ID); err != nil {
 			t.Fatalf("Couldn't find class %d by %d: %s", i, class.ID, err)
 		} else if got.Title != class.Title {
 			t.Errorf("Wrong class %d found for %d: %v vs %v", i, class.ID, got, class)
@@ -116,8 +116,8 @@ func TestClasses(t *testing.T) {
 	if len(sClasses) != len(expected) {
 		t.Fatalf("Wrong number of classes for session 1: %d vs %d", len(sClasses), len(expected))
 	}
-	sort.Sort(ClassesByTitle{sClasses})
-	sort.Sort(ClassesByTitle{expected})
+	sort.Sort(ClassesByTitle(sClasses))
+	sort.Sort(ClassesByTitle(expected))
 	for i, want := range expected {
 		if got := sClasses[i]; got.Title != want.Title {
 			t.Errorf("Wrong class at %d: %v vs %v", got, want)
@@ -128,9 +128,15 @@ func TestClasses(t *testing.T) {
 	if err := stafferSmith.UpdateClass(c, class); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := ClassByID(c, class.ID); err != nil {
+	if got, err := ClassWithID(c, class.ID); err != nil {
 		t.Errorf("Failed to get updated class %d: %s", class.ID, err)
 	} else if got.Title != class.Title {
 		t.Errorf("Didn't get expected class %d; %v vs %v", class.ID, got, class)
+	}
+	if err := stafferSmith.DeleteClass(c, class); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ClassWithID(c, class.ID); err != ErrClassNotFound {
+		t.Errorf("Should not have found class %d", class.ID)
 	}
 }

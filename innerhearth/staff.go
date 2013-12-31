@@ -48,9 +48,9 @@ func init() {
 		"/staff/add-teacher":         addTeacher,
 		"/staff/add-announcement":    addAnnouncement,
 		"/staff/delete-announcement": deleteAnnouncement,
+		"/staff/add-session":         addSession,
 		/*
 			"/staff/add-class":            addClass,
-			"/staff/add-session":          addSession,
 			"/staff/delete-class":         deleteClass,
 			"/staff/edit-class":           editClass,
 			"/staff/reschedule-class":     rescheduleClass,
@@ -102,7 +102,7 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
 		}
 		teacher := classes.NewTeacher(account)
-		if err := staffAccount.PutTeacher(c, teacher); err != nil {
+		if err := teacher.Put(c); err != nil {
 			return webapp.InternalError(fmt.Errorf("Couldn't store teacher for %q: %s", account.Email, err))
 		}
 		token.Delete(c)
@@ -227,6 +227,40 @@ func deleteAnnouncement(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Announcement": announce,
 	}
 	if err := deleteAnnouncementPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func addSession(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	c := appengine.NewContext(r)
+	staffAccount, ok := staffContext(r)
+	if !ok {
+		return webapp.UnauthorizedError(fmt.Errorf("only staff may delete announcements"))
+	}
+	if r.Method == "POST" {
+		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
+		if err != nil {
+			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
+		}
+		if !token.IsValid(r.FormValue(auth.TokenFieldName), time.Now()) {
+			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
+		}
+		token.Delete(c)
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	token, err := auth.NewToken(staffAccount.ID, r.URL.Path, time.Now())
+	if err != nil {
+		return webapp.InternalError(err)
+	}
+	if err := token.Store(c); err != nil {
+		return webapp.InternalError(err)
+	}
+	data := map[string]interface{}{
+		"Token": token.Encode(),
+	}
+	if err := addSessionPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

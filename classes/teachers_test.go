@@ -41,7 +41,7 @@ func TestTeacher(t *testing.T) {
 			t.Errorf("Shouldn't have found teacher for user %d", i)
 		}
 		teacher := NewTeacher(user)
-		if err := stafferSmith.PutTeacher(c, teacher); err != nil {
+		if err := teacher.Put(c); err != nil {
 			t.Fatalf("Failed to store teacher %d: %s", i, err)
 		}
 		if found, err := TeacherForUser(c, user); err != nil {
@@ -66,6 +66,16 @@ func TestTeacher(t *testing.T) {
 		if got := allTeachers[i]; !reflect.DeepEqual(got, want) {
 			t.Errorf("Wrong teacher at %d; %v vs %v", i, got, want)
 		}
+	}
+	teacher, err := TeacherForUser(c, users[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := teacher.Delete(c); err != nil {
+		t.Fatalf("Failed to delete teacher %s: %s", teacher.ID, err)
+	}
+	if _, err := TeacherForUser(c, users[0]); err == nil {
+		t.Errorf("Should not have found teacher %s", teacher.ID)
 	}
 }
 

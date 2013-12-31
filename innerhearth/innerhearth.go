@@ -27,6 +27,7 @@ import (
 	"appengine/user"
 
 	"github.com/decitrig/innerhearth/account"
+	"github.com/decitrig/innerhearth/classes"
 	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
 )
@@ -104,6 +105,74 @@ func init() {
 	}
 }
 
+func maybeOldAccount(c appengine.Context, u *user.User) (*account.Account, error) {
+	switch acct, err := account.ForUser(c, u); err {
+	case nil:
+		return acct, nil
+	case account.ErrUserNotFound:
+		break
+	default:
+		return nil, err
+	}
+	old, err := account.WithID(c, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	c.Warningf("Found user account under old ID %q", u.ID)
+	if err := old.RewriteID(c, u); err != nil {
+		return nil, fmt.Errorf("failed to rewrite user ID: %s", err)
+	}
+	return old, err
+}
+
+func maybeOldStaff(c appengine.Context, a *account.Account, u *user.User) (*staff.Staff, error) {
+	switch staffer, err := staff.WithID(c, a.ID); err {
+	case nil:
+		return staffer, nil
+	case staff.ErrUserIsNotStaff:
+		break
+	default:
+		return nil, err
+	}
+	staffer, err := staff.WithID(c, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	c.Warningf("Found staff account under old ID %q", u.ID)
+	if err := staffer.Delete(c); err != nil {
+		return nil, fmt.Errorf("failed to delete old staff %q: %s", staffer.ID, err)
+	}
+	staffer.ID = a.ID
+	if err := staffer.Store(c); err != nil {
+		return nil, fmt.Errorf("failed to store new staff for %s: %s", a.Email, err)
+	}
+	return staffer, nil
+}
+
+func maybeOldTeacher(c appengine.Context, a *account.Account, u *user.User) (*classes.Teacher, error) {
+	switch teacher, err := classes.TeacherWithID(c, a.ID); err {
+	case nil:
+		return teacher, nil
+	case classes.ErrUserIsNotTeacher:
+		break
+	default:
+		return nil, err
+	}
+	teacher, err := classes.TeacherWithID(c, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	c.Warningf("Found teacher under old ID %q", u.ID)
+	if err := teacher.Delete(c); err != nil {
+		return nil, fmt.Errorf("failed to delete old teacher %q: %s", teacher.ID, err)
+	}
+	teacher.ID = a.ID
+	if err := teacher.Put(c); err != nil {
+		return nil, fmt.Errorf("failed to store new teacher for %s: %s", a.Email, err)
+	}
+	return teacher, nil
+}
+
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	announcements := staff.CurrentAnnouncements(c, time.Now())
@@ -112,15 +181,15 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Announcements": announcements,
 	}
 	if u := user.Current(c); u != nil {
-		acct, err := account.ForUser(c, u)
-		switch {
-		case err == nil:
+		acct, err := maybeOldAccount(c, u)
+		switch err {
+		case nil:
 			break
-		case err == account.ErrUserNotFound:
+		case account.ErrUserNotFound:
 			http.Redirect(w, r, "/login/new", http.StatusSeeOther)
 			return nil
 		default:
-			return webapp.InternalError(err)
+			return webapp.InternalError(fmt.Errorf("failed to find user: %s", err))
 		}
 		data["LoggedIn"] = true
 		data["User"] = acct
@@ -129,16 +198,22 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		} else {
 			data["LogoutURL"] = url
 		}
-		if staffer, err := staff.ForUserAccount(c, acct); err != nil {
-			if err != staff.ErrUserIsNotStaff {
-				c.Errorf("Failed to lookup staff for %q: %s", err)
-			}
-		} else {
+		switch staffer, err := maybeOldStaff(c, acct, u); err {
+		case nil:
 			data["Staff"] = staffer
+		case staff.ErrUserIsNotStaff:
+			break
+		default:
+			return webapp.InternalError(err)
 		}
-		/*
-			data["Teacher"] = model.GetTeacher(c, u) != nil
-		*/
+		switch teacher, err := maybeOldTeacher(c, acct, u); err {
+		case nil:
+			data["Teacher"] = teacher
+		case classes.ErrUserIsNotTeacher:
+			break
+		default:
+			return webapp.InternalError(err)
+		}
 		data["Admin"] = user.IsAdmin(c)
 
 		/*

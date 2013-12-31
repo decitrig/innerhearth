@@ -46,14 +46,26 @@ func (t *Teacher) Key(c appengine.Context) *datastore.Key {
 	return teacherKeyFromID(c, t.ID)
 }
 
+func isFieldMismatch(err error) bool {
+	_, ok := err.(*datastore.ErrFieldMismatch)
+	return ok
+}
+
 func teacherByKey(c appengine.Context, key *datastore.Key) (*Teacher, error) {
 	teacher := &Teacher{}
-	if err := datastore.Get(c, key, teacher); err != nil {
-		if err != datastore.ErrNoSuchEntity {
-			c.Errorf("Error looking up teacher %q: %s", key.StringID(), err)
+	switch err := datastore.Get(c, key, teacher); err {
+	case nil:
+		break
+	case datastore.ErrNoSuchEntity:
+		return nil, ErrUserIsNotTeacher
+	default:
+		if isFieldMismatch(err) {
+			c.Errorf("Teacher field mismatch: %s", err)
+			break
 		}
-		return nil, account.ErrUserNotFound
+		return nil, err
 	}
+	teacher.ID = key.StringID()
 	return teacher, nil
 }
 
@@ -65,6 +77,20 @@ func TeacherForUser(c appengine.Context, user *account.Account) (*Teacher, error
 // LookupTeacher returns the Teacher with thte given ID, if one exists.
 func TeacherWithID(c appengine.Context, id string) (*Teacher, error) {
 	return teacherByKey(c, teacherKeyFromID(c, id))
+}
+
+func (t *Teacher) Put(c appengine.Context) error {
+	if _, err := datastore.Put(c, t.Key(c), t); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *Teacher) Delete(c appengine.Context) error {
+	if err := datastore.Delete(c, t.Key(c)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Teachers returns a list of all the Teachers which currently exist.

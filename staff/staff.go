@@ -77,9 +77,9 @@ func (s *Staff) Store(c appengine.Context) error {
 	return nil
 }
 
-// PutTeacher persists a Teacher entity to the datastore.
-func (s *Staff) PutTeacher(c appengine.Context, teacher *classes.Teacher) error {
-	if _, err := datastore.Put(c, teacher.Key(c), teacher); err != nil {
+// Delete removes the staff from the datastore.
+func (s *Staff) Delete(c appengine.Context) error {
+	if err := datastore.Delete(c, s.key(c)); err != nil {
 		return err
 	}
 	return nil

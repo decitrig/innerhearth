@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrClassNotFound   = fmt.Errorf("classes: class not found")
-	ErrSessionNotFound = fmt.Errorf("classes: session not found")
+	ErrUserIsNotTeacher = fmt.Errorf("classes: user is not a teacher")
+	ErrClassNotFound    = fmt.Errorf("classes: class not found")
+	ErrSessionNotFound  = fmt.Errorf("classes: session not found")
 )
 
 // A Session is a contiguous block of time which contains classes.

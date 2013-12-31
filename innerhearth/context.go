@@ -51,29 +51,16 @@ func userContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 			webapp.RedirectToLogin(w, r, r.URL.Path)
 			return nil
 		}
-		acct, err := account.ForUser(c, u)
-		switch {
-		case err == nil:
-			break
-		case err == account.ErrUserNotFound:
-			old, err := account.OldAccountForUser(c, u)
-			switch {
-			case err == nil:
-				c.Infof("found old-style user: %v", old)
-				if convertErr := old.RewriteID(c, u); convertErr != nil {
-					return webapp.InternalError(fmt.Errorf("failed to convert old user: %s", err))
-				}
-			case err == account.ErrUserNotFound:
-				http.Redirect(w, r, "/login/new", http.StatusSeeOther)
-				return nil
-			default:
-				return webapp.InternalError(fmt.Errorf("failed to look up old user: %s", err))
-			}
+		switch acct, err := maybeOldAccount(c, u); err {
+		case nil:
+			setUserContext(r, acct)
+			return handler.Serve(w, r)
+		case account.ErrUserNotFound:
+			http.Redirect(w, r, "/login/new", http.StatusSeeOther)
+			return nil
 		default:
 			return webapp.InternalError(fmt.Errorf("failed to look up current user: %s", err))
 		}
-		setUserContext(r, acct)
-		return handler.Serve(w, r)
 	}
 }
 
@@ -84,16 +71,15 @@ func staffContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 		if !ok {
 			return webapp.InternalError(fmt.Errorf("staff context requires user context"))
 		}
-		staffer, err := staff.ForUserAccount(c, account)
-		switch {
-		case err == nil:
-			break
-		case err == staff.ErrUserIsNotStaff:
+		u := user.Current(c)
+		switch staffer, err := maybeOldStaff(c, account, u); err {
+		case nil:
+			setStaffContext(r, staffer)
+			return handler.Serve(w, r)
+		case staff.ErrUserIsNotStaff:
 			return webapp.UnauthorizedError(fmt.Errorf("%s is not staff", account.Email))
 		default:
 			return webapp.InternalError(fmt.Errorf("failed to look up staff for %q: %s", account.ID, err))
 		}
-		setStaffContext(r, staffer)
-		return handler.Serve(w, r)
 	}
 }

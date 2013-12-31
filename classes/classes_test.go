@@ -45,7 +45,7 @@ func TestSessions(t *testing.T) {
 	}
 	defer c.Close()
 	for i, s := range sessions {
-		if err := stafferSmith.AddSession(c, s); err != nil {
+		if err := s.Insert(c); err != nil {
 			t.Fatalf("Failed to store session %d: %s", i, err)
 		}
 		if s.ID <= 0 {
@@ -58,10 +58,7 @@ func TestSessions(t *testing.T) {
 		}
 	}
 	expected := sessions[:len(sessions)-1]
-	got, err := ActiveSessions(c, time.Unix(6000, 0))
-	if err != nil {
-		t.Fatalf("Failed to list active sessions: %s", err)
-	}
+	got := Sessions(c, time.Unix(6000, 0))
 	if len(got) != len(expected) {
 		t.Fatalf("Wrong number of active sessions, %d vs %d", len(got), len(expected))
 	}

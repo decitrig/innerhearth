@@ -85,18 +85,6 @@ func (s *Staff) Delete(c appengine.Context) error {
 	return nil
 }
 
-// AddSession writes a new Session to the datastore. It will not
-// overwrite any existing Session.
-func (s *Staff) AddSession(c appengine.Context, session *classes.Session) error {
-	incompleteKey := session.NewIncompleteKey(c)
-	key, err := datastore.Put(c, incompleteKey, session)
-	if err != nil {
-		return err
-	}
-	session.ID = key.IntID()
-	return nil
-}
-
 // AddClass inserts a new Class into the datastore. It will not overwrite any existing Class.
 func (s *Staff) AddClass(c appengine.Context, class *classes.Class) error {
 	incompleteKey := class.NewIncompleteKey(c)

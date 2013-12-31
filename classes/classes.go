@@ -49,19 +49,32 @@ func SessionWithID(c appengine.Context, id int64) (*Session, error) {
 	}
 }
 
-// ActiveSessions returns a list of all sessions whose end time is not in the past.
-func ActiveSessions(c appengine.Context, now time.Time) ([]*Session, error) {
+// Sessions returns a list of all sessions whose end time is not in the past.
+func Sessions(c appengine.Context, now time.Time) []*Session {
 	q := datastore.NewQuery("Session").
 		Filter("End >=", now)
 	sessions := []*Session{}
 	keys, err := q.GetAll(c, &sessions)
 	if err != nil {
-		return nil, err
+		c.Errorf("Failed to list sessions: %s", err)
+		return nil
 	}
 	for i, key := range keys {
 		sessions[i].ID = key.IntID()
 	}
-	return sessions, nil
+	return sessions
+}
+
+// Insert writes a new Session to the datastore. It will not overwrite
+// any existing Sessions.
+func (s *Session) Insert(c appengine.Context) error {
+	iKey := datastore.NewIncompleteKey(c, "Session", nil)
+	key, err := datastore.Put(c, iKey, s)
+	if err != nil {
+		return err
+	}
+	s.ID = key.IntID()
+	return nil
 }
 
 // Classes returns a list of all the classes within the session.
@@ -77,10 +90,6 @@ func (s *Session) Classes(c appengine.Context) ([]*Class, error) {
 		classes[i].ID = key.IntID()
 	}
 	return classes, nil
-}
-
-func (s *Session) NewIncompleteKey(c appengine.Context) *datastore.Key {
-	return datastore.NewIncompleteKey(c, "Session", nil)
 }
 
 // SessionsByStartDate sorts sessions by their start date.

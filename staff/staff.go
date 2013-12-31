@@ -6,7 +6,7 @@ import (
 	"appengine"
 	"appengine/datastore"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/classes"
 )
 
@@ -16,8 +16,8 @@ var (
 
 // Staff is allowed to create/delete classes, add announcments, etc.
 type Staff struct {
-	AccountID string `datastore: "-"`
-	auth.UserInfo
+	ID string `datastore: "-"`
+	account.Info
 }
 
 // ByName sorts Staff structs by first and then last name.
@@ -34,10 +34,10 @@ func (l ByName) Less(i, j int) bool {
 }
 
 // New creates a new Staff entity for the given user.
-func New(user *auth.UserAccount) *Staff {
+func New(user *account.Account) *Staff {
 	return &Staff{
-		AccountID: user.AccountID,
-		UserInfo:  user.UserInfo,
+		ID:   user.ID,
+		Info: user.Info,
 	}
 }
 
@@ -46,12 +46,12 @@ func staffKeyFromID(c appengine.Context, id string) *datastore.Key {
 }
 
 func (s *Staff) key(c appengine.Context) *datastore.Key {
-	return staffKeyFromID(c, s.AccountID)
+	return staffKeyFromID(c, s.ID)
 }
 
 // ForUserAccount returns the Staff entity for the given user, if one exists.
-func ForUserAccount(c appengine.Context, user *auth.UserAccount) (*Staff, error) {
-	return WithID(c, user.AccountID)
+func ForUserAccount(c appengine.Context, user *account.Account) (*Staff, error) {
+	return WithID(c, user.ID)
 }
 
 // WithID returns the Staff entity for the user with the given ID, if one exists.
@@ -64,7 +64,7 @@ func WithID(c appengine.Context, accountID string) (*Staff, error) {
 		}
 		return nil, ErrUserIsNotStaff
 	}
-	staff.AccountID = key.StringID()
+	staff.ID = key.StringID()
 	return staff, nil
 }
 
@@ -137,7 +137,7 @@ func All(c appengine.Context) ([]*Staff, error) {
 		return nil, err
 	}
 	for i, key := range keys {
-		allStaff[i].AccountID = key.StringID()
+		allStaff[i].ID = key.StringID()
 	}
 	return allStaff, nil
 }

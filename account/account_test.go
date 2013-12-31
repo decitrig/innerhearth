@@ -1,4 +1,4 @@
-package auth
+package account
 
 import (
 	"reflect"
@@ -11,52 +11,52 @@ import (
 )
 
 func TestNewUserAccount(t *testing.T) {
-	info := UserInfo{"First", "Last", "foo@foo.com", "5551212"}
+	info := Info{"First", "Last", "foo@foo.com", "5551212"}
 	u := &user.User{
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ihu, err := NewUserAccount(u, info)
+	account, err := New(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
-	if ihu.AccountID == "" {
+	if account.ID == "" {
 		t.Errorf("Account id not populated.")
 	}
-	if ihu.AccountID == u.FederatedIdentity {
-		t.Errorf("Account ID %q should not match %q", ihu.AccountID, u.FederatedIdentity)
+	if account.ID == u.FederatedIdentity {
+		t.Errorf("Account ID %q should not match %q", account.ID, u.FederatedIdentity)
 	}
-	if !ihu.Confirmed.IsZero() {
-		t.Errorf("Confirmation time is not zero: %s", ihu.Confirmed)
+	if !account.Confirmed.IsZero() {
+		t.Errorf("Confirmation time is not zero: %s", account.Confirmed)
 	}
-	if len(ihu.ConfirmationCode) == 0 {
-		t.Errorf("Confirmation code missing: %v", ihu)
+	if len(account.ConfirmationCode) == 0 {
+		t.Errorf("Confirmation code missing: %v", account)
 	}
 }
 
-func usersEqual(u, v *UserAccount) bool {
-	if u.AccountID != v.AccountID {
+func usersEqual(u, v *Account) bool {
+	switch {
+	case u == nil || v == nil:
+		return u == v
+	case u.ID != v.ID:
 		return false
-	}
-	if !reflect.DeepEqual(u.UserInfo, v.UserInfo) {
+	case !reflect.DeepEqual(u.Info, v.Info):
 		return false
-	}
-	if u.ConfirmationCode != v.ConfirmationCode {
+	case u.ConfirmationCode != v.ConfirmationCode:
 		return false
-	}
-	if !u.Confirmed.Equal(v.Confirmed) {
+	case !u.Confirmed.Equal(v.Confirmed):
 		return false
 	}
 	return true
 }
 
 func TestStoreAndLookup(t *testing.T) {
-	info := UserInfo{"First", "Last", "foo@foo.com", "5551212"}
+	info := Info{"First", "Last", "foo@foo.com", "5551212"}
 	u := &user.User{
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ihu, err := NewUserAccount(u, info)
+	account, err := New(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
@@ -65,40 +65,40 @@ func TestStoreAndLookup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if err := ihu.Store(c); err != nil {
+	if err := account.Put(c); err != nil {
 		t.Fatalf("Failed to store user: %s", err)
 	}
-	found, err := AccountForUser(c, u)
+	found, err := ForUser(c, u)
 	if err != nil {
 		t.Fatalf("Failed to find user for %v: %s", u, err)
 	}
-	if !usersEqual(ihu, found) {
-		t.Errorf("Found wrong user; %v vs %v", found, ihu)
+	if !usersEqual(account, found) {
+		t.Errorf("Found wrong user; %v vs %v", found, account)
 	}
-	found, err = AccountWithID(c, ihu.AccountID)
+	found, err = WithID(c, account.ID)
 	if err != nil {
-		t.Fatalf("Failed to find user for id %v: %s", ihu.AccountID, err)
+		t.Fatalf("Failed to find user for id %v: %s", account.ID, err)
 	}
-	if !usersEqual(ihu, found) {
-		t.Errorf("Found wrong user for %q; %v vs %v", ihu.AccountID, found, ihu)
+	if !usersEqual(account, found) {
+		t.Errorf("Found wrong user for %q; %v vs %v", account.ID, found, account)
 	}
-	found, err = AccountWithEmail(c, ihu.Email)
+	found, err = WithEmail(c, account.Email)
 	if err != nil {
-		t.Fatalf("Failed to find user for email %q: %s", ihu.Email, err)
+		t.Fatalf("Failed to find user for email %q: %s", account.Email, err)
 	}
-	if !usersEqual(ihu, found) {
-		t.Errorf("Found wrong user for %q; %v vs %v", ihu.Email, found, ihu)
+	if !usersEqual(account, found) {
+		t.Errorf("Found wrong user for %q; %v vs %v", account.Email, found, account)
 	}
 }
 
 func TestConvertOldUser(t *testing.T) {
-	info := UserInfo{"First", "Last", "foo@foo.com", "5551212"}
+	info := Info{"First", "Last", "foo@foo.com", "5551212"}
 	u := &user.User{
 		ID:                "fooID",
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	account, err := NewUserAccount(u, info)
+	account, err := New(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
@@ -107,14 +107,14 @@ func TestConvertOldUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	old := &UserAccount{}
+	old := &Account{}
 	*old = *account
-	old.AccountID = u.ID
+	old.ID = u.ID
 	oldKey := datastore.NewKey(c, "UserAccount", u.ID, 0, nil)
 	if _, err := datastore.Put(c, oldKey, old); err != nil {
 		t.Fatalf("Failed to store user under old key %q: %s", oldKey.StringID(), err)
 	}
-	if _, err := AccountForUser(c, u); err != ErrUserNotFound {
+	if _, err := ForUser(c, u); err != ErrUserNotFound {
 		t.Errorf("Should not have found user under new key")
 	} else if err != ErrUserNotFound {
 		t.Fatalf("Error looking up user: %s", err)
@@ -124,12 +124,12 @@ func TestConvertOldUser(t *testing.T) {
 	} else if !usersEqual(got, old) {
 		t.Errorf("Wrong old user found: %v vs %v", got, account)
 	}
-	if err := old.ConvertToNewUser(c, u); err != nil {
-		t.Fatalf("Failed to convert user: %s", err)
+	if err := old.RewriteID(c, u); err != nil {
+		t.Fatalf("Failed to rewrite id: %s", err)
 	}
-	expected := &UserAccount{}
+	expected := &Account{}
 	*expected = *account
-	if got, err := AccountForUser(c, u); err != nil {
+	if got, err := ForUser(c, u); err != nil {
 		t.Fatalf("Failed to find new user: %s", err)
 	} else if !usersEqual(got, expected) {
 		t.Errorf("Wrong user found; %v vs %v", got, expected)
@@ -140,12 +140,12 @@ func TestConvertOldUser(t *testing.T) {
 }
 
 func TestConfirmation(t *testing.T) {
-	info := UserInfo{"First", "Last", "foo@foo.com", "5551212"}
+	info := Info{"First", "Last", "foo@foo.com", "5551212"}
 	u := &user.User{
 		Email:             info.Email,
 		FederatedIdentity: "0xdeadbeef",
 	}
-	ihu, err := NewUserAccount(u, info)
+	account, err := New(u, info)
 	if err != nil {
 		t.Fatalf("Failed to create user: %s", err)
 	}
@@ -154,24 +154,24 @@ func TestConfirmation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if err := ihu.Store(c); err != nil {
+	if err := account.Put(c); err != nil {
 		t.Fatalf("Failed to store user: %s", err)
 	}
-	if found, _ := AccountWithID(c, ihu.AccountID); !found.Confirmed.IsZero() {
+	if found, _ := WithID(c, account.ID); !found.Confirmed.IsZero() {
 		t.Errorf("Unconfirmed user should not have confirmation time %s", found.Confirmed)
 	}
 	now := time.Unix(1234, 0)
-	if err := ihu.Confirm(c, "wrongcode", now); err != ErrWrongConfirmationCode {
+	if err := account.Confirm(c, "wrongcode", now); err != ErrWrongConfirmationCode {
 		if err == nil {
 			t.Error("Should have failed to confirm")
 		} else {
 			t.Errorf("Wrong error code: %s vs %s", err, ErrWrongConfirmationCode)
 		}
 	}
-	if err := ihu.Confirm(c, ihu.ConfirmationCode, now); err != nil {
+	if err := account.Confirm(c, account.ConfirmationCode, now); err != nil {
 		t.Fatalf("Failed to confirm: %s", err)
 	}
-	found, _ := AccountWithID(c, ihu.AccountID)
+	found, _ := WithID(c, account.ID)
 	if confirmed := found.Confirmed; !confirmed.Equal(now) {
 		t.Errorf("Wrong confirmation time; %s vs %s", confirmed, now)
 	}

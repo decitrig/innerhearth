@@ -7,7 +7,7 @@ import (
 
 	"appengine/aetest"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/staff"
 
 	. "github.com/decitrig/innerhearth/classes"
@@ -15,7 +15,7 @@ import (
 
 var (
 	week         = 7 * 24 * time.Hour
-	stafferSmith = &staff.Staff{"1", auth.UserInfo{FirstName: "staffer", LastName: "smith"}}
+	stafferSmith = &staff.Staff{"1", account.Info{FirstName: "staffer", LastName: "smith"}}
 )
 
 func sessionsEqual(s1, s2 *Session) bool {

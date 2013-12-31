@@ -9,14 +9,14 @@ import (
 	"appengine/aetest"
 	"appengine/datastore"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 )
 
 func unix(seconds int64) time.Time {
 	return time.Unix(seconds, 0)
 }
 
-var stafferSmith = &Staff{"1", auth.UserInfo{FirstName: "staffer", LastName: "smith"}}
+var stafferSmith = &Staff{"1", account.Info{FirstName: "staffer", LastName: "smith"}}
 
 func TestAnnouncements(t *testing.T) {
 	c, err := aetest.NewContext(nil)

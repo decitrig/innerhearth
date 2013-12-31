@@ -7,26 +7,26 @@ import (
 
 	"appengine/aetest"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	. "github.com/decitrig/innerhearth/classes"
 )
 
 func TestTeacher(t *testing.T) {
-	users := []*auth.UserAccount{{
-		AccountID: "0x1",
-		UserInfo: auth.UserInfo{
+	users := []*account.Account{{
+		ID: "0x1",
+		Info: account.Info{
 			FirstName: "a",
 			LastName:  "b",
 			Email:     "a@example.com",
 		}}, {
-		AccountID: "0x2",
-		UserInfo: auth.UserInfo{
+		ID: "0x2",
+		Info: account.Info{
 			FirstName: "aa",
 			LastName:  "bb",
 			Email:     "aa@example.com",
 		}}, {
-		AccountID: "0x3",
-		UserInfo: auth.UserInfo{
+		ID: "0x3",
+		Info: account.Info{
 			FirstName: "aaa",
 			LastName:  "bbb",
 			Email:     "aaa@example.com",
@@ -37,26 +37,26 @@ func TestTeacher(t *testing.T) {
 	}
 	defer c.Close()
 	for i, user := range users {
-		if _, err := LookupTeacher(c, user); err == nil {
+		if _, err := TeacherForUser(c, user); err == nil {
 			t.Errorf("Shouldn't have found teacher for user %d", i)
 		}
 		teacher := NewTeacher(user)
 		if err := stafferSmith.PutTeacher(c, teacher); err != nil {
 			t.Fatalf("Failed to store teacher %d: %s", i, err)
 		}
-		if found, err := LookupTeacher(c, user); err != nil {
+		if found, err := TeacherForUser(c, user); err != nil {
 			t.Errorf("Didn't find teacher %d: %s", i, err)
 		} else if !reflect.DeepEqual(teacher, found) {
 			t.Errorf("Found wrong teacher; %v vs %v", found, teacher)
 		}
-		if found, err := LookupTeacherByID(c, user.AccountID); err != nil {
+		if found, err := TeacherWithID(c, user.ID); err != nil {
 			t.Errorf("Didn't find techer %d: %s", i, err)
 		} else if !reflect.DeepEqual(teacher, found) {
 			t.Errorf("Found wrong teacher by id; %v vs %v", found, teacher)
 		}
 	}
 	expected := usersToTeachers(users)
-	allTeachers := AllTeachers(c)
+	allTeachers := Teachers(c)
 	if len(allTeachers) != len(expected) {
 		t.Fatalf("Wrong number of teachers returned; %d vs %d", len(allTeachers), len(expected))
 	}
@@ -69,7 +69,7 @@ func TestTeacher(t *testing.T) {
 	}
 }
 
-func usersToTeachers(users []*auth.UserAccount) []*Teacher {
+func usersToTeachers(users []*account.Account) []*Teacher {
 	teachers := make([]*Teacher, len(users))
 	for i, user := range users {
 		teachers[i] = NewTeacher(user)

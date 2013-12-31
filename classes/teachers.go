@@ -4,25 +4,25 @@ import (
 	"appengine"
 	"appengine/datastore"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 )
 
 // A Teacher can be assigned to one or more classes or workshops, and
 // is allowed to view rosters for classes & workshops they teach.
 type Teacher struct {
-	// The InnerHearthUser account with which this teacher is associated.
-	AccountID string `datastore: "-"`
+	// The Account with which this teacher is associated.
+	ID string `datastore: "-"`
 
 	// Contact information for the teacher. This is identical to the
 	// information in the teachers' InnerHearthUser account.
-	auth.UserInfo
+	account.Info
 }
 
 // Creates a new Teacher associated with the given user.
-func NewTeacher(user *auth.UserAccount) *Teacher {
+func NewTeacher(user *account.Account) *Teacher {
 	return &Teacher{
-		AccountID: user.AccountID,
-		UserInfo:  user.UserInfo,
+		ID:   user.ID,
+		Info: user.Info,
 	}
 }
 
@@ -43,32 +43,32 @@ func teacherKeyFromID(c appengine.Context, id string) *datastore.Key {
 }
 
 func (t *Teacher) Key(c appengine.Context) *datastore.Key {
-	return teacherKeyFromID(c, t.AccountID)
+	return teacherKeyFromID(c, t.ID)
 }
 
-func lookupTeacher(c appengine.Context, key *datastore.Key) (*Teacher, error) {
+func teacherByKey(c appengine.Context, key *datastore.Key) (*Teacher, error) {
 	teacher := &Teacher{}
 	if err := datastore.Get(c, key, teacher); err != nil {
 		if err != datastore.ErrNoSuchEntity {
 			c.Errorf("Error looking up teacher %q: %s", key.StringID(), err)
 		}
-		return nil, auth.ErrUserNotFound
+		return nil, account.ErrUserNotFound
 	}
 	return teacher, nil
 }
 
-// LookupTeacher returns the Teacher associated with the given user, if one exists.
-func LookupTeacher(c appengine.Context, user *auth.UserAccount) (*Teacher, error) {
-	return lookupTeacher(c, teacherKeyFromID(c, user.AccountID))
+// TeacherForUser returns the Teacher associated with a specific user Account.
+func TeacherForUser(c appengine.Context, user *account.Account) (*Teacher, error) {
+	return teacherByKey(c, teacherKeyFromID(c, user.ID))
 }
 
 // LookupTeacher returns the Teacher with thte given ID, if one exists.
-func LookupTeacherByID(c appengine.Context, id string) (*Teacher, error) {
-	return lookupTeacher(c, teacherKeyFromID(c, id))
+func TeacherWithID(c appengine.Context, id string) (*Teacher, error) {
+	return teacherByKey(c, teacherKeyFromID(c, id))
 }
 
-// AllTeachers returns a list of all the Teachers which currently exist.
-func AllTeachers(c appengine.Context) []*Teacher {
+// Teachers returns a list of all the Teachers which currently exist.
+func Teachers(c appengine.Context) []*Teacher {
 	q := datastore.NewQuery("Teacher").
 		Limit(100)
 	teachers := []*Teacher{}
@@ -78,7 +78,7 @@ func AllTeachers(c appengine.Context) []*Teacher {
 		return nil
 	}
 	for i, key := range keys {
-		teachers[i].AccountID = key.StringID()
+		teachers[i].ID = key.StringID()
 	}
 	return teachers
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/context"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
 )
@@ -20,15 +20,15 @@ const (
 	teacherKey
 )
 
-func userContext(r *http.Request) (*auth.UserAccount, bool) {
+func userContext(r *http.Request) (*account.Account, bool) {
 	if user, ok := context.GetOk(r, userAccountKey); ok {
-		u, ok := user.(*auth.UserAccount)
+		u, ok := user.(*account.Account)
 		return u, ok
 	}
 	return nil, false
 }
 
-func setUserContext(r *http.Request, account *auth.UserAccount) {
+func setUserContext(r *http.Request, account *account.Account) {
 	context.Set(r, userAccountKey, account)
 }
 
@@ -51,19 +51,19 @@ func userContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 			webapp.RedirectToLogin(w, r, r.URL.Path)
 			return nil
 		}
-		account, err := auth.AccountForUser(c, u)
+		acct, err := account.ForUser(c, u)
 		switch {
 		case err == nil:
 			break
-		case err == auth.ErrUserNotFound:
-			old, err := auth.OldAccountForUser(c, u)
+		case err == account.ErrUserNotFound:
+			old, err := account.OldAccountForUser(c, u)
 			switch {
 			case err == nil:
 				c.Infof("found old-style user: %v", old)
-				if convertErr := old.ConvertToNewUser(c, u); convertErr != nil {
+				if convertErr := old.RewriteID(c, u); convertErr != nil {
 					return webapp.InternalError(fmt.Errorf("failed to convert old user: %s", err))
 				}
-			case err == auth.ErrUserNotFound:
+			case err == account.ErrUserNotFound:
 				http.Redirect(w, r, "/login/new", http.StatusSeeOther)
 				return nil
 			default:
@@ -72,7 +72,7 @@ func userContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 		default:
 			return webapp.InternalError(fmt.Errorf("failed to look up current user: %s", err))
 		}
-		setUserContext(r, account)
+		setUserContext(r, acct)
 		return handler.Serve(w, r)
 	}
 }
@@ -91,7 +91,7 @@ func staffContextHandler(handler webapp.Handler) webapp.HandlerFunc {
 		case err == staff.ErrUserIsNotStaff:
 			return webapp.UnauthorizedError(fmt.Errorf("%s is not staff", account.Email))
 		default:
-			return webapp.InternalError(fmt.Errorf("failed to look up staff for %q: %s", account.AccountID, err))
+			return webapp.InternalError(fmt.Errorf("failed to look up staff for %q: %s", account.ID, err))
 		}
 		setStaffContext(r, staffer)
 		return handler.Serve(w, r)

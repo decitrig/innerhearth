@@ -25,11 +25,9 @@ import (
 	"appengine"
 	"appengine/user"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/model"
-	_ "github.com/decitrig/innerhearth/registration"
 	"github.com/decitrig/innerhearth/staff"
-	_ "github.com/decitrig/innerhearth/teacher"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
@@ -98,24 +96,24 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"YinYogassage":  model.ListYinYogassage(c, time.Now()),
 	}
 	if u := user.Current(c); u != nil {
-		account, err := auth.AccountForUser(c, u)
+		acct, err := account.ForUser(c, u)
 		switch {
 		case err == nil:
 			break
-		case err == auth.ErrUserNotFound:
+		case err == account.ErrUserNotFound:
 			http.Redirect(w, r, "/login/new", http.StatusSeeOther)
 			return nil
 		default:
 			return webapp.InternalError(err)
 		}
 		data["LoggedIn"] = true
-		data["User"] = account
+		data["User"] = acct
 		if url, err := user.LogoutURL(c, "/"); err != nil {
 			return webapp.InternalError(fmt.Errorf("Error creating logout url: %s", err))
 		} else {
 			data["LogoutURL"] = url
 		}
-		if staffer, err := staff.ForUserAccount(c, account); err != nil {
+		if staffer, err := staff.ForUserAccount(c, acct); err != nil {
 			if err != staff.ErrUserIsNotStaff {
 				c.Errorf("Failed to lookup staff for %q: %s", err)
 			}

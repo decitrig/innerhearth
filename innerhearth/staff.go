@@ -9,6 +9,7 @@ import (
 
 	"appengine"
 
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/auth"
 	"github.com/decitrig/innerhearth/classes"
 	"github.com/decitrig/innerhearth/webapp"
@@ -69,7 +70,7 @@ func init() {
 func staffPortal(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	data := make(map[string]interface{})
-	teachers := classes.AllTeachers(c)
+	teachers := classes.Teachers(c)
 	sort.Sort(classes.TeachersByName(teachers))
 	data["Teachers"] = teachers
 	if err := staffPage.Execute(w, data); err != nil {
@@ -88,12 +89,12 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if !ok {
 		return webapp.UnauthorizedError(fmt.Errorf("only staff may add teachers"))
 	}
-	account, err := auth.AccountWithEmail(c, vals["email"])
+	account, err := account.WithEmail(c, vals["email"])
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("Couldn't find account for '%s'", vals["email"]))
 	}
 	if r.Method == "POST" {
-		token, err := auth.TokenForRequest(c, staffAccount.AccountID, r.URL.Path)
+		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
 		if err != nil {
 			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
 		}
@@ -107,7 +108,7 @@ func addTeacher(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		http.Redirect(w, r, "/staff", http.StatusSeeOther)
 		return nil
 	}
-	token, err := auth.NewToken(staffAccount.AccountID, r.URL.Path, time.Now())
+	token, err := auth.NewToken(staffAccount.ID, r.URL.Path, time.Now())
 	if err != nil {
 		return webapp.InternalError(err)
 	}

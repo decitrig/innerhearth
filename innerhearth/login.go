@@ -10,7 +10,9 @@ import (
 	"appengine"
 	"appengine/user"
 
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/login"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
@@ -19,8 +21,8 @@ var (
 )
 
 func init() {
-	webapp.HandleFunc("/login", login)
-	webapp.HandleFunc("/_ah/login_required", login)
+	webapp.HandleFunc("/login", doLogin)
+	webapp.HandleFunc("/_ah/login_required", doLogin)
 	webapp.HandleFunc("/login/new", newAccount)
 }
 
@@ -32,10 +34,10 @@ func continueTarget(r *http.Request) string {
 	return target
 }
 
-func login(w http.ResponseWriter, r *http.Request) *webapp.Error {
+func doLogin(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	target := continueTarget(r)
-	links, err := auth.MakeLinkList(c, auth.OpenIDProviders, target)
+	links, err := login.Links(c, login.OpenIDProviders, target)
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("failed to create login links: %s", err))
 	}
@@ -56,14 +58,14 @@ func newAccount(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		webapp.RedirectToLogin(w, r, "/")
 		return nil
 	}
-	if _, err := auth.AccountForUser(c, u); err != auth.ErrUserNotFound {
+	if _, err := account.ForUser(c, u); err != account.ErrUserNotFound {
 		if err != nil {
 			return webapp.InternalError(fmt.Errorf("failed to account for current user: %s", err))
 		}
 		http.Redirect(w, r, "/", http.StatusFound)
 		return nil
 	}
-	id, err := auth.AccountID(u)
+	id, err := account.ID(u)
 	if err != nil {
 		return webapp.InternalError(err)
 	}
@@ -82,11 +84,11 @@ func newAccount(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			fmt.Fprintf(w, "Please go back and enter all required data.")
 			return nil
 		}
-		claim := auth.NewClaimedEmail(c, id, fields["email"])
+		claim := account.NewClaimedEmail(c, id, fields["email"])
 		switch err := claim.Claim(c); {
 		case err == nil:
 			break
-		case err == auth.ErrEmailAlreadyClaimed:
+		case err == account.ErrEmailAlreadyClaimed:
 			// TODO(rwsims): Clean up this error reporting.
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "That email is already in use; please use a different email")
@@ -94,7 +96,7 @@ func newAccount(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		default:
 			return webapp.InternalError(fmt.Errorf("failed to claim email %q: %s", claim.Email, err))
 		}
-		info := auth.UserInfo{
+		info := account.Info{
 			FirstName: fields["firstname"],
 			LastName:  fields["lastname"],
 			Email:     fields["email"],
@@ -102,15 +104,15 @@ func newAccount(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if phone := r.FormValue("phone"); phone != "" {
 			info.Phone = phone
 		}
-		account, err := auth.NewUserAccount(u, info)
+		acct, err := account.New(u, info)
 		if err != nil {
 			return webapp.InternalError(fmt.Errorf("failed to create user account: %s", err))
 		}
-		if err := account.Store(c); err != nil {
+		if err := acct.Put(c); err != nil {
 			return webapp.InternalError(fmt.Errorf("failed to write new user account: %s", err))
 		}
-		if err := account.SendConfirmation(c); err != nil {
-			c.Errorf("Failed to send confirmation email to %q: %s", account.Email, err)
+		if err := acct.SendConfirmation(c); err != nil {
+			c.Errorf("Failed to send confirmation email to %q: %s", acct.Email, err)
 		}
 		http.Redirect(w, r, target, http.StatusSeeOther)
 		token.Delete(c)

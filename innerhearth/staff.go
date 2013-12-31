@@ -15,6 +15,7 @@ import (
 	"github.com/decitrig/innerhearth/classes"
 	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
+	"github.com/decitrig/innerhearth/yogassage"
 )
 
 var (
@@ -44,11 +45,13 @@ func weekdayEquals(a, b time.Weekday) bool { return a == b }
 
 func init() {
 	for url, fn := range map[string]webapp.HandlerFunc{
-		"/staff":                     staffPortal,
-		"/staff/add-teacher":         addTeacher,
-		"/staff/add-announcement":    addAnnouncement,
-		"/staff/delete-announcement": deleteAnnouncement,
-		"/staff/add-session":         addSession,
+		"/staff":                      staffPortal,
+		"/staff/add-teacher":          addTeacher,
+		"/staff/add-announcement":     addAnnouncement,
+		"/staff/delete-announcement":  deleteAnnouncement,
+		"/staff/add-session":          addSession,
+		"/staff/yin-yogassage":        yinYogassage,
+		"/staff/delete-yin-yogassage": deleteYinYogassage,
 		/*
 			"/staff/add-class":            addClass,
 			"/staff/delete-class":         deleteClass,
@@ -56,8 +59,6 @@ func init() {
 			"/staff/reschedule-class":     rescheduleClass,
 			"/staff/session":              session,
 			"/staff/assign-classes":       assignClasses,
-			"/staff/yin-yogassage":        yinYogassage,
-			"/staff/delete-yin-yogassage": deleteYinYogassage,
 		*/
 	} {
 		webapp.HandleFunc(url, userContextHandler(staffContextHandler(fn)))
@@ -72,10 +73,13 @@ func staffPortal(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	sort.Sort(staff.AnnouncementsByExpiration(announcements))
 	sessions := classes.Sessions(c, time.Now())
 	sort.Sort(classes.SessionsByStartDate(sessions))
+	yins := yogassage.Classes(c, time.Now())
+	sort.Sort(yogassage.ByDate(yins))
 	data := map[string]interface{}{
-		"Teachers":      teachers,
-		"Announcements": announcements,
-		"Sessions":      sessions,
+		"Teachers":            teachers,
+		"Announcements":       announcements,
+		"Sessions":            sessions,
+		"YinYogassageClasses": yins,
 	}
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -286,6 +290,102 @@ func addSession(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Token": token.Encode(),
 	}
 	if err := addSessionPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func yinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	c := appengine.NewContext(r)
+	staffAccount, ok := staffContext(r)
+	if !ok {
+		return webapp.UnauthorizedError(fmt.Errorf("only staff may add sessions"))
+	}
+	if r.Method == "POST" {
+		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
+		if err != nil {
+			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
+		}
+		if !token.IsValid(r.FormValue(auth.TokenFieldName), time.Now()) {
+			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
+		}
+		fields, err := webapp.ParseRequiredValues(r, "date", "signup")
+		if err != nil {
+			return missingFields(w)
+		}
+		date, err := parseLocalDate(fields["date"])
+		if err != nil {
+			return invalidData(w, "Invalid date; please use mm/dd/yyyy format.")
+		}
+		yin := yogassage.New(date, fields["signup"])
+		if err := yin.Insert(c); err != nil {
+			return webapp.InternalError(fmt.Errorf("failed to write yogassage: %s", err))
+		}
+		token.Delete(c)
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	token, err := auth.NewToken(staffAccount.ID, r.URL.Path, time.Now())
+	if err != nil {
+		return webapp.InternalError(err)
+	}
+	if err := token.Store(c); err != nil {
+		return webapp.InternalError(err)
+	}
+	data := map[string]interface{}{
+		"Token": token.Encode(),
+	}
+	if err := yinYogassagePage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func deleteYinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	fields, err := webapp.ParseRequiredValues(r, "id")
+	if err != nil {
+		return webapp.InternalError(err)
+	}
+	id, err := strconv.ParseInt(fields["id"], 10, 64)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("failed to parse %q as announcement ID: %s", fields["id"], err))
+	}
+	c := appengine.NewContext(r)
+	yin, err := yogassage.WithID(c, id)
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("failed to find yogassage %d: %s", id, err))
+	}
+	staffAccount, ok := staffContext(r)
+	if !ok {
+		return webapp.UnauthorizedError(fmt.Errorf("only staff may delete yogassage classes"))
+	}
+	if r.Method == "POST" {
+		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
+		if err != nil {
+			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
+		}
+		if !token.IsValid(r.FormValue(auth.TokenFieldName), time.Now()) {
+			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
+		}
+		if err := yin.Delete(c); err != nil {
+			return webapp.InternalError(fmt.Errorf("failed to delete yogassage %d: %s", yin.ID, err))
+		}
+		token.Delete(c)
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	token, err := auth.NewToken(staffAccount.ID, r.URL.Path, time.Now())
+	if err != nil {
+		return webapp.InternalError(err)
+	}
+	if err := token.Store(c); err != nil {
+		return webapp.InternalError(err)
+	}
+	data := map[string]interface{}{
+		"Token": token.Encode(),
+		"Class": yin,
+	}
+	if err := deleteYinYogassagePage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

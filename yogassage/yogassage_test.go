@@ -32,10 +32,7 @@ func TestYinYogassage(t *testing.T) {
 			t.Errorf("Wrong yogassage for %d: %v vs %v", y.ID, got, y)
 		}
 	}
-	got, err := Classes(c, time.Unix(1500, 0))
-	if err != nil {
-		t.Fatalf("Failed to get yogassage classes: %s", err)
-	}
+	got := Classes(c, time.Unix(1500, 0))
 	sort.Sort(ByDate(got))
 	for i, want := range yins[1:] {
 		if got := got[i]; !yinsEqual(got, want) {

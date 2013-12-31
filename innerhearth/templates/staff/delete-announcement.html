@@ -1,6 +1,6 @@
 {{define "body"}}
 <div class="section">
-  <p>{{.Announcement.GetText}}</p>
+  <p>{{.Announcement}}</p>
   <form method="POST">
     {{template "XSRFTokenInput" .Token}}
     <input type="hidden" value="{{.Announcement.ID}}" name="id" />

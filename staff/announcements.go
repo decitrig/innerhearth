@@ -1,10 +1,15 @@
 package staff
 
 import (
+	"fmt"
 	"time"
 
 	"appengine"
 	"appengine/datastore"
+)
+
+var (
+	ErrAnnouncementNotFound = fmt.Errorf("staff: announcement not found")
 )
 
 // Announcements are short snippets of text that display for a set
@@ -29,31 +34,40 @@ func announcementKeyFromID(c appengine.Context, id int64) *datastore.Key {
 	return datastore.NewKey(c, "Announcement", "", id, nil)
 }
 
-// AnnouncementByID returns the Announcement entity with the given ID,
+// AnnouncementWithID returns the Announcement entity with the given ID,
 // if one exists.
-func AnnouncementByID(c appengine.Context, id int64) (*Announcement, error) {
+func AnnouncementWithID(c appengine.Context, id int64) (*Announcement, error) {
 	a := &Announcement{}
-	if err := datastore.Get(c, announcementKeyFromID(c, id), a); err != nil {
+	switch err := datastore.Get(c, announcementKeyFromID(c, id), a); err {
+	case nil:
+		a.ID = id
+		return a, nil
+	case datastore.ErrNoSuchEntity:
+		return nil, ErrAnnouncementNotFound
+	default:
 		return nil, err
 	}
-	a.ID = id
-	return a, nil
 }
 
 // CurrentAnnouncements returns a list of all Announcements whose
 // expiration time is not in the past.
-func CurrentAnnouncements(c appengine.Context, now time.Time) ([]*Announcement, error) {
+func CurrentAnnouncements(c appengine.Context, now time.Time) []*Announcement {
 	q := datastore.NewQuery("Announcement").
 		Filter("Expiration >=", now)
 	current := []*Announcement{}
 	keys, err := q.GetAll(c, &current)
 	if err != nil {
-		return nil, err
+		c.Errorf("Failed to list announcements: %s", err)
+		return nil
 	}
 	for i, key := range keys {
 		current[i].ID = key.IntID()
 	}
-	return current, nil
+	return current
+}
+
+func (a *Announcement) String() string {
+	return string(a.Text)
 }
 
 // Delete removes an announcement from the datastore.

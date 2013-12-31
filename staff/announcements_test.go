@@ -38,14 +38,14 @@ func TestAnnouncements(t *testing.T) {
 		if a.ID <= 0 {
 			t.Errorf("Invalid id for announcement %d: %d", i, a.ID)
 		}
-		if got, err := AnnouncementByID(c, a.ID); err != nil {
+		if got, err := AnnouncementWithID(c, a.ID); err != nil {
 			t.Errorf("Failed to lookup announcement %d by %d: %s", i, a.ID, err)
 		} else if !announcementsEqual(got, a) {
 			t.Errorf("Wrong announcement %d; %v vs %v", i, got, a)
 		}
 	}
 	expected := announcements[:len(announcements)-1]
-	current, err := CurrentAnnouncements(c, unix(900))
+	current := CurrentAnnouncements(c, unix(900))
 	if len(current) != len(expected) {
 		t.Fatalf("Wrong number of current announcements; %d vs %d", len(current), len(expected))
 	}
@@ -60,7 +60,7 @@ func TestAnnouncements(t *testing.T) {
 	if err := a.Delete(c); err != nil {
 		t.Fatalf("Failed to delete announcement %d: %s", a.ID, err)
 	}
-	if _, err := AnnouncementByID(c, a.ID); err != datastore.ErrNoSuchEntity {
+	if _, err := AnnouncementWithID(c, a.ID); err != datastore.ErrNoSuchEntity {
 		t.Errorf("Should not have found announcement %d", a.ID)
 	}
 }

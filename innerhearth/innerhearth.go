@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"appengine/user"
 
 	"github.com/decitrig/innerhearth/account"
-	"github.com/decitrig/innerhearth/model"
 	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
 )
@@ -40,6 +40,31 @@ var (
 		"weekdayAsIndex": func(w time.Weekday) int { return int(w) },
 	}).ParseFiles("templates/base.html", "templates/class.html"))
 )
+
+const (
+	dateFormat = "01/02/2006"
+	timeFormat = "3:04pm"
+)
+
+var (
+	local *time.Location
+)
+
+func parseLocalTime(s string) (time.Time, error) {
+	t, err := time.ParseInLocation(timeFormat, s, local)
+	if err != nil {
+		return t, err
+	}
+	return t, nil
+}
+
+func parseLocalDate(s string) (time.Time, error) {
+	t, err := time.ParseInLocation(dateFormat, s, local)
+	if err != nil {
+		return t, err
+	}
+	return t, nil
+}
 
 func staticTemplate(file string) webapp.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -55,6 +80,11 @@ func staticTemplate(file string) webapp.HandlerFunc {
 }
 
 func init() {
+	var err error
+	local, err = time.LoadLocation("America/New_York")
+	if err != nil {
+		panic(err)
+	}
 	http.Handle("/", webapp.Router)
 	webapp.HandleFunc("/", index)
 	webapp.HandleFunc("/class", class)
@@ -74,26 +104,12 @@ func init() {
 	}
 }
 
-type session struct {
-	*model.Session
-	Classes [][]*model.ClassCalendarData
-}
-
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
-	sessions := []session{}
-	for _, s := range model.ListSessions(c, time.Now()) {
-		classes := s.ListClasses(c)
-		if len(classes) == 0 {
-			c.Infof("session %q has no classes", s.Name)
-			continue
-		}
-		sessions = append(sessions, session{s, model.GroupByDay(classes)})
-	}
+	announcements := staff.CurrentAnnouncements(c, time.Now())
+	sort.Sort(staff.AnnouncementsByExpiration(announcements))
 	data := map[string]interface{}{
-		"Announcements": model.ListAnnouncements(c),
-		"Sessions":      sessions,
-		"YinYogassage":  model.ListYinYogassage(c, time.Now()),
+		"Announcements": announcements,
 	}
 	if u := user.Current(c); u != nil {
 		acct, err := account.ForUser(c, u)
@@ -137,26 +153,11 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 }
 
 func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
-	classID, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	_, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		return webapp.InternalError(err)
 	}
-	c := appengine.NewContext(r)
-	scheduler := model.NewScheduler(c)
-	class := scheduler.GetClass(classID)
-	if class == nil {
-		return webapp.InternalError(fmt.Errorf("Couldn't find class %d", classID))
-	}
-	user := webapp.GetCurrentUser(r)
-	data := map[string]interface{}{
-		"Class": scheduler.GetCalendarData(class),
-		"User":  user,
-		"Token": webapp.GetXSRFToken(r),
-	}
-	if user != nil {
-		roster := model.NewRoster(c, class)
-		data["Student"] = roster.LookupStudent(user.Email)
-	}
+	data := map[string]interface{}{}
 	if err := classPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}

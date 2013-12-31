@@ -13,7 +13,7 @@
     </tr>
     {{range .Announcements}}
     <tr>
-      <td>{{.GetText}}</td>
+      <td>{{.}}</td>
       <td>{{.Expiration.Format "1/2"}}</td>
       <td><a href="/staff/delete-announcement?id={{.ID}}">delete</a></td>
     </tr>

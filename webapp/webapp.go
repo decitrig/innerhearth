@@ -22,10 +22,7 @@ import (
 	"net/url"
 
 	"appengine"
-	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
-
-	"github.com/decitrig/innerhearth/model"
 )
 
 type Error struct {
@@ -50,48 +47,6 @@ func InternalError(err error) *Error {
 
 func UnauthorizedError(err error) *Error {
 	return &Error{err, "Unauthorized", http.StatusUnauthorized}
-}
-
-const (
-	xsrfTokenKey = iota
-	currentUserKey
-)
-
-func GetXSRFToken(r *http.Request) *model.XSRFToken {
-	token := context.Get(r, xsrfTokenKey)
-	if token != nil {
-		return token.(*model.XSRFToken)
-	}
-	u := GetCurrentUser(r)
-	c := appengine.NewContext(r)
-	if u == nil {
-		c.Errorf("Couldn't get XSRF token: no logged-in user")
-		return nil
-	}
-	if t, err := model.GetXSRFToken(c, u.AccountID); err != nil {
-		c.Errorf("Error getting XSRF token: %s", err)
-		return nil
-	} else {
-		return t
-	}
-	return nil
-}
-
-func SetXSRFToken(r *http.Request, t *model.XSRFToken) {
-	context.Set(r, xsrfTokenKey, t)
-}
-
-func GetCurrentUser(r *http.Request) *model.UserAccount {
-	u := context.Get(r, currentUserKey)
-	if u == nil {
-		c := appengine.NewContext(r)
-		u = model.MaybeGetCurrentUser(c)
-		context.Set(r, currentUserKey, u)
-	}
-	if u != nil {
-		return u.(*model.UserAccount)
-	}
-	return nil
 }
 
 type Handler interface {

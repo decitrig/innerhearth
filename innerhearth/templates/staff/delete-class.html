@@ -1,7 +1,7 @@
 {{define "body"}}
 <div class="section">
   <form method="post">
-    <p>Delete {{.Class.Title}} on {{.Class.Weekday}}s at {{.Class.StartTime.Format "15:04"}} with {{.Class.FirstName}}?</p>
+    <p>Delete {{.Class.Title}} on {{.Class.Weekday}}s at {{FormatLocal "3:04pm" .Class.StartTime}} with {{.Teacher.DisplayName}}?</p>
     {{template "XSRFTokenInput" .Token}}
     <button>Delete</button>
   </form>

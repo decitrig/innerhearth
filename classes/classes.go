@@ -187,6 +187,13 @@ func (cls *Class) Update(c appengine.Context) error {
 	return nil
 }
 
+func (cls *Class) Delete(c appengine.Context) error {
+	if err := datastore.Delete(c, cls.Key(c)); err != nil {
+		return err
+	}
+	return nil
+}
+
 // TeachersByClass returns a map from Class ID to Teacher entity (or nil if the class has no teacher.
 func TeachersByClass(c appengine.Context, classList []*Class) map[int64]*Teacher {
 	teachers := make(map[int64]*Teacher)

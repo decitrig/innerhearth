@@ -27,24 +27,22 @@ var (
 		"WeekdayAsInt": weekdayAsInt,
 	}).ParseFiles("templates/base.html", "templates/staff/add-class.html"))
 	addSessionPage  = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-session.html"))
-	deleteClassPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
-	editClassPage   = template.Must(template.New("base.html").Funcs(template.FuncMap{
+	deleteClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"FormatLocal": formatLocal,
+	}).ParseFiles("templates/base.html", "templates/staff/delete-class.html"))
+	editClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"FormatLocal":     formatLocal,
 		"WeekdayAsInt":    weekdayAsInt,
 		"WeekdayEquals":   weekdayEquals,
 		"TeacherHasEmail": teacherHasEmail,
 		"Minutes":         minutes,
 	}).ParseFiles("templates/base.html", "templates/staff/edit-class.html"))
-	rescheduleClassPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"weekdayEquals": weekdayEquals,
-	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
 	sessionPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"indexAsWeekday": indexAsWeekday,
 		"FormatLocal":    formatLocal,
 	}).ParseFiles("templates/base.html", "templates/staff/session.html"))
 	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
-	assignClassesPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/assign-classes.html"))
 	yinYogassagePage       = template.Must(template.ParseFiles("templates/base.html", "templates/staff/yin-yogassage.html"))
 	deleteYinYogassagePage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-yin-yogassage.html"))
 )
@@ -72,12 +70,7 @@ func init() {
 		"/staff/session":              session,
 		"/staff/add-class":            addClass,
 		"/staff/edit-class":           editClass,
-		/*
-			"/staff/delete-class":         deleteClass,
-			"/staff/reschedule-class":     rescheduleClass,
-		*/
-		// TODO(rwsims): Remove "assign-classes" functionality
-		//	"/staff/assign-classes":       assignClasses,
+		"/staff/delete-class":         deleteClass,
 	} {
 		webapp.HandleFunc(url, userContextHandler(staffContextHandler(fn)))
 	}
@@ -660,6 +653,63 @@ func editClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"DaysInOrder": daysInOrder,
 	}
 	if err := editClassPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func deleteClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	idString := r.FormValue("class")
+	if idString == "" {
+		return missingFields(w)
+	}
+	id, err := strconv.ParseInt(idString, 10, 64)
+	if err != nil {
+		return invalidData(w, fmt.Sprintf("Invalid class ID"))
+	}
+	c := appengine.NewContext(r)
+	class, err := classes.ClassWithID(c, id)
+	switch err {
+	case nil:
+		break
+	case classes.ErrClassNotFound:
+		return invalidData(w, "No such class.")
+	default:
+		return webapp.InternalError(fmt.Errorf("failed to look up class %d: %s", id, err))
+	}
+	staffAccount, ok := staffContext(r)
+	if !ok {
+		return webapp.UnauthorizedError(fmt.Errorf("only staff may delete classes"))
+	}
+	if r.Method == "POST" {
+		c.Infof("updating class %d", class.ID)
+		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
+		if err != nil {
+			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
+		}
+		if !token.IsValid(r.FormValue(auth.TokenFieldName), time.Now()) {
+			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
+		}
+		if err := class.Delete(c); err != nil {
+			return webapp.InternalError(fmt.Errorf("failed to delete class %d: %s", class.ID, err))
+		}
+		token.Delete(c)
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	token, err := auth.NewToken(staffAccount.ID, r.URL.Path, time.Now())
+	if err != nil {
+		return webapp.InternalError(err)
+	}
+	if err := token.Store(c); err != nil {
+		return webapp.InternalError(err)
+	}
+	data := map[string]interface{}{
+		"Token":   token.Encode(),
+		"Class":   class,
+		"Teacher": class.TeacherEntity(c),
+	}
+	if err := deleteClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

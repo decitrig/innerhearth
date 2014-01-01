@@ -7,6 +7,9 @@
 <div class="section">
 <h1>{{.Class.Title}}</h1>
 <p>{{.Class.Weekday}}s at {{.Class.StartTime.Format "3:04pm"}}</p>
+{{if not .Students}}
+<p>No students registered.</p>
+{{else}}
 <h2>Current Students</h2>
 <p>{{len .Students}} of {{.Class.Capacity}} registrations</p>
 <table>
@@ -26,9 +29,10 @@
 		{{end}}
 	</tr>
 {{end}}
+{{end}}  {{/* if.Students */}}
 </table>
 <h2>Register a New Student</h2>
-<form method="post" action="/registration/paper">
+<form method="post" action="/register/paper">
   {{template "XSRFTokenInput" .Token}}
 	<input type="hidden" name="class" value="{{.Class.ID}}" />
 	<ul class="field-list">
@@ -59,7 +63,7 @@
 <script>
 	$("#datepicker").datepicker({
 	beforeShowDay: function(date) {
-	show = {{weekdayAsIndex .Class.Weekday}} == date.getDay()
+	show = {{WeekdayAsInt .Class.Weekday}} == date.getDay()
 	return [show, ""]
 	},
 	dateFormat: "mm/dd/yy",

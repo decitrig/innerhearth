@@ -73,10 +73,7 @@ func TestStudents(t *testing.T) {
 		New(accounts[0], rosters[1].class),
 		New(accounts[1], rosters[1].class),
 	}
-	got, err := In(c, rosters[1].class, time.Now())
-	if err != nil {
-		t.Fatalf("Failed to get students in %d: %s", rosters[1].class.ID, err)
-	}
+	got := In(c, rosters[1].class, time.Now())
 	if len(got) != len(want) {
 		t.Fatalf("Wrong number of students in %d: %d vs %d", rosters[1].class.ID, len(got), len(want))
 	}
@@ -94,17 +91,11 @@ func TestStudents(t *testing.T) {
 	if _, err := WithIDInClass(c, dropIn.ID, rosters[1].class, time.Unix(1500, 0)); err == nil {
 		t.Errorf("Shouldn't have found expired dropin")
 	}
-	got, err = In(c, rosters[1].class, time.Unix(500, 0))
-	if err != nil {
-		t.Fatalf("Failed to get students in %d: %s", rosters[1].class.ID, err)
-	}
+	got = In(c, rosters[1].class, time.Unix(500, 0))
 	if len(got) != 3 {
 		t.Fatalf("Wrong number of students in %d: %d vs 3", rosters[1].class.ID, len(got))
 	}
-	got, err = In(c, rosters[1].class, time.Unix(1500, 0))
-	if err != nil {
-		t.Fatalf("Failed to get students in %d: %s", rosters[1].class.ID, err)
-	}
+	got = In(c, rosters[1].class, time.Unix(1500, 0))
 	if len(got) != 2 {
 		t.Fatalf("Wrong number of students in %d: %d vs 2", rosters[1].class.ID, len(got))
 	}

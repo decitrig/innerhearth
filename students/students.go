@@ -93,13 +93,14 @@ func ExceptExpiredDropIns(l []*Student, now time.Time) []*Student {
 // In returns a list of all Students registered for a class. The list
 // will include only those drop-in Students whose date is not in the
 // past.
-func In(c appengine.Context, class *classes.Class, now time.Time) ([]*Student, error) {
+func In(c appengine.Context, class *classes.Class, now time.Time) []*Student {
 	q := datastore.NewQuery("Student").
 		Ancestor(class.Key(c))
 	students := []*Student{}
 	_, err := q.GetAll(c, &students)
 	if err != nil {
-		return nil, err
+		c.Errorf("Failed to look up students for %d: %s", class.ID, err)
+		return nil
 	}
 	filtered := []*Student{}
 	for _, student := range students {
@@ -108,7 +109,7 @@ func In(c appengine.Context, class *classes.Class, now time.Time) ([]*Student, e
 		}
 		filtered = append(filtered, student)
 	}
-	return filtered, nil
+	return filtered
 }
 
 // WithIDInClass returns the Student with a specific ID in a single class, if one exists.
@@ -162,10 +163,7 @@ func (s *Student) Add(c appengine.Context, asOf time.Time) error {
 			if err != nil {
 				return err
 			}
-			in, err := In(c, class, asOf)
-			if err != nil {
-				return fmt.Errorf("students: failed to look up registered students")
-			}
+			in := In(c, class, asOf)
 			if int32(len(in)) >= class.Capacity {
 				return ErrClassIsFull
 			}

@@ -6,6 +6,9 @@
 {{define "body"}}
 <div class="section">
   <h1>{{.Class.Title}}</h1>
+  {{if .CanViewRoster}}
+  <p><a href="/roster?class={{.Class.ID}}">View Roster</a></p>
+  {{end}}  {{/* if .CanViewRoster */}}
   <p>{{.Class.Weekday}}s with {{.Teacher.DisplayName}} at {{FormatLocal "3:04pm" .Class.StartTime}}</p>
   <p>{{.Class.Description}}</p>
   {{if not .User }}

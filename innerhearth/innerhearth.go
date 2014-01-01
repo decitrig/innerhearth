@@ -45,6 +45,9 @@ var (
 		"WeekdayAsInt": weekdayAsInt,
 		"FormatLocal":  formatLocal,
 	}).ParseFiles("templates/base.html", "templates/class.html"))
+	rosterPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"WeekdayAsInt": weekdayAsInt,
+	}).ParseFiles("templates/base.html", "templates/roster.html"))
 )
 
 func weekdayEquals(a, b time.Weekday) bool { return a == b }
@@ -114,6 +117,7 @@ func init() {
 	http.Handle("/", webapp.Router)
 	webapp.HandleFunc("/", index)
 	webapp.HandleFunc("/class", class)
+	webapp.Handle("/roster", userContextHandler(webapp.HandlerFunc(roster)))
 	if appengine.IsDevAppServer() {
 		webapp.HandleFunc("/error", throwError)
 	}
@@ -343,14 +347,6 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		default:
 			return webapp.InternalError(err)
 		}
-		switch teacher, err := maybeOldTeacher(c, acct, u); err {
-		case nil:
-			data["Teacher"] = teacher
-		case classes.ErrUserIsNotTeacher:
-			break
-		default:
-			return webapp.InternalError(err)
-		}
 		data["Admin"] = user.IsAdmin(c)
 		regs := registrationsForUser(c, acct.ID)
 		if len(regs) == 0 {
@@ -362,6 +358,16 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		return webapp.InternalError(err)
 	}
 	return nil
+}
+
+func canViewRoster(s *staff.Staff, a *account.Account, classTeacher *classes.Teacher) bool {
+	if s != nil {
+		return true
+	}
+	if a != nil && classTeacher != nil {
+		return a.Email == classTeacher.Email
+	}
+	return false
 }
 
 func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -379,14 +385,17 @@ func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	default:
 		return webapp.InternalError(fmt.Errorf("failed to find class %d: %s", id, err))
 	}
+	teacher := class.TeacherEntity(c)
 	data := map[string]interface{}{
 		"Class":   class,
-		"Teacher": class.TeacherEntity(c),
+		"Teacher": teacher,
 	}
 	if u := user.Current(c); u != nil {
-		switch a, err := account.ForUser(c, u); err {
+		switch a, err := maybeOldAccount(c, u); err {
 		case nil:
 			data["User"] = a
+			staffer, _ := maybeOldStaff(c, a, u)
+			data["CanViewRoster"] = canViewRoster(staffer, a, teacher)
 			sessionToken, err := storeNewToken(c, a.ID, "/register/session")
 			if err != nil {
 				return webapp.InternalError(fmt.Errorf("failed to store token: %s"))
@@ -419,4 +428,39 @@ func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
 
 func throwError(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	return webapp.InternalError(fmt.Errorf("this is an intentional error"))
+}
+
+func roster(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	id, err := strconv.ParseInt(r.FormValue("class"), 10, 64)
+	if err != nil {
+		return invalidData(w, "Invalid class ID")
+	}
+	c := appengine.NewContext(r)
+	class, err := classes.ClassWithID(c, id)
+	if err != nil {
+		return invalidData(w, "No such class.")
+	}
+	acct, ok := userContext(r)
+	if !ok {
+		return badRequest(w, "Must be logged in.")
+	}
+	staff, _ := staff.WithID(c, acct.ID)
+	if !canViewRoster(staff, acct, class.TeacherEntity(c)) {
+		return webapp.UnauthorizedError(fmt.Errorf("only staff or teachers can view rosters"))
+	}
+	classStudents := students.In(c, class, time.Now())
+	sort.Sort(students.ByName(classStudents))
+	token, err := storeNewToken(c, acct.ID, "/register/paper")
+	if err != nil {
+		return webapp.InternalError(fmt.Errorf("Failed to store token: %s", err))
+	}
+	data := map[string]interface{}{
+		"Class":    class,
+		"Students": classStudents,
+		"Token":    token.Encode(),
+	}
+	if err := rosterPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
 }

@@ -48,30 +48,32 @@
   <h1>Our Classes</h1>
   <p>Click on a class's name to see the description, sign up to drop in, or sign up for a whole session.</p>
   <table class="session-table">
-
-  {{range .Sessions}}
-    <tr class="session-heading">
-      <th class="session-name" colspan="2">{{.Name}}</th>
-      <td class="session-dates">{{.Start.Format "2 January"}} &ndash; {{.End.Format "2 January"}}</td>
-    </tr>
-      {{range $day, $classes := .Classes}}
-      {{with $classes}}
+  {{$daysInOrder := .DaysInOrder}}
+  {{range .Schedules}}
+  <tr class="session-heading">
+    <th class="session-name" colspan="2">{{.Session.Name}}</th>
+    <td class="session-dates">{{.Session.Start.Format "2 January"}} &ndash; {{.Session.End.Format "2 January"}}</td>
+    {{$classes := .ClassesByDay}}
+    {{$teachers := .TeachersByClass}}
+    {{range $daysInOrder}}
+    {{$day := .}}
+    {{$dayClasses := index $classes $day}}
+    {{range $dayClasses}}
     <tr>
-      <th colspan="3" class="class-weekday">{{indexAsWeekday $day}}</th>
+      <th colspan="3" class="class-weekday">{{$day}}</th>
     </tr>
-    {{range .}}
     <tr>
       <td><a href="/class?id={{.ID}}">{{.Title}}</a>{{if .DropInOnly}} <i>(drop-in only)</i>{{end}}</td>
-      <td>{{.Teacher.FirstName}}</td>
-      <td>{{.StartTime.Format "3:04pm"}} &ndash; {{.EndTime.Format "3:04pm"}}</td>
+      {{$teacher := index $teachers .ID}}
+      <td>{{$teacher.DisplayName}}</td>
+      {{$endTime := .StartTime.Add .Length}}
+      <td>{{FormatLocal "3:04pm" .StartTime}} &ndash; {{FormatLocal "3:04pm" $endTime}}</td>
     </tr>
-    {{end}}
-    {{end}}
-    {{end}}
-
-  {{end}}
+    {{end}}  {{/* range $dayClasses */}}
+    {{end}}  {{/* range $daysInOrder */}}
+  </tr>
+  {{end}}  {{/* range .Schedules */}}
   </table>
-
   <div style="clear: both"></div>
 </div>
     <div id="yin-yogassage" class="section">

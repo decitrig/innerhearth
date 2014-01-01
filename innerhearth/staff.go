@@ -32,6 +32,7 @@ var (
 	}).ParseFiles("templates/base.html", "templates/staff/reschedule-class.html"))
 	sessionPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"indexAsWeekday": indexAsWeekday,
+		"FormatLocal":    formatLocal,
 	}).ParseFiles("templates/base.html", "templates/staff/session.html"))
 	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
@@ -52,17 +53,28 @@ func init() {
 		"/staff/add-session":          addSession,
 		"/staff/yin-yogassage":        yinYogassage,
 		"/staff/delete-yin-yogassage": deleteYinYogassage,
+		"/staff/session":              session,
+		"/staff/add-class":            addClass,
 		/*
-			"/staff/add-class":            addClass,
 			"/staff/delete-class":         deleteClass,
 			"/staff/edit-class":           editClass,
 			"/staff/reschedule-class":     rescheduleClass,
-			"/staff/session":              session,
-			"/staff/assign-classes":       assignClasses,
 		*/
+		// TODO(rwsims): Remove "assign-classes" functionality
+		//	"/staff/assign-classes":       assignClasses,
 	} {
 		webapp.HandleFunc(url, userContextHandler(staffContextHandler(fn)))
 	}
+}
+
+var daysInOrder = []time.Weekday{
+	time.Monday,
+	time.Tuesday,
+	time.Wednesday,
+	time.Thursday,
+	time.Friday,
+	time.Saturday,
+	time.Sunday,
 }
 
 func staffPortal(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -295,11 +307,45 @@ func addSession(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	return nil
 }
 
+func session(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	idString := r.FormValue("id")
+	if idString == "" {
+		return missingFields(w)
+	}
+	id, err := strconv.ParseInt(idString, 10, 64)
+	if err != nil {
+		return invalidData(w, fmt.Sprintf("Couldn't parse %q as ID", idString))
+	}
+	c := appengine.NewContext(r)
+	session, err := classes.SessionWithID(c, id)
+	switch err {
+	case nil:
+		break
+	case classes.ErrSessionNotFound:
+		return invalidData(w, fmt.Sprintf("No such session"))
+	default:
+		return webapp.InternalError(fmt.Errorf("failed to find session %d: %s", id, err))
+	}
+	classList := session.Classes(c)
+	sort.Sort(classes.ClassesByStartTime(classList))
+	teachers := classes.TeachersByClass(c, classList)
+	data := map[string]interface{}{
+		"Session":     session,
+		"Classes":     classes.GroupedByDay(classList),
+		"DaysInOrder": daysInOrder,
+		"Teachers":    teachers,
+	}
+	if err := sessionPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
 func yinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	staffAccount, ok := staffContext(r)
 	if !ok {
-		return webapp.UnauthorizedError(fmt.Errorf("only staff may add sessions"))
+		return webapp.UnauthorizedError(fmt.Errorf("only staff may add yins"))
 	}
 	if r.Method == "POST" {
 		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
@@ -348,7 +394,7 @@ func deleteYinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	}
 	id, err := strconv.ParseInt(fields["id"], 10, 64)
 	if err != nil {
-		return webapp.InternalError(fmt.Errorf("failed to parse %q as announcement ID: %s", fields["id"], err))
+		return invalidData(w, fmt.Sprintf("Invalid yogassage ID"))
 	}
 	c := appengine.NewContext(r)
 	yin, err := yogassage.WithID(c, id)
@@ -386,6 +432,122 @@ func deleteYinYogassage(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Class": yin,
 	}
 	if err := deleteYinYogassagePage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func parseWeekday(s string) (time.Weekday, error) {
+	idx, err := strconv.ParseInt(s, 10, 0)
+	if err != nil {
+		return 0, err
+	}
+	if idx < 0 || idx > 6 {
+		return 0, fmt.Errorf("out of range")
+	}
+	return time.Weekday(idx), nil
+}
+
+func parseMinutes(s string) (time.Duration, error) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if n <= 0 {
+		return 0, fmt.Errorf("out of range")
+	}
+	return time.Duration(n) * time.Minute, nil
+}
+
+func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	idString := r.FormValue("session")
+	if idString == "" {
+		return missingFields(w)
+	}
+	id, err := strconv.ParseInt(idString, 10, 64)
+	if err != nil {
+		return invalidData(w, fmt.Sprintf("Invalid session ID"))
+	}
+	c := appengine.NewContext(r)
+	session, err := classes.SessionWithID(c, id)
+	switch err {
+	case nil:
+		break
+	case classes.ErrSessionNotFound:
+		return invalidData(w, "No such session.")
+	default:
+		return webapp.InternalError(fmt.Errorf("failed to look up session %d: %s", id, err))
+	}
+	staffAccount, ok := staffContext(r)
+	if !ok {
+		return webapp.UnauthorizedError(fmt.Errorf("only staff may add classes"))
+	}
+	if r.Method == "POST" {
+		token, err := auth.TokenForRequest(c, staffAccount.ID, r.URL.Path)
+		if err != nil {
+			return webapp.UnauthorizedError(fmt.Errorf("didn't find an auth token"))
+		}
+		if !token.IsValid(r.FormValue(auth.TokenFieldName), time.Now()) {
+			return webapp.UnauthorizedError(fmt.Errorf("invalid auth token"))
+		}
+		fields, err := webapp.ParseRequiredValues(r, "name", "description", "maxstudents", "dayofweek", "starttime", "length", "dropinonly")
+		if err != nil {
+			return missingFields(w)
+		}
+		weekday, err := parseWeekday(fields["dayofweek"])
+		if err != nil {
+			return invalidData(w, "Invalid weekday")
+		}
+		maxStudents, err := strconv.ParseInt(fields["maxstudents"], 10, 32)
+		if err != nil || maxStudents <= 0 {
+			return invalidData(w, "Invalid student capacity")
+		}
+		length, err := parseMinutes(fields["length"])
+		if err != nil {
+			return invalidData(w, "Invalid length")
+		}
+		start, err := parseLocalTime(fields["starttime"])
+		if err != nil {
+			return invalidData(w, "Invalid start time; please use HH:MMpm format (e.g., 3:04pm)")
+		}
+		class := &classes.Class{
+			Title:           fields["name"],
+			LongDescription: []byte(fields["description"]),
+			Weekday:         weekday,
+			DropInOnly:      fields["dropinonly"] == "true",
+			Capacity:        int32(maxStudents),
+			Length:          length,
+			StartTime:       start,
+			Session:         session.ID,
+		}
+		if email := r.FormValue("teacher"); email != "" {
+			teacher, err := classes.TeacherWithEmail(c, email)
+			if err != nil {
+				return invalidData(w, "Invalid teacher selected")
+			}
+			class.Teacher = teacher.Key(c)
+		}
+		if err := class.Insert(c); err != nil {
+			return webapp.InternalError(fmt.Errorf("failed to add class: %s", err))
+		}
+		c.Infof("class ID: %d", class.ID)
+		token.Delete(c)
+		http.Redirect(w, r, "/staff", http.StatusSeeOther)
+		return nil
+	}
+	token, err := auth.NewToken(staffAccount.ID, r.URL.Path, time.Now())
+	if err != nil {
+		return webapp.InternalError(err)
+	}
+	if err := token.Store(c); err != nil {
+		return webapp.InternalError(err)
+	}
+	data := map[string]interface{}{
+		"Token":    token.Encode(),
+		"Session":  session,
+		"Teachers": classes.Teachers(c),
+	}
+	if err := addClassPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

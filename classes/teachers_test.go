@@ -54,6 +54,11 @@ func TestTeacher(t *testing.T) {
 		} else if !reflect.DeepEqual(teacher, found) {
 			t.Errorf("Found wrong teacher by id; %v vs %v", found, teacher)
 		}
+		if found, err := TeacherWithEmail(c, user.Email); err != nil {
+			t.Errorf("Didn't find teacher %d with email %q: %s", i, user.Email, err)
+		} else if !reflect.DeepEqual(teacher, found) {
+			t.Errorf("Found wrong teacher by email; %v vs %v", found, teacher)
+		}
 	}
 	expected := usersToTeachers(users)
 	allTeachers := Teachers(c)

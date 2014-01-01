@@ -16,8 +16,9 @@
 	<textarea name="description" id="description" required="required" rows="5" cols="80"></textarea>
       <li class="field-item"><label for="teacher" class="field-label">Teacher:</label>
 	<select name="teacher" id="teacher">
+	  <option value="">IH Staff</option>
 	  {{range .Teachers}}
-	  <option value="{{.Email}}">{{.FirstName}}</option>
+	  <option value="{{.Email}}">{{.DisplayName}}</option>
 	  {{end}}
 	</select>
       <li class="field-item"><label for="maxstudents" class="field-label">Max students:</label>

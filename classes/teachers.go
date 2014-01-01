@@ -1,6 +1,8 @@
 package classes
 
 import (
+	"fmt"
+
 	"appengine"
 	"appengine/datastore"
 
@@ -74,9 +76,27 @@ func TeacherForUser(c appengine.Context, user *account.Account) (*Teacher, error
 	return teacherByKey(c, teacherKeyFromID(c, user.ID))
 }
 
-// LookupTeacher returns the Teacher with thte given ID, if one exists.
+// TeacherWithID returns the Teacher with the given ID, if one exists.
 func TeacherWithID(c appengine.Context, id string) (*Teacher, error) {
 	return teacherByKey(c, teacherKeyFromID(c, id))
+}
+
+// TeacherWithID returns the Teacher with the give email, if one exists.
+func TeacherWithEmail(c appengine.Context, email string) (*Teacher, error) {
+	q := datastore.NewQuery("Teacher").
+		Filter("Email =", email).
+		Limit(1)
+	teachers := []*Teacher{}
+	keys, err := q.GetAll(c, &teachers)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys) == 0 {
+		return nil, ErrUserIsNotTeacher
+	}
+	teacher := teachers[0]
+	teacher.ID = keys[0].StringID()
+	return teacher, nil
 }
 
 func (t *Teacher) Put(c appengine.Context) error {
@@ -91,6 +111,13 @@ func (t *Teacher) Delete(c appengine.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (t *Teacher) DisplayName() string {
+	if t == nil {
+		return "Inner Hearth Staff"
+	}
+	return fmt.Sprintf("%s %s", t.FirstName, t.LastName)
 }
 
 // Teachers returns a list of all the Teachers which currently exist.

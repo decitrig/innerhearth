@@ -34,6 +34,8 @@ import (
 
 var (
 	indexPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"ClassesByDay":   classesByDay,
+		"FormatLocal":    formatLocal,
 		"indexAsWeekday": func(i int) time.Weekday { return time.Weekday((i + 1) % 7) },
 	}).ParseFiles("templates/base.html", "templates/index.html"))
 	loginPage = template.Must(template.ParseFiles("templates/base.html", "templates/login.html"))
@@ -65,6 +67,14 @@ func parseLocalDate(s string) (time.Time, error) {
 		return t, err
 	}
 	return t, nil
+}
+
+func formatLocal(layout string, t time.Time) string {
+	return t.In(local).Format(layout)
+}
+
+func classesByDay(clsses []*classes.Class) map[time.Weekday][]*classes.Class {
+	return classes.GroupedByDay(clsses)
 }
 
 func staticTemplate(file string) webapp.HandlerFunc {
@@ -173,12 +183,38 @@ func maybeOldTeacher(c appengine.Context, a *account.Account, u *user.User) (*cl
 	return teacher, nil
 }
 
+type sessionSchedule struct {
+	Session         *classes.Session
+	ClassesByDay    map[time.Weekday][]*classes.Class
+	TeachersByClass map[int64]*classes.Teacher
+}
+
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	announcements := staff.CurrentAnnouncements(c, time.Now())
 	sort.Sort(staff.AnnouncementsByExpiration(announcements))
+	sessions := classes.Sessions(c, time.Now())
+	schedules := []sessionSchedule{}
+	for _, session := range sessions {
+		sessionClasses := session.Classes(c)
+		if len(sessionClasses) == 0 {
+			continue
+		}
+		sched := sessionSchedule{
+			Session:         session,
+			ClassesByDay:    classes.GroupedByDay(sessionClasses),
+			TeachersByClass: classes.TeachersByClass(c, sessionClasses),
+		}
+		schedules = append(schedules, sched)
+	}
+	classesBySession := make(map[int64][]*classes.Class)
+	for _, session := range sessions {
+		classesBySession[session.ID] = session.Classes(c)
+	}
 	data := map[string]interface{}{
 		"Announcements": announcements,
+		"Schedules":     schedules,
+		"DaysInOrder":   daysInOrder,
 	}
 	if u := user.Current(c); u != nil {
 		acct, err := maybeOldAccount(c, u)

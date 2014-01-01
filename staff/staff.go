@@ -7,7 +7,6 @@ import (
 	"appengine/datastore"
 
 	"github.com/decitrig/innerhearth/account"
-	"github.com/decitrig/innerhearth/classes"
 )
 
 var (
@@ -80,25 +79,6 @@ func (s *Staff) Store(c appengine.Context) error {
 // Delete removes the staff from the datastore.
 func (s *Staff) Delete(c appengine.Context) error {
 	if err := datastore.Delete(c, s.key(c)); err != nil {
-		return err
-	}
-	return nil
-}
-
-// AddClass inserts a new Class into the datastore. It will not overwrite any existing Class.
-func (s *Staff) AddClass(c appengine.Context, class *classes.Class) error {
-	incompleteKey := class.NewIncompleteKey(c)
-	key, err := datastore.Put(c, incompleteKey, class)
-	if err != nil {
-		return err
-	}
-	class.ID = key.IntID()
-	return nil
-}
-
-// DeleteClass removes a class from the datastore.
-func (s *Staff) DeleteClass(c appengine.Context, class *classes.Class) error {
-	if err := datastore.Delete(c, class.Key(c)); err != nil {
 		return err
 	}
 	return nil

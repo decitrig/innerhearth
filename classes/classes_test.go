@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	week         = 7 * 24 * time.Hour
-	stafferSmith = &staff.Staff{"1", account.Info{FirstName: "staffer", LastName: "smith"}}
+	week = 7 * 24 * time.Hour
 )
 
 func sessionsEqual(s1, s2 *Session) bool {
@@ -93,7 +92,7 @@ func TestClasses(t *testing.T) {
 	}
 	defer c.Close()
 	for i, class := range classes {
-		if err := stafferSmith.AddClass(c, class); err != nil {
+		if err := class.Insert(c); err != nil {
 			t.Fatalf("Failed to store class %d: %s", i, err)
 		}
 		if class.ID <= 0 {
@@ -106,10 +105,7 @@ func TestClasses(t *testing.T) {
 		}
 	}
 	expected := classes[0:2]
-	sClasses, err := session1.Classes(c)
-	if err != nil {
-		t.Fatalf("Failed to look up session1 classes")
-	}
+	sClasses := session1.Classes(c)
 	if len(sClasses) != len(expected) {
 		t.Fatalf("Wrong number of classes for session 1: %d vs %d", len(sClasses), len(expected))
 	}

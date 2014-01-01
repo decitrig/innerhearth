@@ -78,18 +78,19 @@ func (s *Session) Insert(c appengine.Context) error {
 }
 
 // Classes returns a list of all the classes within the session.
-func (s *Session) Classes(c appengine.Context) ([]*Class, error) {
+func (s *Session) Classes(c appengine.Context) []*Class {
 	q := datastore.NewQuery("Class").
 		Filter("Session =", s.ID)
 	classes := []*Class{}
 	keys, err := q.GetAll(c, &classes)
 	if err != nil {
-		return nil, err
+		c.Errorf("Failed to get classes for session %d: %s", s.ID, err)
+		return nil
 	}
 	for i, key := range keys {
 		classes[i].ID = key.IntID()
 	}
-	return classes, nil
+	return classes
 }
 
 // SessionsByStartDate sorts sessions by their start date.
@@ -144,8 +145,15 @@ func ClassWithID(c appengine.Context, id int64) (*Class, error) {
 	}
 }
 
-func (cls *Class) NewIncompleteKey(c appengine.Context) *datastore.Key {
-	return datastore.NewIncompleteKey(c, "Class", nil)
+// Insert adds a new Class to the datastore; it will not overwrite an existing Class.
+func (cls *Class) Insert(c appengine.Context) error {
+	iKey := datastore.NewIncompleteKey(c, "Class", nil)
+	key, err := datastore.Put(c, iKey, cls)
+	if err != nil {
+		return err
+	}
+	cls.ID = key.IntID()
+	return nil
 }
 
 func NewClassKey(c appengine.Context, id int64) *datastore.Key {
@@ -161,6 +169,35 @@ func (cls *Class) Update(c appengine.Context) error {
 		return err
 	}
 	return nil
+}
+
+// TeachersByClass returns a map from Class ID to Teacher entity (or nil if the class has no teacher.
+func TeachersByClass(c appengine.Context, classList []*Class) map[int64]*Teacher {
+	teachers := make(map[int64]*Teacher)
+	for _, class := range classList {
+		key := class.Teacher
+		if key == nil {
+			continue
+		}
+		teacher, err := teacherByKey(c, key)
+		if err != nil {
+			c.Errorf("Failed to find teacher for class %d: %s", class.ID, err)
+			continue
+		}
+		teachers[class.ID] = teacher
+	}
+	return teachers
+}
+
+// GroupedByDay returns a map from weekday to a list of classes on that day.
+func GroupedByDay(classList []*Class) map[time.Weekday][]*Class {
+	byDay := make(map[time.Weekday][]*Class)
+	for _, class := range classList {
+		day := byDay[class.Weekday]
+		day = append(day, class)
+		byDay[class.Weekday] = day
+	}
+	return byDay
 }
 
 // ClassesByTitle returns a sort.Interface which sorts classes

@@ -11,7 +11,7 @@ import (
 	"appengine/aetest"
 	"appengine/datastore"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/classes"
 )
 
@@ -21,10 +21,10 @@ func TestStudents(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	accounts := []*auth.UserAccount{
-		account(1, "a"),
-		account(2, "b"),
-		account(3, "c"),
+	accounts := []*account.Account{
+		makeAccount(1, "a"),
+		makeAccount(2, "b"),
+		makeAccount(3, "c"),
 	}
 	classList := []*classes.Class{{}}
 	for _, class := range classList {
@@ -45,7 +45,7 @@ func TestStudents(t *testing.T) {
 		for _, acct := range r.accounts {
 			student := New(accounts[acct], r.class)
 			if err := student.Add(c, time.Now()); err != nil {
-				t.Fatalf("Failed to add student %s to class %d: %s", accounts[acct].AccountID, r.class.ID, err)
+				t.Fatalf("Failed to add student %s to class %d: %s", accounts[acct].ID, r.class.ID, err)
 			}
 		}
 	}
@@ -57,14 +57,10 @@ func TestStudents(t *testing.T) {
 		New(accounts[0], rosters[0].class),
 		New(accounts[0], rosters[1].class),
 	}
-	if got, err := WithID(c, accounts[0].AccountID); err != nil {
-		t.Fatalf("Failed to get students by id: %s", err)
-	} else if len(got) != len(want) {
-		t.Errorf("Wrong number of students with id %s: %d vs %d", accounts[0].AccountID, len(got), len(want))
+	if got := WithID(c, accounts[0].ID); len(got) != len(want) {
+		t.Errorf("Wrong number of students with id %s: %d vs %d", accounts[0].ID, len(got), len(want))
 	}
-	if got, err := WithEmail(c, accounts[0].Email); err != nil {
-		t.Fatalf("Failed to get students by email: %s", err)
-	} else if len(got) != len(want) {
+	if got := WithEmail(c, accounts[0].Email); len(got) != len(want) {
 		t.Errorf("Wrong number of students with email %s: %d vs %d", accounts[0].Email, len(got), len(want))
 	}
 
@@ -113,10 +109,10 @@ func putClass(c appengine.Context, cls *classes.Class) {
 	}
 }
 
-func account(id int, name string) *auth.UserAccount {
-	return &auth.UserAccount{
-		AccountID: fmt.Sprintf("%d", id),
-		UserInfo:  auth.UserInfo{name, name, fmt.Sprintf("%s@%s.com", name, name), ""},
+func makeAccount(id int, name string) *account.Account {
+	return &account.Account{
+		ID:   fmt.Sprintf("%d", id),
+		Info: account.Info{name, name, fmt.Sprintf("%s@%s.com", name, name), ""},
 	}
 }
 
@@ -128,9 +124,9 @@ func studentsEqual(a, b *Student) bool {
 	switch {
 	case a == nil || b == nil:
 		return a == b
-	case a.AccountID != b.AccountID:
+	case a.ID != b.ID:
 		return false
-	case !reflect.DeepEqual(a.UserInfo, b.UserInfo):
+	case !reflect.DeepEqual(a.Info, b.Info):
 		return false
 	case a.ClassID != b.ClassID:
 		return false

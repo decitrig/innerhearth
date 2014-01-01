@@ -7,7 +7,7 @@ import (
 	"appengine"
 	"appengine/datastore"
 
-	"github.com/decitrig/innerhearth/auth"
+	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/classes"
 )
 
@@ -19,8 +19,8 @@ var (
 // A Student is a single registration in a single class. A UserAccount
 // may have multiple Students associated with it.
 type Student struct {
-	AccountID string
-	auth.UserInfo
+	ID string
+	account.Info
 
 	ClassID   int64
 	ClassType classes.Type
@@ -30,10 +30,10 @@ type Student struct {
 }
 
 // New creates a new session Student registration for a user in a class.
-func New(user *auth.UserAccount, class *classes.Class) *Student {
+func New(user *account.Account, class *classes.Class) *Student {
 	return &Student{
-		AccountID: user.AccountID,
-		UserInfo:  user.UserInfo,
+		ID:        user.ID,
+		Info:      user.Info,
 		ClassID:   class.ID,
 		ClassType: classes.Regular,
 	}
@@ -41,10 +41,10 @@ func New(user *auth.UserAccount, class *classes.Class) *Student {
 
 // NewDropIn creates a new drop-in Student registration for a user in
 // a class on a specific date.
-func NewDropIn(user *auth.UserAccount, class *classes.Class, date time.Time) *Student {
+func NewDropIn(user *account.Account, class *classes.Class, date time.Time) *Student {
 	return &Student{
-		AccountID: user.AccountID,
-		UserInfo:  user.UserInfo,
+		ID:        user.ID,
+		Info:      user.Info,
 		ClassID:   class.ID,
 		ClassType: classes.Regular,
 		DropIn:    true,
@@ -53,27 +53,29 @@ func NewDropIn(user *auth.UserAccount, class *classes.Class, date time.Time) *St
 }
 
 // WithID returns a list of all Students with an account ID.
-func WithID(c appengine.Context, id string) ([]*Student, error) {
+func WithID(c appengine.Context, id string) []*Student {
 	q := datastore.NewQuery("Student").
-		Filter("AccountID =", id)
+		Filter("ID =", id)
 	students := []*Student{}
 	_, err := q.GetAll(c, &students)
 	if err != nil {
-		return nil, err
+		c.Errorf("Failed to look up students for %q: %s", id, err)
+		return nil
 	}
-	return students, nil
+	return students
 }
 
 // WithEmail returns a list of all Students with an email.
-func WithEmail(c appengine.Context, email string) ([]*Student, error) {
+func WithEmail(c appengine.Context, email string) []*Student {
 	q := datastore.NewQuery("Student").
 		Filter("Email =", email)
 	students := []*Student{}
 	_, err := q.GetAll(c, &students)
 	if err != nil {
-		return nil, err
+		c.Errorf("Failed to look up students for %q: %s", email, err)
+		return nil
 	}
-	return students, nil
+	return students
 }
 
 // In returns a list of all Students registered for a class. The list
@@ -121,7 +123,7 @@ func (s *Student) Add(c appengine.Context, asOf time.Time) error {
 					break
 				}
 				// Old registration is still active; do nothing.
-				c.Warningf("Attempted duplicate registration of %q in %d", s.AccountID, s.ClassID)
+				c.Warningf("Attempted duplicate registration of %q in %d", s.ID, s.ClassID)
 				return nil
 			default:
 				return fmt.Errorf("students: failed to look up existing student: %s", err)
@@ -160,7 +162,7 @@ func (s *Student) Add(c appengine.Context, asOf time.Time) error {
 }
 
 func (s *Student) key(c appengine.Context) *datastore.Key {
-	return datastore.NewKey(c, "Student", s.AccountID, 0, classes.NewClassKey(c, s.ClassID))
+	return datastore.NewKey(c, "Student", s.ID, 0, classes.NewClassKey(c, s.ClassID))
 }
 
 // ByName sorts Students in alphabetial order by first and then last name.
@@ -177,4 +179,14 @@ func (l ByName) Less(i, j int) bool {
 	default:
 		return false
 	}
+}
+
+// ClassAndTeacher bundles together a Class and its related Teacher.
+type ClassAndTeacher struct {
+	Class   *classes.Class
+	Teacher *classes.Teacher
+}
+
+func ClassesAndTeachers(studentList []*Student) []*ClassAndTeacher {
+	classAndTeachers := make([]*ClassAndTeacher, len(studentList))
 }

@@ -27,22 +27,37 @@ import (
 	"appengine/user"
 
 	"github.com/decitrig/innerhearth/account"
+	"github.com/decitrig/innerhearth/auth"
 	"github.com/decitrig/innerhearth/classes"
 	"github.com/decitrig/innerhearth/staff"
+	"github.com/decitrig/innerhearth/students"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
 var (
 	indexPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"ClassesByDay":   classesByDay,
-		"FormatLocal":    formatLocal,
-		"indexAsWeekday": func(i int) time.Weekday { return time.Weekday((i + 1) % 7) },
+		"ClassesByDay": classesByDay,
+		"FormatLocal":  formatLocal,
 	}).ParseFiles("templates/base.html", "templates/index.html"))
 	loginPage = template.Must(template.ParseFiles("templates/base.html", "templates/login.html"))
 	classPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"weekdayAsIndex": func(w time.Weekday) int { return int(w) },
+		"WeekdayAsInt": weekdayAsInt,
+		"FormatLocal":  formatLocal,
 	}).ParseFiles("templates/base.html", "templates/class.html"))
 )
+
+func weekdayEquals(a, b time.Weekday) bool { return a == b }
+func weekdayAsInt(w time.Weekday) int      { return int(w) }
+func minutes(d time.Duration) int64        { return int64(d.Minutes()) }
+func teacherHasEmail(t *classes.Teacher, email string) bool {
+	if t == nil {
+		return false
+	}
+	return t.Email == email
+}
+func formatLocal(layout string, t time.Time) string {
+	return t.In(local).Format(layout)
+}
 
 const (
 	dateFormat = "01/02/2006"
@@ -67,10 +82,6 @@ func parseLocalDate(s string) (time.Time, error) {
 		return t, err
 	}
 	return t, nil
-}
-
-func formatLocal(layout string, t time.Time) string {
-	return t.In(local).Format(layout)
 }
 
 func classesByDay(clsses []*classes.Class) map[time.Weekday][]*classes.Class {
@@ -113,6 +124,21 @@ func init() {
 	} {
 		webapp.HandleFunc(url, staticTemplate(template))
 	}
+}
+
+func badRequest(w http.ResponseWriter, message string) *webapp.Error {
+	// TODO(rwsims): Clean up this error reporting.
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintf(w, message)
+	return nil
+}
+
+func missingFields(w http.ResponseWriter) *webapp.Error {
+	return badRequest(w, "Please go back and enter all required data.")
+}
+
+func invalidData(w http.ResponseWriter, message string) *webapp.Error {
+	return badRequest(w, message)
 }
 
 func maybeOldAccount(c appengine.Context, u *user.User) (*account.Account, error) {
@@ -183,6 +209,28 @@ func maybeOldTeacher(c appengine.Context, a *account.Account, u *user.User) (*cl
 	return teacher, nil
 }
 
+func storeNewToken(c appengine.Context, userID, path string) (*auth.Token, error) {
+	token, err := auth.NewToken(userID, path, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	if err := token.Store(c); err != nil {
+		return nil, err
+	}
+	return token, nil
+}
+
+func checkToken(c appengine.Context, userID, path, encoded string) (*auth.Token, bool) {
+	token, err := auth.TokenForRequest(c, userID, path)
+	if err != nil {
+		return nil, false
+	}
+	if token.IsValid(encoded, time.Now()) {
+		return token, true
+	}
+	return nil, false
+}
+
 type sessionSchedule struct {
 	Session         *classes.Session
 	ClassesByDay    map[time.Weekday][]*classes.Class
@@ -251,11 +299,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			return webapp.InternalError(err)
 		}
 		data["Admin"] = user.IsAdmin(c)
-
-		/*
-			registrar := model.NewRegistrar(c, u)
-			data["Registrations"] = registrar.ListRegisteredClasses(registrar.ListRegistrations())
-		*/
+		data["Students"] = students.WithID(c, acct.ID)
 	}
 	if err := indexPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -264,11 +308,44 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 }
 
 func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
-	_, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		return webapp.InternalError(err)
+		return invalidData(w, "Couldn't parse class ID")
 	}
-	data := map[string]interface{}{}
+	c := appengine.NewContext(r)
+	class, err := classes.ClassWithID(c, id)
+	switch err {
+	case nil:
+		break
+	case classes.ErrClassNotFound:
+		return invalidData(w, "No such class")
+	default:
+		return webapp.InternalError(fmt.Errorf("failed to find class %d: %s", id, err))
+	}
+	data := map[string]interface{}{
+		"Class":   class,
+		"Teacher": class.TeacherEntity(c),
+	}
+	if u := user.Current(c); u != nil {
+		switch a, err := account.ForUser(c, u); err {
+		case nil:
+			data["User"] = a
+			sessionToken, err := storeNewToken(c, a.ID, "/register/session")
+			if err != nil {
+				return webapp.InternalError(fmt.Errorf("failed to store token: %s"))
+			}
+			data["SessionToken"] = sessionToken.Encode()
+			oneDayToken, err := storeNewToken(c, a.ID, "/register/oneday")
+			if err != nil {
+				return webapp.InternalError(fmt.Errorf("failed to store token: %s"))
+			}
+			data["OneDayToken"] = oneDayToken.Encode()
+		case account.ErrUserNotFound:
+			break
+		default:
+			c.Errorf("Failed to find user account: %s", err)
+		}
+	}
 	if err := classPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}

@@ -26,19 +26,13 @@
   {{end}}
 </div>
 {{end}}
-{{with .Registrations}}
+{{with .Students}}
 <div class="section">
   <h1>Your Registrations</h1>
   <ul class="registration-list">
   {{range .}}
   <li>
-    {{.Title}} with {{.Teacher.FirstName}} on
-    {{if .DropIn}}
-    {{.Weekday}} {{.Student.Date.Format "1/2"}}
-    {{else}}
-    {{.Weekday}}s
-    {{end}}
-    at {{.StartTime.Format "3:04pm"}}.
+    {{.ClassID}}
   </li>
   {{end}}
   </ul>

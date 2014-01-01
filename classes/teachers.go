@@ -88,7 +88,7 @@ func TeacherWithEmail(c appengine.Context, email string) (*Teacher, error) {
 		Limit(1)
 	teachers := []*Teacher{}
 	keys, err := q.GetAll(c, &teachers)
-	if err != nil {
+	if err != nil && !isFieldMismatch(err) {
 		return nil, err
 	}
 	if len(keys) == 0 {
@@ -126,7 +126,7 @@ func Teachers(c appengine.Context) []*Teacher {
 		Limit(100)
 	teachers := []*Teacher{}
 	keys, err := q.GetAll(c, &teachers)
-	if err != nil {
+	if err != nil && !isFieldMismatch(err) {
 		c.Errorf("Failed to look up teachers: %s", err)
 		return nil
 	}

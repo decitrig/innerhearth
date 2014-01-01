@@ -83,7 +83,7 @@ func (s *Session) Classes(c appengine.Context) []*Class {
 		Filter("Session =", s.ID)
 	classes := []*Class{}
 	keys, err := q.GetAll(c, &classes)
-	if err != nil {
+	if err != nil && !isFieldMismatch(err) {
 		c.Errorf("Failed to get classes for session %d: %s", s.ID, err)
 		return nil
 	}
@@ -136,13 +136,41 @@ func ClassWithID(c appengine.Context, id int64) (*Class, error) {
 	class := &Class{}
 	switch err := datastore.Get(c, classKeyFromID(c, id), class); err {
 	case nil:
-		class.ID = id
-		return class, nil
+		break
 	case datastore.ErrNoSuchEntity:
 		return nil, ErrClassNotFound
 	default:
+		if isFieldMismatch(err) {
+			break
+		}
 		return nil, err
 	}
+	class.ID = id
+	return class, nil
+}
+
+// ClassesWithIDs returns a list of classes which correspond to the given IDs.
+func ClassesWithIDs(c appengine.Context, ids []int64) []*Class {
+	keys := make([]*datastore.Key, len(ids))
+	classes := make([]*Class, len(ids))
+	for i, id := range ids {
+		classes[i] = &Class{}
+		keys[i] = classKeyFromID(c, id)
+	}
+	switch err := datastore.GetMulti(c, keys, classes); err {
+	case nil:
+		break
+	default:
+		if isFieldMismatch(err) {
+			break
+		}
+		c.Errorf("Failed to get classes with list of IDs: %s", err)
+		return nil
+	}
+	for i, key := range keys {
+		classes[i].ID = key.IntID()
+	}
+	return classes
 }
 
 func (c *Class) Description() string {
@@ -154,7 +182,7 @@ func (cls *Class) TeacherEntity(c appengine.Context) *Teacher {
 		return nil
 	}
 	teacher, err := teacherByKey(c, cls.Teacher)
-	if err != nil {
+	if err != nil && !isFieldMismatch(err) {
 		c.Errorf("Failed to find teacher for class %d: %s", cls.ID, err)
 		return nil
 	}
@@ -204,7 +232,7 @@ func TeachersByClass(c appengine.Context, classList []*Class) map[int64]*Teacher
 			continue
 		}
 		teacher, err := teacherByKey(c, key)
-		if err != nil {
+		if err != nil && !isFieldMismatch(err) {
 			c.Errorf("Failed to find teacher for class %d: %s", class.ID, err)
 			continue
 		}

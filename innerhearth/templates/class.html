@@ -6,7 +6,7 @@
 {{define "body"}}
 <div class="section">
   <h1>{{.Class.Title}}</h1>
-  <p>{{.Class.Weekday}}s with {{.Class.Teacher.FirstName}} at {{.Class.StartTime.Format "3:04pm"}}</p>
+  <p>{{.Class.Weekday}}s with {{.Teacher.DisplayName}} at {{FormatLocal "3:04pm" .Class.StartTime}}</p>
   <p>{{.Class.Description}}</p>
   {{if not .User }}
   <p><a href="/login">Log in</a> to register.</p>
@@ -16,16 +16,16 @@
 
   {{if not .Class.DropInOnly}}
   <h3>Session Registration</h3>
-  <form method="post" action="/registration/session">
-    {{template "XSRFTokenInput" .Token}}
+  <form method="post" action="/register/session">
+    {{template "XSRFTokenInput" .SessionToken}}
     <input type="hidden" name="class" value="{{.Class.ID}}" />
     <button style="padding: 1em">Register For Entire Session</button>
   </form>
-  {{end}}
+  {{end}}  {{/* if not .Class.DropInOnly */}}
 
   <h3>Single-Day Registration</h3>
-  <form method="post" action="/registration/oneday">
-    {{template "XSRFTokenInput" .Token}}
+  <form method="post" action="/register/oneday">
+    {{template "XSRFTokenInput" .OneDayToken}}
     <input type="hidden" name="class" value="{{.Class.ID}}" />
     <div id="datepicker"></div>
     <label class="field-label" for="date">Date (MM/DD/YYYY):</label>
@@ -34,15 +34,16 @@
   </form>
   {{else}}
   <p>You are registered for this class.</p>
-  {{end}}
-  {{end}}
+  {{end}}  {{/* if not .Student */}}
+  {{end}}  {{/* if not .User */}}
 </div>
 {{end}}
+
 {{define "script"}}
 <script>
   $("#datepicker").datepicker({
   beforeShowDay: function(date) {
-  show = {{weekdayAsIndex .Class.Weekday}} == date.getDay();
+  show = {{WeekdayAsInt .Class.Weekday}} == date.getDay();
   return [show, ""];
   },
   dateFormat: "mm/dd/yy",

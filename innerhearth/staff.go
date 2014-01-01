@@ -44,16 +44,6 @@ var (
 	deleteYinYogassagePage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-yin-yogassage.html"))
 )
 
-func weekdayEquals(a, b time.Weekday) bool { return a == b }
-func weekdayAsInt(w time.Weekday) int      { return int(w) }
-func minutes(d time.Duration) int64        { return int64(d.Minutes()) }
-func teacherHasEmail(t *classes.Teacher, email string) bool {
-	if t == nil {
-		return false
-	}
-	return t.Email == email
-}
-
 func init() {
 	for url, fn := range map[string]webapp.HandlerFunc{
 		"/staff":                      staffPortal,
@@ -101,20 +91,6 @@ func staffPortal(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	if err := staffPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
-	return nil
-}
-
-func missingFields(w http.ResponseWriter) *webapp.Error {
-	// TODO(rwsims): Clean up this error reporting.
-	w.WriteHeader(http.StatusBadRequest)
-	fmt.Fprintf(w, "Please go back and enter all required data.")
-	return nil
-}
-
-func invalidData(w http.ResponseWriter, message string) *webapp.Error {
-	// TODO(rwsims): Clean up this error reporting.
-	w.WriteHeader(http.StatusBadRequest)
-	fmt.Fprintf(w, message)
 	return nil
 }
 

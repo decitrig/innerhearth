@@ -7,9 +7,6 @@ import (
 
 	"appengine/aetest"
 
-	"github.com/decitrig/innerhearth/account"
-	"github.com/decitrig/innerhearth/staff"
-
 	. "github.com/decitrig/innerhearth/classes"
 )
 
@@ -91,6 +88,7 @@ func TestClasses(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
+	ids := make([]int64, len(classes))
 	for i, class := range classes {
 		if err := class.Insert(c); err != nil {
 			t.Fatalf("Failed to store class %d: %s", i, err)
@@ -98,10 +96,22 @@ func TestClasses(t *testing.T) {
 		if class.ID <= 0 {
 			t.Fatalf("Invalid id given to class %d: %d", i, class.ID)
 		}
+		ids[i] = class.ID
 		if got, err := ClassWithID(c, class.ID); err != nil {
 			t.Fatalf("Couldn't find class %d by %d: %s", i, class.ID, err)
 		} else if got.Title != class.Title {
 			t.Errorf("Wrong class %d found for %d: %v vs %v", i, class.ID, got, class)
+		}
+	}
+	got := ClassesWithIDs(c, ids)
+	if len(got) != len(classes) {
+		t.Fatalf("Wrong number of classes; %d vs %d", len(got), len(classes))
+	}
+	sort.Sort(ClassesByTitle(classes))
+	sort.Sort(ClassesByTitle(got))
+	for i, want := range classes {
+		if got := got[i]; got.Title != want.Title {
+			t.Errorf("Wrong class at $d: %v vs %v", got, want)
 		}
 	}
 	expected := classes[0:2]
@@ -126,7 +136,7 @@ func TestClasses(t *testing.T) {
 	} else if got.Title != class.Title {
 		t.Errorf("Didn't get expected class %d; %v vs %v", class.ID, got, class)
 	}
-	if err := stafferSmith.DeleteClass(c, class); err != nil {
+	if err := class.Delete(c); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ClassWithID(c, class.ID); err != ErrClassNotFound {

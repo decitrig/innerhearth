@@ -495,7 +495,7 @@ func addClass(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			Title:           fields["name"],
 			LongDescription: []byte(fields["description"]),
 			Weekday:         weekday,
-			DropInOnly:      fields["dropinonly"] == "true",
+			DropInOnly:      fields["dropinonly"] == "yes",
 			Capacity:        int32(maxStudents),
 			Length:          length,
 			StartTime:       start,

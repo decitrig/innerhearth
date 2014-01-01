@@ -47,6 +47,11 @@ func TestStudents(t *testing.T) {
 			if err := student.Add(c, time.Now()); err != nil {
 				t.Fatalf("Failed to add student %s to class %d: %s", accounts[acct].ID, r.class.ID, err)
 			}
+			if got, err := WithIDInClass(c, student.ID, r.class, time.Now()); err != nil {
+				t.Fatalf("Didn't find student %s in class %d: %s", student.ID, r.class.ID, err)
+			} else if !studentsEqual(got, student) {
+				t.Errorf("Wrong student; %v vs %v", got, student)
+			}
 		}
 	}
 	student := New(accounts[2], rosters[0].class)
@@ -85,6 +90,9 @@ func TestStudents(t *testing.T) {
 	dropIn := NewDropIn(accounts[2], rosters[1].class, time.Unix(1000, 0))
 	if err := dropIn.Add(c, time.Unix(1000, 0)); err != nil {
 		t.Fatalf("Error adding drop in: %s", err)
+	}
+	if _, err := WithIDInClass(c, dropIn.ID, rosters[1].class, time.Unix(1500, 0)); err == nil {
+		t.Errorf("Shouldn't have found expired dropin")
 	}
 	got, err = In(c, rosters[1].class, time.Unix(500, 0))
 	if err != nil {

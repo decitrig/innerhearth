@@ -223,7 +223,7 @@ func (cls *Class) Delete(c appengine.Context) error {
 	return nil
 }
 
-// TeachersByClass returns a map from Class ID to Teacher entity (or nil if the class has no teacher.
+// TeachersByClass returns a map from Class ID to Teacher entity (or nil if the class has no teacher).
 func TeachersByClass(c appengine.Context, classList []*Class) map[int64]*Teacher {
 	teachers := make(map[int64]*Teacher)
 	for _, class := range classList {

@@ -38,6 +38,7 @@ var (
 	indexPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"ClassesByDay": classesByDay,
 		"FormatLocal":  formatLocal,
+		"TeacherName":  teacherName,
 	}).ParseFiles("templates/base.html", "templates/index.html"))
 	loginPage = template.Must(template.ParseFiles("templates/base.html", "templates/login.html"))
 	classPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
@@ -58,6 +59,9 @@ func teacherHasEmail(t *classes.Teacher, email string) bool {
 func formatLocal(layout string, t time.Time) string {
 	return t.In(local).Format(layout)
 }
+
+// This is necessary when a Teacher is field inside another struct.
+func teacherName(t *classes.Teacher) string { return t.DisplayName() }
 
 const (
 	dateFormat = "01/02/2006"
@@ -209,6 +213,30 @@ func maybeOldTeacher(c appengine.Context, a *account.Account, u *user.User) (*cl
 	return teacher, nil
 }
 
+func maybeOldStudent(c appengine.Context, a *account.Account, u *user.User, class *classes.Class) (*students.Student, error) {
+	switch student, err := students.WithIDInClass(c, a.ID, class, time.Now()); err {
+	case nil:
+		return student, nil
+	case students.ErrStudentNotFound:
+		break
+	default:
+		return nil, err
+	}
+	student, err := students.WithIDInClass(c, u.ID, class, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	c.Warningf("Found student under old ID %q", u.ID)
+	if err := student.Delete(c); err != nil {
+		c.Errorf("Failed to delete old student: %s")
+	}
+	student.ID = a.ID
+	if err := student.Put(c); err != nil {
+		return nil, fmt.Errorf("failed to store new student for %s in %d: %s", a.Email, class.ID, err)
+	}
+	return student, nil
+}
+
 func storeNewToken(c appengine.Context, userID, path string) (*auth.Token, error) {
 	token, err := auth.NewToken(userID, path, time.Now())
 	if err != nil {
@@ -235,6 +263,31 @@ type sessionSchedule struct {
 	Session         *classes.Session
 	ClassesByDay    map[time.Weekday][]*classes.Class
 	TeachersByClass map[int64]*classes.Teacher
+}
+
+type registration struct {
+	Class   *classes.Class
+	Teacher *classes.Teacher
+	Student *students.Student
+}
+
+func registrationsForUser(c appengine.Context, userID string) []*registration {
+	studentsForUser := students.WithID(c, userID)
+	studentsForUser = students.ExceptExpiredDropIns(studentsForUser, time.Now())
+	classIDs := make([]int64, len(studentsForUser))
+	for i, student := range studentsForUser {
+		classIDs[i] = student.ClassID
+	}
+	classList := classes.ClassesWithIDs(c, classIDs)
+	regs := make([]*registration, len(classList))
+	for i, class := range classList {
+		regs[i] = &registration{
+			Class:   class,
+			Student: studentsForUser[i],
+			Teacher: class.TeacherEntity(c),
+		}
+	}
+	return regs
 }
 
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
@@ -299,7 +352,11 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 			return webapp.InternalError(err)
 		}
 		data["Admin"] = user.IsAdmin(c)
-		data["Students"] = students.WithID(c, acct.ID)
+		regs := registrationsForUser(c, acct.ID)
+		if len(regs) == 0 {
+			regs = registrationsForUser(c, u.ID)
+		}
+		data["Registrations"] = regs
 	}
 	if err := indexPage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
@@ -340,6 +397,14 @@ func class(w http.ResponseWriter, r *http.Request) *webapp.Error {
 				return webapp.InternalError(fmt.Errorf("failed to store token: %s"))
 			}
 			data["OneDayToken"] = oneDayToken.Encode()
+			switch student, err := maybeOldStudent(c, a, u, class); err {
+			case nil:
+				data["Student"] = student
+			case students.ErrStudentNotFound:
+				break
+			default:
+				c.Errorf("failed to find student %q in %d: %s", a.ID, class.ID, err)
+			}
 		case account.ErrUserNotFound:
 			break
 		default:

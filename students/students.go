@@ -78,6 +78,18 @@ func WithEmail(c appengine.Context, email string) []*Student {
 	return students
 }
 
+// ExceptExpiredDropIns filters out Student entities whose drop-in dates are in the past
+func ExceptExpiredDropIns(l []*Student, now time.Time) []*Student {
+	var out []*Student
+	for _, s := range l {
+		if s.DropIn && s.Date.Before(now) {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
 // In returns a list of all Students registered for a class. The list
 // will include only those drop-in Students whose date is not in the
 // past.
@@ -97,6 +109,24 @@ func In(c appengine.Context, class *classes.Class, now time.Time) ([]*Student, e
 		filtered = append(filtered, student)
 	}
 	return filtered, nil
+}
+
+// WithIDInClass returns the Student with a specific ID in a single class, if one exists.
+func WithIDInClass(c appengine.Context, id string, class *classes.Class, asOf time.Time) (*Student, error) {
+	key := datastore.NewKey(c, "Student", id, 0, class.Key(c))
+	student := &Student{}
+	switch err := datastore.Get(c, key, student); err {
+	case nil:
+		if student.DropIn && student.Date.Before(asOf) {
+			return nil, ErrStudentNotFound
+		}
+		student.ID = key.StringID()
+		return student, nil
+	case datastore.ErrNoSuchEntity:
+		return nil, ErrStudentNotFound
+	default:
+		return nil, err
+	}
 }
 
 // Add attempts to write a new Student entity; it will not overwrite
@@ -161,6 +191,20 @@ func (s *Student) Add(c appengine.Context, asOf time.Time) error {
 	}
 }
 
+func (s *Student) Delete(c appengine.Context) error {
+	if err := datastore.Delete(c, s.key(c)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Student) Put(c appengine.Context) error {
+	if _, err := datastore.Put(c, s.key(c), s); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Student) key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Student", s.ID, 0, classes.NewClassKey(c, s.ClassID))
 }
@@ -179,14 +223,4 @@ func (l ByName) Less(i, j int) bool {
 	default:
 		return false
 	}
-}
-
-// ClassAndTeacher bundles together a Class and its related Teacher.
-type ClassAndTeacher struct {
-	Class   *classes.Class
-	Teacher *classes.Teacher
-}
-
-func ClassesAndTeachers(studentList []*Student) []*ClassAndTeacher {
-	classAndTeachers := make([]*ClassAndTeacher, len(studentList))
 }

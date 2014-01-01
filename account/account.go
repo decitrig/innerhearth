@@ -97,6 +97,15 @@ func New(u *user.User, info Info) (*Account, error) {
 	}, nil
 }
 
+// Paper returns a stand-in account for handing paper registrations in
+// the case where no Account yet exists.
+func Paper(info Info, classID int64) *Account {
+	return &Account{
+		ID:   fmt.Sprintf("paper|%s|%d", info.Email, classID),
+		Info: info,
+	}
+}
+
 func keyForID(c appengine.Context, id string) *datastore.Key {
 	return datastore.NewKey(c, "UserAccount", id, 0, nil)
 }

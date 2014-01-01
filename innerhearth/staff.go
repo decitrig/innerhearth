@@ -19,9 +19,7 @@ import (
 )
 
 var (
-	staffPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"indexAsWeekday": indexAsWeekday,
-	}).ParseFiles("templates/base.html", "templates/staff/index.html"))
+	staffPage      = template.Must(template.ParseFiles("templates/base.html", "templates/staff/index.html"))
 	addTeacherPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-teacher.html"))
 	addClassPage   = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"WeekdayAsInt": weekdayAsInt,
@@ -38,8 +36,7 @@ var (
 		"Minutes":         minutes,
 	}).ParseFiles("templates/base.html", "templates/staff/edit-class.html"))
 	sessionPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"indexAsWeekday": indexAsWeekday,
-		"FormatLocal":    formatLocal,
+		"FormatLocal": formatLocal,
 	}).ParseFiles("templates/base.html", "templates/staff/session.html"))
 	addAnnouncementPage    = template.Must(template.ParseFiles("templates/base.html", "templates/staff/add-announcement.html"))
 	deleteAnnouncementPage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-announcement.html"))
@@ -47,7 +44,6 @@ var (
 	deleteYinYogassagePage = template.Must(template.ParseFiles("templates/base.html", "templates/staff/delete-yin-yogassage.html"))
 )
 
-func indexAsWeekday(i int) time.Weekday    { return time.Weekday((i + 1) % 7) }
 func weekdayEquals(a, b time.Weekday) bool { return a == b }
 func weekdayAsInt(w time.Weekday) int      { return int(w) }
 func minutes(d time.Duration) int64        { return int64(d.Minutes()) }

@@ -188,6 +188,7 @@ func (cls *Class) Update(c appengine.Context) error {
 }
 
 func (cls *Class) Delete(c appengine.Context) error {
+	// TODO(rwsims): This should defer a task to delete all students of the class. And maybe notify them?
 	if err := datastore.Delete(c, cls.Key(c)); err != nil {
 		return err
 	}

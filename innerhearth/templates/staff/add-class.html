@@ -30,18 +30,14 @@
     <ul class="field-list">
       <li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
 	<select name="dayofweek" id="dayofweek">
-	  <option value="0">Sunday</option>
-	  <option value="1">Monday</option>
-	  <option value="2">Tuesday</option>
-	  <option value="3">Wednesday</option>
-	  <option value="4">Thursday</option>
-	  <option value="5">Friday</option>
-	  <option value="6">Saturday</option>
+	  {{range .DaysInOrder}}
+	  <option value="{{WeekdayAsInt .}}">{{.}}</option>
+	  {{end}}  {{/* range .DaysInOrder */}}
 	</select>
       <li class="field-item"><label class="field-label" for="starttime">Start time (for example, 3:04pm):</label>
 	<input type="text" name="starttime" required="required" id="starttime" />
       <li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
-	<input type="number" min="0" max="999" required="required" id="length" name="length" />
+	<input type="number" min="0" max="999" required="required" id="length" name="length"/>
       <li class="field-item"><label class="field-label field-label-checkbox" for="dropinonly">Type</label>
 	<ul class="field-list">
 	  <li>

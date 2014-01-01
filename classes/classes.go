@@ -145,6 +145,22 @@ func ClassWithID(c appengine.Context, id int64) (*Class, error) {
 	}
 }
 
+func (c *Class) Description() string {
+	return string(c.LongDescription)
+}
+
+func (cls *Class) TeacherEntity(c appengine.Context) *Teacher {
+	if cls.Teacher == nil {
+		return nil
+	}
+	teacher, err := teacherByKey(c, cls.Teacher)
+	if err != nil {
+		c.Errorf("Failed to find teacher for class %d: %s", cls.ID, err)
+		return nil
+	}
+	return teacher
+}
+
 // Insert adds a new Class to the datastore; it will not overwrite an existing Class.
 func (cls *Class) Insert(c appengine.Context) error {
 	iKey := datastore.NewIncompleteKey(c, "Class", nil)

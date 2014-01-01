@@ -1,8 +1,0 @@
-<!DOCTYPE html>
-<title>Delete {{.ClassName}}?</title>
-<form action="/registration/admin/delete-class" method="post">
-	<input type="hidden" name="xsrf_token" value="{{.XSRFToken}}" />
-	<input type="hidden" name="class" value="{{.ClassID}}" />
-	Delete {{.ClassName}}?
-	<button>Delete</button>
-</form>

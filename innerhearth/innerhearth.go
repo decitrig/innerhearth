@@ -32,6 +32,7 @@ import (
 	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/students"
 	"github.com/decitrig/innerhearth/webapp"
+	"github.com/decitrig/innerhearth/yogassage"
 )
 
 var (
@@ -320,6 +321,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Announcements": announcements,
 		"Schedules":     schedules,
 		"DaysInOrder":   daysInOrder,
+		"YinYogassage":  yogassage.Classes(c, time.Now()),
 	}
 	if u := user.Current(c); u != nil {
 		acct, err := maybeOldAccount(c, u)

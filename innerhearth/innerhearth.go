@@ -317,11 +317,13 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	for _, session := range sessions {
 		classesBySession[session.ID] = session.Classes(c)
 	}
+	yins := yogassage.Classes(c, time.Now())
+	sort.Sort(yogassage.ByDate(yins))
 	data := map[string]interface{}{
 		"Announcements": announcements,
 		"Schedules":     schedules,
 		"DaysInOrder":   daysInOrder,
-		"YinYogassage":  yogassage.Classes(c, time.Now()),
+		"YinYogassage":  yins,
 	}
 	if u := user.Current(c); u != nil {
 		acct, err := maybeOldAccount(c, u)

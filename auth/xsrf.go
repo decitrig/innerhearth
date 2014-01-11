@@ -39,7 +39,7 @@ type Token struct {
 // NewToken creates a new Token for a user making a request which will
 // expire 1 hour after the given time.
 func NewToken(userID, path string, now time.Time) (*Token, error) {
-	b := make([]byte, 64)
+	b := make([]byte, 8)
 	_, err := rand.Read(b)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make token: %s", err)

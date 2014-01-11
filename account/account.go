@@ -62,7 +62,7 @@ type Account struct {
 }
 
 func newConfirmationCode() (string, error) {
-	b := make([]byte, 32)
+	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}

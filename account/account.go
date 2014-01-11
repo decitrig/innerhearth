@@ -71,13 +71,19 @@ func newConfirmationCode() (string, error) {
 
 // ID returns the internal ID for an appengine User.
 func ID(u *user.User) (string, error) {
-	if appengine.IsDevAppServer() && u.FederatedIdentity == "" {
+	if appengine.IsDevAppServer() {
 		return auth.SaltAndHashString(u.Email), nil
 	}
-	if u.FederatedIdentity == "" {
-		return "", fmt.Errorf("user has no federated identity")
+	var internal string
+	switch {
+	case u.Email != "":
+		internal = u.Email
+	case u.ID != "":
+		internal = u.ID
+	case u.FederatedIdentity != "":
+		internal = u.FederatedIdentity
 	}
-	return auth.SaltAndHashString(u.FederatedIdentity), nil
+	return auth.SaltAndHashString(internal), nil
 }
 
 // New creates a new Account for the given user.
@@ -184,7 +190,11 @@ func (u *Account) Put(c appengine.Context) error {
 // RewriteID transactionally rewrites the Account under the
 // correct (i.e., obfuscated) key.
 func (a *Account) RewriteID(c appengine.Context, u *user.User) error {
-	a.ID = auth.SaltAndHashString(u.FederatedIdentity)
+	var err error
+	a.ID, err = ID(u)
+	if err != nil {
+		return fmt.Errorf("couldn't create ID for %v", u)
+	}
 	var txnErr error
 	for i := 0; i < 10; i++ {
 		txnErr = datastore.RunInTransaction(c, func(c appengine.Context) error {

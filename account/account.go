@@ -292,3 +292,13 @@ func (e *ClaimedEmail) Claim(c appengine.Context) error {
 	}
 	return nil
 }
+
+// Delete removes a ClaimedEmail from the datastore, freeing that
+// email for reclamation. Should only be used by site admins.
+func (e *ClaimedEmail) Delete(c appengine.Context) error {
+	key := e.key(c)
+	if err := datastore.Delete(c, key); err != nil {
+		return err
+	}
+	return nil
+}

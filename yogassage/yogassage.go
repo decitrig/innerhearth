@@ -65,7 +65,7 @@ func (y *YinYogassage) Delete(c appengine.Context) error {
 // Classes returns a list of all YinYogassage classes which are after a specific time.
 func Classes(c appengine.Context, after time.Time) []*YinYogassage {
 	q := datastore.NewQuery("YinYogassage").
-		Filter("Date >", after)
+		Filter("Date >=", after)
 	yins := []*YinYogassage{}
 	keys, err := q.GetAll(c, &yins)
 	if err != nil {

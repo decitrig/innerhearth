@@ -295,6 +295,10 @@ func registrationsForUser(c appengine.Context, userID string) []*registration {
 	return regs
 }
 
+func dateOnly(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+
 func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	c := appengine.NewContext(r)
 	announcements := staff.CurrentAnnouncements(c, time.Now())
@@ -317,7 +321,7 @@ func index(w http.ResponseWriter, r *http.Request) *webapp.Error {
 	for _, session := range sessions {
 		classesBySession[session.ID] = session.Classes(c)
 	}
-	yins := yogassage.Classes(c, time.Now())
+	yins := yogassage.Classes(c, dateOnly(time.Now()))
 	sort.Sort(yogassage.ByDate(yins))
 	data := map[string]interface{}{
 		"Announcements": announcements,

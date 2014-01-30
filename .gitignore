@@ -28,3 +28,5 @@ salt.gogithub.com
 github.com/
 salt.go
 salt.go
+js/vendor
+node_modules

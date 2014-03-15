@@ -130,6 +130,7 @@ func init() {
 		"/teachers":        "templates/teachers.html",
 		"/workshops":       "templates/workshops.html",
 		"/mailinglist":     "templates/mailinglist.html",
+		"/contact":         "templates/contact.html",
 	} {
 		webapp.HandleFunc(url, staticTemplate(template))
 	}

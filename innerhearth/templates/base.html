@@ -1,66 +1,121 @@
 <!DOCTYPE html>
-<head>
-<link href="http://fonts.googleapis.com/css?family=Amaranth:700|Sanchez" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
-<link rel="stylesheet" href="/css/base.css" />
-{{define "title"}}
-Inner Hearth Yoga
-{{end}}
-<title>{{template "title"}}</title>
-</head>
-<body>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
+    <link rel="stylesheet" href="/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <title>Inner Hearth Yoga</title>
+  </head>
+  <body>
+    <nav class="navbar navbar-default" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" style="padding-top: 2px" href="/"><img src="/images/logo-horiz-sm.jpg" alt="Inner Hearth Yoga" /></a>
+        </div><!-- .navbar-header -->
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+          <ul class="nav navbar-nav">
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">Classes <b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                <li><a href="/">Yoga Classes</a></li>
+                <li><a href="/yin-yogassage">Yin Yogassage&trade;</a></li>
+                <li><a href="/workshops">Workshops</a></li>
+                <li><a href="/privates-groups">Private &amp; Group Lessons</a></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">About Us <b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                <li><a href="/directions">Directions</a></li>
+                <li><a href="/contact">Contact Us</a></li>
+                <li><a href="/pricing">Pricing &amp; Policies</a></li>
+                <li><a href="/teachers">Our Teachers</a></li>
+              </ul>
+            </li>
+          </ul>
+          <ul class="navbar-right nav navbar-nav">
+            <li><a href="#"><span class="text-primary"><b>Get our Newsletter!</b></span></a></li>
+            {{ if .User }}
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">{{.User.Email}} <b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                {{if .Staff}}<li><a href="/staff">Staff Portal</a></li>{{end}}
+                {{if .Admin}}<li><a href="/admin">Admin</a>{{end}}
+                <li><a href="{{.LogoutURL}}">Sign Out</a></li>
+              </ul>
+            </li>
+            {{ else }}
+            <li><a href="#">Sign In</a></li>
+            {{ end }}
+          </ul>
+        </div> <!-- .navbar-collapse -->
+      </div> <!-- .container-fluid -->
+    </nav>
 
-<div id="header" class="section">
-    <table style="width: 100%; text-align: center;">
-        <tr>
-	    <td>
-	      <img src="/images/jill-n-lauren-banner.jpg" alt="Jill and Lauren" width="400" height="200" />
-	    </td>
-            <td>
-                <img src="/images/large_logo.png" alt="Inner Hearth Yoga"/>
-            </td>
-            <td style="text-align: right;">
-                <!--<p style="text-align: center">Contact us! We like you!-->
-                <p class="address"><a href="mailto:info@innerhearthyoga.com">info@innerhearthyoga.com</a>
-                <p class="address">412-204-7227
-                <p class="address">
-                <a href="https://maps.google.com/maps?q=6736+Reynolds+Street,+Pittsburgh,+PA&amp;hl=en&amp;sll=40.431368,-79.9805&amp;sspn=0.226574,0.528374&amp;oq=6736+Reynolds+Street,+P&amp;t=v&amp;hnear=6736+Reynolds+St,+Pittsburgh,+Allegheny,+Pennsylvania+15206&amp;z=14&amp;iwloc=A">6736 Reynolds Street</a> (second floor)
-            <p class="address">Pittsburgh, PA 15206
-	    <p>
-	      <a href="/mailinglist">Subscribe to our mailing list!</a></p>
-        </td>
-        <!-- TODO(rwsims): Social icons -->
-    </tr>
-   </table>
-</div>
+    {{ template "body" . }}
 
-{{define "XSRFTokenInput"}}
-<input type="hidden" name="xsrf_token" value="{{.}}" />
-{{end}}
+    <footer class="container-fluid" style="margin-top: 2em" itemscope itemtype="http://schema.org/LocalBusiness">
+      <div class="row">
+        <div class="col-md-4">
+          &copy; <span itemprop="name">Inner Hearth Yoga</span> 2013
+        </div>
+        <div class="col-md-4 text-center">
+          <span>
+            <span class="glyphicon glyphicon-envelope"></span>
+            <a href="mailto:info@innerhearthyoga.com">
+              <meta itemprop="email" content="info@innerhearthyoga.com">
+              info@innerhearthyoga.com
+            </a>
+          </span>
+          <span class="glyphicon glyphicon-phone"></span> <span itemprop="telephone">412-204-7227</span>
+        </div>
+        <div class="col-md-4 text-right">
+          <span itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
+            <span itemprop="streetAddress">
+              <a href="https://www.google.com/maps/place/6376+Reynolds+St/@40.4529642,-79.9151666,17z/data=!3m1!4b1!4m2!3m1!1s0x8834edf418864185:0xe1c8bb56bd9a5f6e">              
+                <span class="glyphicon glyphicon-globe"></span> 6376 Reynolds Street
+              </a>
+            </span> (second floor),
+            <span itemprop="addressLocality">Pittsburgh</span>,
+            <span itemprop="addressRegion">PA</span>
+            <span itemprop="postalCode">15206</span>
+          </span>
+        </div>
+      </div>
+    </footer>
 
-<div id="content-wrapper">
-<div id="contents">
-{{template "body" .}}
-</div>
-</div>
-<div id="navigation">
-{{define "Navbar"}}{{end}}
-{{template "Navbar" .}}
-</div>
-<script src="http://code.jquery.com/jquery-1.8.3.js"></script>
-<script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
-{{define "script"}}{{end}}
-{{template "script" .}}
-<script>
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-9294002-8']);
-    _gaq.push(['_setDomainName', 'innerhearthyoga.com']);
-    _gaq.push(['_trackPageview']);
+    {{define "XSRFTokenInput"}}
+    <input type="hidden" name="xsrf_token" value="{{.}}" />
+    {{end}}
 
-    (function() {
-    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
-</script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    {{define "script"}}{{end}}
+    {{template "script" .}}
+    <script>
+     var _gaq = _gaq || [];
+     _gaq.push(['_setAccount', 'UA-9294002-8']);
+     _gaq.push(['_setDomainName', 'innerhearthyoga.com']);
+     _gaq.push(['_trackPageview']);
+     
+     (function() {
+       var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+       ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+       var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+     })();
+    </script>
 </body>
+</html>
+

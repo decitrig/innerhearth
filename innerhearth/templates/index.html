@@ -1,32 +1,16 @@
-{{define "Navbar"}}
-<ul class="nav-links">
-  <li class="nav-link"><a href="/about">About Us</a>
-  <li class="nav-link"><a href="#yin-yogassage">Yin Yogassage&trade;</a>
-  <li class="nav-link"><a href="/pricing">Pricing &amp; Policies</a>
-  <li class="nav-link"><a href="/privates-groups">Private &amp; Group Lessons</a>
-  <li class="nav-link"><a href="/workshops">Workshops</a>
-  <li class="nav-link"><a href="/teachers">Our Teachers</a>
-  <li class="nav-link"><a href="/mailinglist">Subscribe to our mailing list!</a>
-    {{if not .User}}
-  <li class="nav-link"><a href="/login">Log In</a>
-    {{else}}
-    {{if .Staff}}<li class="nav-link nav-link-special"><a href="/staff">Staff Portal</a>{{end}}
-    {{if .Admin}}<li class="nav-link nav-link-special"><a href="/admin">Admin</a>{{end}}
-  <li class="nav-link"><a href="{{.LogoutURL}}">Log Out</a>
-    {{end}}
-</ul>
-{{end}}
 {{define "body"}}
 {{if .Announcements}}
-<div class="section">
-  <h1>Announcements</h1>
+<div class="container">
+  <div class="page-header">
+    <h1>Announcements</h1>
+  </div>
   {{range .Announcements}}
   <p>{{.}}</p>
   {{end}}
 </div>
 {{end}}
 {{with .Registrations}}
-<div class="section">
+<div class="container">
   <h1>Your Registrations</h1>
   <ul class="registration-list">
   {{range .}}
@@ -43,8 +27,10 @@
   </ul>
 </div>
 {{end}}
-<div id="classes" class="section">
-  <h1>Our Classes</h1>
+<div class="container">
+  <div class="page-header">
+    <h1>Our Classes</h1>
+  </div>
   <p>Click on a class's name to see the description, sign up to drop in, or sign up for a whole session.</p>
   <table class="session-table">
   {{$daysInOrder := .DaysInOrder}}
@@ -75,31 +61,4 @@
   </table>
   <div style="clear: both"></div>
 </div>
-    <div id="yin-yogassage" class="section">
-      <h1>Yin Yogassage&trade;</h1>
-      <div style="float:left; margin-right: 1em">
-	<img src="images/yogassage.jpg" alt="Yin Yogassage"/>
-      </div>
-      <p>
-	Yin Yogassage is a seamless blend of yoga and bodywork. During a Yin Yogassage class,
-	students of all levels will be led through the quiet, reflective practice of Yin Yoga while
-	receiving massage as they rest in the poses. Students with chronic conditions are welcome,
-	and will be assisted in modifying their practice to accommodate their conditions. Class size
-	is limited, insuring that each student receives generous attention! Experience for yourself
-	the deep release of tension and complete relaxation that occurs during a Yin Yogassage
-	workshop.
-      </p>
-      
-
-      <p>
-	<strong>Preregistration is REQUIRED:</strong> click on your preferred workshop date below to
-	sign up!
-      </p>
-      <ul>
-	{{range .YinYogassage}}
-	<li><a href="{{.SignupLink}}">Signup for {{.Date.Format "Monday, January 2"}}, 7-9pm</a>
-	{{end}}
-      </ul>
-      <div style="clear: both"></div>
-    </div>
 {{end}}

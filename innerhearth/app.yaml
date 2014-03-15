@@ -1,11 +1,15 @@
 application: innerhearth-testing
-version: 6
+version: 7
 runtime: go
 api_version: go1
 
 handlers:
 - url: /css
   static_dir: css
+- url: /fonts
+  static_dir: fonts
+- url: /js
+  static_dir: js
 - url: /images
   static_dir: images
 - url: /favicon.ico

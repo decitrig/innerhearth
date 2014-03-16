@@ -49,6 +49,9 @@ var (
 	rosterPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"WeekdayAsInt": weekdayAsInt,
 	}).ParseFiles("templates/base.html", "templates/roster.html"))
+	yogassagePage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"FormatLocal": formatLocal,
+	}).ParseFiles("templates/base.html", "templates/yin-yogassage.html"))
 )
 
 func weekdayEquals(a, b time.Weekday) bool { return a == b }
@@ -119,6 +122,7 @@ func init() {
 	webapp.HandleFunc("/", index)
 	webapp.HandleFunc("/class", class)
 	webapp.Handle("/roster", userContextHandler(webapp.HandlerFunc(roster)))
+	webapp.HandleFunc("/yin-yogassage", yinYogassageClasses)
 	if appengine.IsDevAppServer() {
 		webapp.HandleFunc("/error", throwError)
 	}
@@ -132,7 +136,6 @@ func init() {
 		"/mailinglist":     "templates/mailinglist.html",
 		"/contact":         "templates/contact.html",
 		"/directions":      "templates/directions.html",
-		"/yin-yogassage":   "templates/yin-yogassage.html",
 	} {
 		webapp.HandleFunc(url, staticTemplate(template))
 	}
@@ -471,6 +474,19 @@ func roster(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		"Token":    token.Encode(),
 	}
 	if err := rosterPage.Execute(w, data); err != nil {
+		return webapp.InternalError(err)
+	}
+	return nil
+}
+
+func yinYogassageClasses(w http.ResponseWriter, r *http.Request) *webapp.Error {
+	c := appengine.NewContext(r)
+	yins := yogassage.Classes(c, dateOnly(time.Now()))
+	sort.Sort(yogassage.ByDate(yins))
+	data := map[string]interface{}{
+		"YinYogassage": yins,
+	}
+	if err := yogassagePage.Execute(w, data); err != nil {
 		return webapp.InternalError(err)
 	}
 	return nil

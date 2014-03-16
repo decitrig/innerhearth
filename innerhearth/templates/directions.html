@@ -1,0 +1,22 @@
+{{define "body"}}
+<div class="container">
+  <div class="row">
+    <div class="col-sm-12 col-md-5">
+      <p>We're located at <b>6376 Reynolds St.</b>, above Make Your Mark Artspace & Cofeehouse.</p>
+      <p>
+      <form class="form-inline" method="GET" action="http://maps.google.com/maps">
+        <input type="hidden" name="daddr" value="6376 Reynolds St., Pittsburgh, PA 15206" />
+        <div class="form-group">
+          <label for="saddr" class="sr-only">Starting address:</label>
+          <input type="text" class="form-control" name="saddr" id="saddr" placeholder="Starting Address"/>
+        </div>
+        <button type="submit" class="btn btn-default">Get directions</button>
+      </form>
+      </p>
+    </div>
+    <div class="col-sm-12 col-md-7">
+      <iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3036.0078059762304!2d-79.91516659999999!3d40.4529642!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8834edf418864185%3A0xe1c8bb56bd9a5f6e!2s6376+Reynolds+St!5e0!3m2!1sen!2sus!4v1394978384601" width="100%" height="300" frameborder="0" style="border:0"></iframe>
+    </div>
+  </div>
+</div>
+{{end}}

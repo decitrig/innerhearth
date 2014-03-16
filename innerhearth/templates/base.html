@@ -8,6 +8,12 @@
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
     <link rel="stylesheet" href="/css/bootstrap.min.css" />
     <link rel="stylesheet" href="/css/base.css" />
+
+    <style>
+     .nobreak {
+       white-space: nowrap !important;
+     }
+    </style>
     <title>Inner Hearth Yoga</title>
   </head>
   <body>
@@ -38,7 +44,6 @@
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">About Us <b class="caret"></b></a>
               <ul class="dropdown-menu">
                 <li><a href="/directions">Directions</a></li>
-                <li><a href="/contact">Contact Us</a></li>
                 <li><a href="/pricing">Pricing &amp; Policies</a></li>
                 <li><a href="/teachers">Our Teachers</a></li>
               </ul>
@@ -60,33 +65,35 @@
             {{ end }}
           </ul>
         </div> <!-- .navbar-collapse -->
-      </div> <!-- .container-fluid -->
+      </div> <!-- .container -->
     </nav>
 
     {{ template "body" . }}
 
-    <footer class="container-fluid" style="margin-top: 2em" itemscope itemtype="http://schema.org/LocalBusiness">
+    <footer class="container" style="margin-top: 2em" itemscope itemtype="http://schema.org/LocalBusiness">
       <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-3 col-xs-12">
           &copy; <span itemprop="name">Inner Hearth Yoga</span> 2013
         </div>
-        <div class="col-md-4 text-center">
-          <span>
+        <div class="col-md-5 col-xs-12">
+          <span class="nobreak">
             <span class="glyphicon glyphicon-envelope"></span>
             <a href="mailto:info@innerhearthyoga.com">
               <meta itemprop="email" content="info@innerhearthyoga.com">
               info@innerhearthyoga.com
             </a>
           </span>
-          <span class="glyphicon glyphicon-phone"></span> <span itemprop="telephone">412-204-7227</span>
+          <span class="nobreak">
+            <span class="glyphicon glyphicon-phone"></span> <a href="tel:+14122047727" itemprop="telephone">412-204-7227</a>
+          </span>
         </div>
-        <div class="col-md-4 text-right">
+        <div class="col-md-4 col-xs-12">
           <span itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
-            <span itemprop="streetAddress">
+            <span itemprop="streetAddress" class="nobreak">
               <a href="https://www.google.com/maps/place/6376+Reynolds+St/@40.4529642,-79.9151666,17z/data=!3m1!4b1!4m2!3m1!1s0x8834edf418864185:0xe1c8bb56bd9a5f6e">              
                 <span class="glyphicon glyphicon-globe"></span> 6376 Reynolds Street
               </a>
-            </span> (second floor),
+            </span>
             <span itemprop="addressLocality">Pittsburgh</span>,
             <span itemprop="addressRegion">PA</span>
             <span itemprop="postalCode">15206</span>

@@ -1,43 +1,52 @@
-{{define "Navbar"}}
-<ul class="nav-links">
-  <li class="nav-link"><a href="/">Home</a>
-</ul>
-{{end}}
 {{define "body"}}
-<div class="section">
-<!-- Begin MailChimp Signup Form -->
-<link href="//cdn-images.mailchimp.com/embedcode/classic-081711.css" rel="stylesheet" type="text/css">
-<div id="mc_embed_signup">
-<form action="http://innerhearthyoga.us7.list-manage2.com/subscribe/post?u=91f307cb06cb85c854a0d6bff&amp;id=ddb8ad4bc9" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_blank" novalidate>
-	<h2>Subscribe to our mailing list</h2>
-<div class="indicates-required"><span class="asterisk">*</span> indicates required</div>
-<div class="mc-field-group">
-	<label for="mce-EMAIL">Email Address  <span class="asterisk">*</span>
-</label>
-	<input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL">
+<div class="container">
+  <form action="http://innerhearthyoga.us7.list-manage2.com/subscribe/post?u=91f307cb06cb85c854a0d6bff&amp;id=ddb8ad4bc9" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" role="form" class="form-horizontal" target="_blank">
+    <h2>Subscribe to our mailing list</h2>
+    <p>An asterisk indicates a required field</p>
+    <div class="form-group">
+      <label for="mce-EMAIL" class="col-sm-2 control-label">Email*</label>
+      <div class="col-sm-10">
+        <input type="email" class="form-control" value="" name="EMAIL" required="required" id="mce-EMAIL">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-2 control-label">Name</label>
+      <div class="form-inline col-sm-10">
+        <label for="mce-FNAME" class="sr-only">First Name</label>
+        <input type="text" class="form-control" value="" name="FNAME" id="mce-FNAME" placeholder="First" size="40">
+        <label for="mce-LNAME" class="sr-only">Last Name </label>
+        <input type="text" value="" name="LNAME" class="form-control" id="mce-LNAME" placeholder="Last" size="40">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-2 control-label"><strong>Email Format </strong></label>
+      <div class="col-sm-10">
+        <div class="radio-inline">
+          <label>
+            <input type="radio" value="html" name="EMAILTYPE" id="mce-EMAILTYPE-0" />
+            HTML
+          </label>
+        </div>
+        <div class="radio-inline">
+          <label>
+            <input type="radio" value="text" name="EMAILTYPE" id="mce-EMAILTYPE-1" />
+            Text
+          </label>
+        </div>
+        <div class="radio-inline">
+          <label>
+            <input type="radio" value="mobile" name="EMAILTYPE" id="mce-EMAILTYPE-2">
+            Mobile
+          </label>
+        </div>
+      </div>
+    </div>
+    <div id="mce-responses" class="clear">
+      <div class="response" id="mce-error-response" style="display:none"></div>
+      <div class="response" id="mce-success-response" style="display:none"></div>
+    </div>
+    <div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button"></div>
+  </form>
 </div>
-<div class="mc-field-group">
-	<label for="mce-FNAME">First Name </label>
-	<input type="text" value="" name="FNAME" class="" id="mce-FNAME">
-</div>
-<div class="mc-field-group">
-	<label for="mce-LNAME">Last Name </label>
-	<input type="text" value="" name="LNAME" class="" id="mce-LNAME">
-</div>
-<div class="mc-field-group input-group">
-    <strong>Email Format </strong>
-    <ul><li><input type="radio" value="html" name="EMAILTYPE" id="mce-EMAILTYPE-0"><label for="mce-EMAILTYPE-0">html</label></li>
-<li><input type="radio" value="text" name="EMAILTYPE" id="mce-EMAILTYPE-1"><label for="mce-EMAILTYPE-1">text</label></li>
-<li><input type="radio" value="mobile" name="EMAILTYPE" id="mce-EMAILTYPE-2"><label for="mce-EMAILTYPE-2">mobile</label></li>
-</ul>
-</div>
-	<div id="mce-responses" class="clear">
-		<div class="response" id="mce-error-response" style="display:none"></div>
-		<div class="response" id="mce-success-response" style="display:none"></div>
-	</div>	<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button"></div>
-</form>
-</div>
-
-<!--End mc_embed_signup-->
 </div>
 {{end}}

@@ -249,6 +249,9 @@ func GroupedByDay(classList []*Class) map[time.Weekday][]*Class {
 		day = append(day, class)
 		byDay[class.Weekday] = day
 	}
+	for _, classes := range byDay {
+		sort.Sort(ClassesByStartTime(classes))
+	}
 	return byDay
 }
 

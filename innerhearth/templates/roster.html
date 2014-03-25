@@ -1,75 +1,79 @@
-{{define "Navbar"}}
-<ul class="nav-links">
-  <li class="nav-link"><a href="/">Home</a>
-</ul>
-{{end}}
 {{define "body"}}
-<div class="section">
-<h1>{{.Class.Title}}</h1>
-<p>{{.Class.Weekday}}s at {{.Class.StartTime.Format "3:04pm"}}</p>
-{{if not .Students}}
-<p>No students registered.</p>
-{{else}}
-<h2>Current Students</h2>
-<p>{{len .Students}} of {{.Class.Capacity}} registrations</p>
-<table>
-	<tr>
-		<th colspan="2">Name</th>
-		<th>Email</th>
-		<th>Phone</th>
-		<th>Drop In Date</th>
-		{{range .Students}}
-	<tr>
-		<td>{{.FirstName}}</td>
-		<td>{{.LastName}}</td>
-		<td>{{.Email}}</td>
-		<td>{{.Phone}}</td>
-		{{if .DropIn}}
-		<td>{{.Date.Format "1/2"}}</td>
-		{{end}}
-	</tr>
-{{end}}
-{{end}}  {{/* if.Students */}}
-</table>
-<h2>Register a New Student</h2>
-<form method="post" action="/register/paper">
-  {{template "XSRFTokenInput" .Token}}
-	<input type="hidden" name="class" value="{{.Class.ID}}" />
-	<ul class="field-list">
-		<li class="field-item">
-			<label for="firstname" class="field-label field-label-required">Name (required):</label>
-			<input type="text" required="required" name="firstname" id="firstname" placeholder="First"/>
-			<input type="text" required="required" name="lastname" id="lastname" placeholder="Last"/>
-		<li class="field-item">
-			<label for="email" class="field-label field-label-required">Email:</label>
-			<input type="email" id="email" required="required" name="email" placeholder="student.email@host.com"/>
-		<li class="field-item">
-			<label for="phone" class="field-label field-label-required">Phone (optional):</label>
-			<input type="text" id="phone" name="phone" placeholder="555-555-1212" />
-	</ul>
-	{{if not .Class.DropInOnly}}
-	<h3>Register for session</h3>
-	<button name="type" value="session">Session</button>
+<div class="container">
+  <h1>{{.Class.Title}}</h1>
+  <p>{{.Class.Weekday}}s at {{.Class.StartTime.Format "3:04pm"}}</p>
+  {{if not .Students}}
+  <p>No students registered.</p>
+  {{else}}
+  <h2>Current Students</h2>
+  <p>{{len .Students}} of {{.Class.Capacity}} registrations</p>
+  <table>
+    <tr>
+      <th colspan="2">Name</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Drop In Date</th>
+      {{range .Students}}
+      <tr>
+	<td>{{.FirstName}}</td>
+	<td>{{.LastName}}</td>
+	<td>{{.Email}}</td>
+	<td>{{.Phone}}</td>
+	{{if .DropIn}}
+	<td>{{.Date.Format "1/2"}}</td>
 	{{end}}
-	<h3>Register for single day</h3>
-	<div id="datepicker"></div>
-	<label class="field-label" for="date">Date (MM/DD/YYYY):</label>
-	<input type="text" name="date" id="date" readonly="readonly"/>
-	<button name="type" value="dropin">Register</button>
-</form>
-{{end}}
+      </tr>
+      {{end}}
+      {{end}}  {{/* if.Students */}}
+  </table>
+  <h2>Register a New Student</h2>
+  <form method="post" action="/register/paper" role="form">
+    {{template "XSRFTokenInput" .Token}}
+    <input type="hidden" name="class" value="{{.Class.ID}}" />
+    <div class="form-group">
+      <label class="control-label">Name (required):</label>
+      <div class="form-inline">
+        <label for="firstname" class="sr-only">First Name:</label>
+        <input type="text" required="required" name="firstname" id="firstname" placeholder="First" class="form-control" size="45" />
+        <label for="lastname" class="sr-only">Last Name:</label>
+        <input type="text" required="required" name="lastname" id="lastname" placeholder="Last" class="form-control" size="45" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="control-label" for="email">Email (required):</label>
+      <input type="email" id="email" required="required" name="email" placeholder="student.email@host.com" class="form-control" />
+    </div>
+    <div>
+      <label for="phone" class="field-label field-label-required">Phone (optional):</label>
+      <input type="text" id="phone" name="phone" placeholder="555-555-1212" class="form-control" />
+    </div>
+    {{if not .Class.DropInOnly}}
+    <div class="form-group">
+      <h3>Register for session</h3>
+      <button name="type" value="session" class="btn btn-default">Session</button>
+    </div>
+    {{end}}
+    <div class="form-group">
+      <h3>Register for single day</h3>
+      <label class="field-label" for="date" class="form-label">Date (MM/DD/YYYY):</label>
+      <input type="text" name="date" id="date" readonly="readonly" class="form-control" />
+      <div id="datepicker"></div>
+      <button name="type" value="dropin" class="btn btn-default" >Register</button>
+    </div>
+  </form>
+  {{end}}
 
-{{define "script"}}
-<script>
-	$("#datepicker").datepicker({
-	beforeShowDay: function(date) {
-	show = {{WeekdayAsInt .Class.Weekday}} == date.getDay()
-	return [show, ""]
-	},
-	dateFormat: "mm/dd/yy",
-	onSelect: function(date, picker) {
-	$("#date").val(date)
-	}
-	})
-</script>
-{{end}}
+  {{define "script"}}
+  <script>
+   $("#datepicker").datepicker({
+     beforeShowDay: function(date) {
+       show = {{WeekdayAsInt .Class.Weekday}} == date.getDay()
+       return [show, ""]
+     },
+     dateFormat: "mm/dd/yy",
+     onSelect: function(date, picker) {
+       $("#date").val(date)
+     }
+   })
+  </script>
+  {{end}}

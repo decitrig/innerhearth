@@ -1,28 +1,29 @@
 {{define "body"}}
-<div class="section">
+<div class="container">
   <h1>Add Announcement</h1>
-  <form method="POST" action="/staff/add-announcement">
+  <form method="POST" action="/staff/add-announcement" role="form">
     {{template "XSRFTokenInput" .Token}}
-    <ul class="field-list">
-      <li class="field-item">
-	<label class="field-label" for="text">Text:</label>
-	<textarea name="text" id="text" rows="5" cols="80"></textarea>
-      <li class="field-item">
-	<label class="field-label" for="expiration">Expiration:</label>
-	<div id="datepicker"></div>
-	<input type="text" id="expiration" name="expiration" placeholder="MM/DD/YYYY" />
-    </ul>
-    <button>Create</button>
+    <div class="form-group">
+      <label for="text">Text:</label>
+      <textarea name="text" id="text" rows="5" cols="80" class="form-control"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="field-label" for="expiration">Expiration:</label>
+      <input type="text" id="expiration" name="expiration" placeholder="MM/DD/YYYY" class="form-control" />
+      <div id="datepicker"></div>
+    </div>
+    <button class="btn btn-default">Create</button>
   </form>
 </div>
 {{end}}
 {{define "script"}}
 <script>
-  $("#datepicker").datepicker({
-  dateFormat: "mm/dd/yy",
-  onSelect: function(date, picker) {
-  $("#expiration").val(date);
-  }});
- </script>
+ $('#expiration').attr('readonly', true);
+ $("#datepicker").datepicker({
+   dateFormat: "mm/dd/yy",
+   onSelect: function(date, picker) {
+     $("#expiration").val(date);
+   }});
+</script>
 {{end}}
 

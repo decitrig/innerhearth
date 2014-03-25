@@ -1,15 +1,11 @@
-{{define "Navbar"}}
-<ul class="nav-links">
-  <li class="nav-link"><a href="/">Home</a>
-</ul>
-{{end}}
 {{define "body"}}
-<div class="section">
+<div class="container">
   <h1>Announcements</h1>
-  <table>
+  <table class="table">
     <tr>
       <th>Text</th>
       <th>Expiration</th>
+      <th>&nbsp;</th>
     </tr>
     {{range .Announcements}}
     <tr>
@@ -20,53 +16,53 @@
     {{end}}
   </table>
   <a href="/staff/add-announcement">Add Announcement</a>
-</div>
-<div class="section">
-<h1>Teachers</h1>
-{{with .Teachers}}
-<table>
-  {{range .}}
-  <tr>
-    <td>{{.FirstName}}</td>
-    <td>{{.LastName}}</td>
-    <td>{{.Email}}</td>
-  </tr>
+  <h1>Teachers</h1>
+  {{with .Teachers}}
+  <table class="table">
+    {{range .}}
+    <tr>
+      <td>{{.FirstName}}</td>
+      <td>{{.LastName}}</td>
+      <td>{{.Email}}</td>
+    </tr>
+    {{end}}
+  </table>
   {{end}}
-</table>
-{{end}}
-<form action="/staff/add-teacher" method="get">
-  <input type="email" required="required" name="email" id="email" placeholder="address@email.com" />
-  <button>Add Teacher</button>
-</form>
-</div>
-<div class="section">
-<h1>Yin Yogassage</h1>
-<table>
-  <tr>
-    <th>Date</th>
-    <th>Signup Link</th>
-  </tr>
-  {{range .YinYogassageClasses}}
-  <tr>
-    <td>{{.Date.Format "Monday, 1/2"}}</td>
-    <td><a href="{{.SignupLink}}">{{.SignupLink}}</a></td>
-    <td><a href="/staff/delete-yin-yogassage?id={{.ID}}">delete</a></td>
-  </tr>
-  {{end}}
-</table>
-<a href="/staff/yin-yogassage">Add YinYogassage Class</a>
-</div>
-<div class="section">
-<h1>Sessions</h1>
-<table>
-  {{range .Sessions}}
-  <tr>
-    <td><a href="/staff/session?id={{.ID}}">{{.Name}}</a></td>
-    <td>{{.Start.Format "1/2"}}</td>
-    <td>{{.End.Format "1/2"}}</td>
-  </tr>
-  {{end}}
-</table>
-<p><a href="/staff/add-session">Add Session</a></p>
+  <form action="/staff/add-teacher" method="get" role="form" class="form-inline">
+    <input type="email" required="required" name="email" id="email" class="form-control" placeholder="address@email.com" />
+    <button type="submit" class="btn btn-default">Add Teacher</button>
+  </form>
+  <h1>Yin Yogassage</h1>
+  <table class="table">
+    <tr>
+      <th>Date</th>
+      <th>Signup Link</th>
+      <th>&nbsp;</th>
+    </tr>
+    {{range .YinYogassageClasses}}
+    <tr>
+      <td>{{.Date.Format "Monday, 1/2"}}</td>
+      <td><a href="{{.SignupLink}}">{{.SignupLink}}</a></td>
+      <td><a href="/staff/delete-yin-yogassage?id={{.ID}}">delete</a></td>
+    </tr>
+    {{end}}
+  </table>
+  <a href="/staff/yin-yogassage">Add YinYogassage Class</a>
+  <h1>Sessions</h1>
+  <table class="table">
+    <tr>
+      <th>Name</th>
+      <th>Start</th>
+      <th>End</th>
+    </tr>
+    {{range .Sessions}}
+    <tr>
+      <td><a href="/staff/session?id={{.ID}}">{{.Name}}</a></td>
+      <td>{{.Start.Format "1/2"}}</td>
+      <td>{{.End.Format "1/2"}}</td>
+    </tr>
+    {{end}}
+  </table>
+  <p><a href="/staff/add-session">Add Session</a></p>
 </div>
 {{end}}

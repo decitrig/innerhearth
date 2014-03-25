@@ -1,55 +1,59 @@
 {{define "body"}}
-<div class="section">
-<h1>Add Class</h1>
-<p>
-  Adding class to {{.Session.Name}} ({{.Session.Start.Format "1/2"}}&ndash;{{.Session.End.Format "1/2"}})
-</p>
-<form method="post">
-  <input type="hidden" name="session" value="{{.Session.ID}}" />
-  {{template "XSRFTokenInput" .Token}}
-  <fieldset>
-    <h2>Class Info</h2>
-    <ul class="field-list">
-      <li class="field-item"><label for="name" class="field-label">Name:</label>
-	<input type="text" required="required" name="name" id="name" size="40"/>
-      <li class="field-item"><label for="description" class="field-label">Description:</label>
-	<textarea name="description" id="description" required="required" rows="5" cols="80"></textarea>
-      <li class="field-item"><label for="teacher" class="field-label">Teacher:</label>
-	<select name="teacher" id="teacher">
+<div class="container">
+  <h1>Add Class</h1>
+  <p>
+    Adding class to {{.Session.Name}} ({{.Session.Start.Format "1/2"}}&ndash;{{.Session.End.Format "1/2"}})
+  </p>
+  <form method="post" role="form">
+    <input type="hidden" name="session" value="{{.Session.ID}}" />
+    {{template "XSRFTokenInput" .Token}}
+    <fieldset>
+      <h2>Class Info</h2>
+      <div class="form-group">
+        <label for="name">Name:</label>
+	<input type="text" required="required" name="name" id="name" size="40" class="form-control"/>
+      </div>
+      <div class="form-group">
+        <label for="description" class="field-label">Description:</label>
+	<textarea name="description" id="description" required="required" rows="5" cols="80" class="form-control"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="teacher">Teacher:</label>
+	<select name="teacher" id="teacher" class="form-control">
 	  <option value="">IH Staff</option>
 	  {{range .Teachers}}
 	  <option value="{{.Email}}">{{.DisplayName}}</option>
 	  {{end}}
 	</select>
-      <li class="field-item"><label for="maxstudents" class="field-label">Max students:</label>
-	<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" />
-    </ul>
-  </fieldset>
-  <fieldset>
-    <h2>Schedule</h2>
-    <ul class="field-list">
-      <li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
-	<select name="dayofweek" id="dayofweek">
+      </div>
+      <div class="form-group">
+        <label for="maxstudents">Max students:</label>
+        <input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" class="form-control"/>
+      </div>
+    </fieldset>
+    <fieldset>
+      <h2>Schedule</h2>
+      <div class="form-group">
+        <label class="field-label" for="dayofweek">Day:</label>
+	<select name="dayofweek" id="dayofweek" class="form-control">
 	  {{range .DaysInOrder}}
 	  <option value="{{WeekdayAsInt .}}">{{.}}</option>
 	  {{end}}  {{/* range .DaysInOrder */}}
 	</select>
-      <li class="field-item"><label class="field-label" for="starttime">Start time (for example, 3:04pm):</label>
-	<input type="text" name="starttime" required="required" id="starttime" />
-      <li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
-	<input type="number" min="0" max="999" required="required" id="length" name="length"/>
-      <li class="field-item"><label class="field-label field-label-checkbox" for="dropinonly">Type</label>
-	<ul class="field-list">
-	  <li>
-	    <input type="radio" name="dropinonly" value="no" id="dropinonly-no" checked="checked" />
-	    <label for="dropinonly-no">Session Class</label>
-	  <li>
-	    <input type="radio" name="dropinonly" value="yes" id="dropinonly-yes" />
-	    <label for="dropinonly-yes">Drop In Only</label>
-	</ul>
-    </ul>
-  </fieldset>
-  <button>Add</button>
-</form>
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="starttime">Start time (for example, 3:04pm):</label>
+	<input type="text" name="starttime" required="required" id="starttime" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="length">Length (minutes):</label>
+	<input type="number" min="0" max="999" required="required" id="length" name="length" class="form-control" />
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-default" name="dropinonly" value="no">Add Session Class</button>
+        <button type="submit" class="btn btn-default" name="dropinonly" value="yes">Add Drop In Only</button>
+      </div>
+    </fieldset>
+  </form>
 </div>
 {{end}}

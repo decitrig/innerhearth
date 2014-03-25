@@ -1,9 +1,9 @@
 {{define "body"}}
-<div class="section">
+<div class="container">
 <h1>{{.Session.Name}}</h1>
 <p>{{.Session.Start.Format "2 January"}} &ndash; {{.Session.End.Format "2 January"}}</p>
 <h2>Classes</h2>
-<table class="class-table">
+<table>
   {{$classes := .Classes}}
   {{$teachers := .Teachers}}
   {{range .DaysInOrder}}

@@ -1,55 +1,71 @@
 {{define "body"}}
-<div class="section">
+<div class="container">
 <h1>Edit Class</h1>
-<form method="post">
+<form method="post" role="form">
   <input type="hidden" name="class" value="{{.Class.ID}}" />
   {{template "XSRFTokenInput" .Token}}
   <fieldset>
     <h2>Class Info</h2>
-    <ul class="field-list">
-      <li class="field-item"><label for="name" class="field-label">Name:</label>
-	<input type="text" required="required" name="name" id="name" size="40" value="{{.Class.Title}}"/>
-      <li class="field-item"><label for="description" class="field-label">Description:</label>
-	<textarea name="description" id="description" required="required" rows="5" cols="80">{{.Class.Description}}</textarea>
-      <li class="field-item"><label for="teacher" class="field-label">Teacher:</label>
-	<select name="teacher" id="teacher">
-	  <option value="" {{if not .Teacher}}selected="selected"{{end}}>IH Staff</option>
-	  {{$teacher := .Teacher}}
-	  {{range .Teachers}}
-	  <option value="{{.Email}}" {{if TeacherHasEmail $teacher .Email}}selected="selected"{{end}}>{{.DisplayName}}</option>
-	  {{end}}  {{/* range .Teachers */}}
-	</select>
-      <li class="field-item"><label for="maxstudents" class="field-label">Max students:</label>
-	<input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" value="{{.Class.Capacity}}"/>
-    </ul>
+    <div class="form-group">
+      <label for="name">Name:</label>
+      <input type="text" required="required" name="name" id="name" size="40" value="{{.Class.Title}}" class="form-control"/>
+    </div>
+    <div class="form-group">
+      <label for="description">Description:</label>
+      <textarea name="description" id="description" required="required" rows="5" cols="80" class="form-control">{{.Class.Description}}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="teacher">Teacher:</label>
+      <select name="teacher" id="teacher" class="form-control">
+	<option value="" {{if not .Teacher}}selected="selected"{{end}}>IH Staff</option>
+	{{$teacher := .Teacher}}
+	{{range .Teachers}}
+	<option value="{{.Email}}" {{if TeacherHasEmail $teacher .Email}}selected="selected"{{end}}>{{.DisplayName}}</option>
+	{{end}}  {{/* range .Teachers */}}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="maxstudents">Max students:</label>
+      <input type="number" min="1" max="99" name="maxstudents" id="maxstudents" required="required" value="{{.Class.Capacity}}" class="form-control"/>
+    </div>
   </fieldset>
   <fieldset>
     <h2>Schedule</h2>
-    <ul class="field-list">
-      <li class="field-item"><label class="field-label" for="dayofweek">Day:</label>
-	<select name="dayofweek" id="dayofweek">
-	  {{$weekday := .Class.Weekday}}
-	  {{range .DaysInOrder}}
-	  <option value="{{WeekdayAsInt .}}" {{if WeekdayEquals . $weekday}}selected="selected"{{end}}>{{.}}</option>
-	  {{end}}  {{/* range .DaysInOrder */}}
-	</select>
-      <li class="field-item"><label class="field-label" for="starttime">Start time (for example, 3:04pm):</label>
-	{{$start := FormatLocal "3:04pm" .Class.StartTime}}
-	<input type="text" name="starttime" required="required" id="starttime" value="{{$start}}"/>
-      <li class="field-item"><label class="field-label" for="length">Length (minutes):</label>
-	<input type="number" min="0" max="999" required="required" id="length" name="length" value="{{Minutes .Class.Length}}"/>
-      <li class="field-item"><label class="field-label field-label-checkbox" for="dropinonly">Type</label>
-	<ul class="field-list">
-	  <li>
-	    <input type="radio" name="dropinonly" value="no" id="dropinonly-no" {{if not .Class.DropInOnly}}checked="checked"{{end}} />
-	    <label for="dropinonly-no">Session Class</label>
-	  <li>
-	    <input type="radio" name="dropinonly" value="yes" id="dropinonly-yes" {{if .Class.DropInOnly}}checked="checked"{{end}}/>
-	    <label for="dropinonly-yes">Drop In Only</label>
-	</ul>
-    </ul>
+    <div class="form-group">
+      <label for="dayofweek">Day:</label>
+      <select name="dayofweek" id="dayofweek" class="form-control">
+	{{$weekday := .Class.Weekday}}
+	{{range .DaysInOrder}}
+	<option value="{{WeekdayAsInt .}}" {{if WeekdayEquals . $weekday}}selected="selected"{{end}}>{{.}}</option>
+	{{end}}  {{/* range .DaysInOrder */}}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="starttime">Start time (for example, 3:04pm):</label>
+      {{$start := FormatLocal "3:04pm" .Class.StartTime}}
+      <input type="text" name="starttime" required="required" id="starttime" value="{{$start}}" class="form-control" />
+    </div>
+    <div class="form-group">
+      <label for="length">Length (minutes):</label>
+      <input type="number" min="0" max="999" required="required" id="length" name="length" value="{{Minutes .Class.Length}}" class="form-control" />
+    </div>
+    <div class="form-group">
+      <label>Type:</label>
+	  <div class="radio">
+            <label>
+	      <input type="radio" name="dropinonly" value="no" id="dropinonly-no" {{if not .Class.DropInOnly}}checked="checked"{{end}} />
+	      Session Class
+            </label>
+          </div>
+	  <div class="radio">
+            <label>
+	      <input type="radio" name="dropinonly" value="yes" id="dropinonly-yes" {{if .Class.DropInOnly}}checked="checked"{{end}} />
+	      Drop In Only
+            </label>
+          </div>
+    </div>
   </fieldset>
-  <button>Update</button>
+  <button class="btn btn-default">Update</button>
 </form>
 </div>
 {{end}}

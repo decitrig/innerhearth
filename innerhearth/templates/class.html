@@ -1,10 +1,5 @@
-{{define "Navbar"}}
-<ul class="nav-links">
-  <li class="nav-link"><a href="/">Home</a>
-</ul>
-{{end}}
 {{define "body"}}
-<div class="section">
+<div class="container">
   <h1>{{.Class.Title}}</h1>
   {{if .CanViewRoster}}
   <p><a href="/roster?class={{.Class.ID}}">View Roster</a></p>
@@ -19,21 +14,21 @@
 
   {{if not .Class.DropInOnly}}
   <h3>Session Registration</h3>
-  <form method="post" action="/register/session">
+  <form method="post" action="/register/session" role="form">
     {{template "XSRFTokenInput" .SessionToken}}
     <input type="hidden" name="class" value="{{.Class.ID}}" />
-    <button style="padding: 1em">Register For Entire Session</button>
+    <button class="btn btn-lg">Register For Entire Session</button>
   </form>
   {{end}}  {{/* if not .Class.DropInOnly */}}
 
   <h3>Single-Day Registration</h3>
-  <form method="post" action="/register/oneday">
+  <form method="post" action="/register/oneday" role="form">
     {{template "XSRFTokenInput" .OneDayToken}}
     <input type="hidden" name="class" value="{{.Class.ID}}" />
-    <div id="datepicker"></div>
     <label class="field-label" for="date">Date (MM/DD/YYYY):</label>
-    <input type="text" name="date" id="date" required="required" />
-    <button>Register For One Day</button>
+    <input type="text" name="date" id="date" required="required" class="form-control" />
+    <div id="datepicker"></div>
+    <button class="btn btn-lg">Register For One Day</button>
   </form>
   {{else}}
   <p>You are registered for this class.</p>

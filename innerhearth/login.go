@@ -170,7 +170,8 @@ func newAccount(w http.ResponseWriter, r *http.Request) *webapp.Error {
 		if err := acct.SendConfirmation(c); err != nil {
 			c.Errorf("Failed to send confirmation email to %q: %s", acct.Email, err)
 		}
-		http.Redirect(w, r, target, http.StatusSeeOther)
+		redirect := loginRedirectURL("/login", target)
+		http.Redirect(w, r, redirect.String(), http.StatusSeeOther)
 		token.Delete(c)
 		return nil
 	}

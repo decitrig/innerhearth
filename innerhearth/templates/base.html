@@ -55,18 +55,18 @@
           </ul>
           <ul class="navbar-right nav navbar-nav">
             <li><a href="/mailinglist"><span class="text-primary"><b>Get our Newsletter!</b></span></a></li>
-            {{ if .User }}
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown">{{.User.Email}} <b class="caret"></b></a>
+            <li class="dropdown hidden" id="userDropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                <span id="userEmail"></span>
+                <b class="caret"></b>
+              </a>
               <ul class="dropdown-menu">
-                {{if .Staff}}<li><a href="/staff">Staff Portal</a></li>{{end}}
-                {{if .Admin}}<li><a href="/admin">Admin</a>{{end}}
-                <li><a href="{{.LogoutURL}}">Sign Out</a></li>
+                <li id="staffPortalLink" class="hidden"><a href="/staff">Staff Portal</a></li>
+                <li id="adminLink" class="hidden"><a href="/admin">Admin</a></li>
+                <li><a id="signOutLink" href="{{.LogoutURL}}">Sign Out</a></li>
               </ul>
-                </li>
-                {{ else }}
-                <li><a href="#">Sign In</a></li>
-                {{ end }}
+            </li>
+            <li id="signInLink"><a href="/login">Sign In</a></li>
           </ul>
         </div> <!-- .navbar-collapse -->
       </div> <!-- .container -->
@@ -114,6 +114,32 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
     <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+    <script src="/js/jquery.cookie.js"></script>
+    <script>
+     (function() {
+       $('#signOutLink').click(function() {
+         $.removeCookie('ihyuser');
+       });
+
+       var $userDropdown = $('#userDropdown');
+       var $signInLink = $('#signInLink');
+       var userDataCookie = $.cookie('ihyuser');
+       if (!userDataCookie || userDataCookie == '') {
+         return;
+       }
+       $userDropdown.removeClass('hidden');
+       $signInLink.addClass('hidden');
+       var bits = userDataCookie.split(':');
+       var userData = {
+         email: bits[0],
+         isAdmin: bits[1] == 'true',
+         isStaff: bits[2] == 'true'
+       };
+       $('#userEmail').text(userData.email);
+       $('#staffPortalLink').toggleClass('hidden', !userData.isStaff);
+       $('#adminLink').toggleClass('hidden', !userData.isAdmin);
+     })();
+    </script>
     <script src="/js/bootstrap.min.js"></script>
     {{define "script"}}{{end}}
     {{template "script" .}}

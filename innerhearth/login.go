@@ -78,10 +78,9 @@ func doLogin(w http.ResponseWriter, r *http.Request) *webapp.Error {
 				data.Staff = true
 			}
 			cookie := &http.Cookie{
-				Name:   "ihyuser",
-				Value:  data.String(),
-				Path:   "/",
-				Domain: domain(),
+				Name:  "ihyuser",
+				Value: data.String(),
+				Path:  "/",
 			}
 			http.SetCookie(w, cookie)
 			http.Redirect(w, r, target, http.StatusFound)

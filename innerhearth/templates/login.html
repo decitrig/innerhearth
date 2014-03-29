@@ -4,13 +4,11 @@
 </ul>
 {{end}}
 {{define "body"}}
-<div class="section">
+<div class="container">
 <h2>Log in with...</h2>
-<ul class="login-providers">
 {{range .LoginLinks}}
-<li class="login-provider"><a href="{{.URL}}">{{.ProviderName}}</a>&trade;
+<a href="{{.URL}}" class="btn btn-default">{{.ProviderName}} &trade;</a>
 {{end}}
-</ul>
 <p><strong>Note:</strong> Inner Hearth Yoga is neither affiliated with nor endorsed by any of the above entities.</p>
 </div>
 {{end}}

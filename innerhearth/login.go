@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/decitrig/innerhearth/account"
 	"github.com/decitrig/innerhearth/auth"
 	"github.com/decitrig/innerhearth/login"
+	"github.com/decitrig/innerhearth/staff"
 	"github.com/decitrig/innerhearth/webapp"
 )
 
@@ -34,10 +36,64 @@ func continueTarget(r *http.Request) string {
 	return target
 }
 
+func domain() string {
+	if appengine.IsDevAppServer() {
+		return ""
+	}
+	return "innerhearthyoga.com"
+}
+
+func loginRedirectURL(path, target string) *url.URL {
+	return &url.URL{
+		Path: path,
+		RawQuery: url.Values{
+			"continue": []string{target},
+		}.Encode(),
+	}
+}
+
+type userData struct {
+	Email string
+	Admin bool
+	Staff bool
+}
+
+func (u userData) String() string {
+	return fmt.Sprintf("%s:%v:%v", u.Email, u.Admin, u.Staff)
+}
+
 func doLogin(w http.ResponseWriter, r *http.Request) *webapp.Error {
-	c := appengine.NewContext(r)
 	target := continueTarget(r)
-	links, err := login.Links(c, login.OpenIDProviders, target)
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	if u != nil {
+		acct, err := account.ForUser(c, u)
+		switch err {
+		case nil:
+			data := userData{
+				Email: acct.Email,
+				Admin: user.IsAdmin(c),
+			}
+			if _, err := staff.WithID(c, acct.ID); err == nil {
+				data.Staff = true
+			}
+			cookie := &http.Cookie{
+				Name:   "ihyuser",
+				Value:  data.String(),
+				Path:   "/",
+				Domain: domain(),
+			}
+			http.SetCookie(w, cookie)
+			http.Redirect(w, r, target, http.StatusFound)
+		case account.ErrUserNotFound:
+			redirect := loginRedirectURL("/login/new", target)
+			http.Redirect(w, r, redirect.String(), http.StatusSeeOther)
+		default:
+			return webapp.InternalError(err)
+		}
+	}
+	redirect := loginRedirectURL("/login", target)
+	links, err := login.Links(c, login.OpenIDProviders, redirect.String())
 	if err != nil {
 		return webapp.InternalError(fmt.Errorf("failed to create login links: %s", err))
 	}

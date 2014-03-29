@@ -1,24 +1,29 @@
 {{define "body"}}
-<div class="section">
-<h2>Welcome to Inner Hearth Yoga!</h2>
-<form method="post">
-  {{template "XSRFTokenInput" .Token}}
-	<input type="hidden" name="target" value="{{.Target}}" />
-	<p>It seems that this is the first time you've logged in at Inner Hearth Yoga. Please tell us a little bit about yourself:</p>
-	<ul class="field-list">
-		<li class="field-item">
-		  <label for="firstname" class="field-label field-label-required">Name (required):</label>
-		  <input type="text" required="required" name="firstname" id="firstname" placeholder="First"/>
-		  <input type="text" required="required" name="lastname" id="lastname" placeholder="Last"/>
-		<li class="field-item">
-		  <label for="email" class="field-label field-label-required">Email (required):</label>
-		  <input type="email" id="email" required="required" name="email" placeholder="your.email@host.com"/>
-		<li class="field-item">
-		  <label for="phone" class="field-label">Phone (optional):</label>
-		  <input type="text" id="email" name="phone" placeholder="(555) 555-1212" />
-	</ul>
-	<p>We store this data only for registration, billing and attendance purposes.</p>
-	<button>Create Account</button>
-</form>
+<div class="container">
+  <h2>Welcome to Inner Hearth Yoga!</h2>
+  <form method="post" role="form">
+    {{template "XSRFTokenInput" .Token}}
+    <input type="hidden" name="target" value="{{.Target}}" />
+    <p>It seems that this is the first time you've logged in at Inner Hearth Yoga. Please tell us a little bit about yourself:</p>
+    <div class="form-group">
+      <label>Name (required):</label>
+      <div class="form-inline">
+        <label for="firstname" class="sr-only">First:</label>
+	<input type="text" class="form-control" required="required" name="firstname" id="firstname" placeholder="First" size="50%" />
+        <label for="lastname" class="sr-only">Last:</label>
+        <input type="text" class="form-control" required="required" name="lastname" id="lastname" placeholder="Last" size="50%" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="email" >Email (required):</label>
+      <input type="email" id="email" class="form-control" required="required" name="email" placeholder="your.email@host.com"/>
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone (optional):</label>
+      <input class="form-control" type="text" id="email" name="phone" placeholder="(555) 555-1212" />
+    </div>
+    <p>We store this data only for registration, billing and attendance purposes.</p>
+    <button class="btn btn-primary">Create Account</button>
+  </form>
 </div>
 {{end}}

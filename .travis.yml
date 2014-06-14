@@ -8,8 +8,6 @@ before_install:
   - export GAE=$(pwd)
   - popd
 install:
-  - cd $TRAVIS_BUILD_DIR
-  - export GOPATH=$TRAVIS_BUILD_DIR
   - export GOHOME=$GAE
   - export PATH=$GAE:$PATH
   - which goapp

@@ -12,5 +12,7 @@ install:
   - export PATH=$GAE:$PATH
   - which goapp
   - goapp env
+  - cd $TRAVIS_BUILD_DIR
+  - go get -v ./...
 script:
   - goapp test -v ./...

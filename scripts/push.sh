@@ -11,7 +11,10 @@ while getopts "p" opt; do
     esac
 done
 
+mv auth/salt.{go,old}
+cp salt.go auth/salt.go
 echo $appid
 $appcfg update innerhearth \
     --oauth2 \
     -A $appid
+mv auth/salt.{old,go}
